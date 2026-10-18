@@ -880,6 +880,18 @@ class MainActivity : Activity() {
         return "publishing ${toPublish.size} channels started – see the log (Publish)"
     }
 
+    /**
+     * Published channels may survive a later full scan (the tuner input's scan only clears channels it found itself),
+     * so the user confirms after reading the warning.
+     */
+    private fun confirmPublish(onClose: () -> Unit) {
+        TvDialog.confirm(this, getString(R.string.menu_publish), getString(R.string.publish_warning),
+            getString(R.string.publish_confirm), focusCancel = true, onClose = onClose) {
+            menu.cancelReturn()
+            publishChannels(automatic = false)
+        }
+    }
+
     /** Service watched before publishing – after reloading, the player returns to it under its new ID. */
     private var lastPublishedService: Pair<Int?, Int?>? = null
 
@@ -1183,7 +1195,7 @@ class MainActivity : Activity() {
             },
             MenuPanel.Entry(getString(R.string.menu_identify), after = leave) { identifyAll() }.takeIf { caps.streamAnalysis },
             MenuPanel.Entry(getString(R.string.menu_rediscover), after = leave) { rediscover() }.takeIf { caps.channelDiscovery },
-            MenuPanel.Entry(getString(R.string.menu_publish), after = leave) { publishChannels(automatic = false) }
+            MenuPanel.Entry(getString(R.string.menu_publish)) { confirmPublish(menu::returned) }
                 .takeIf { caps.inAppScan && channels.any { it.discovered && it.identified } },
         )
         val settings = listOfNotNull(
@@ -1691,11 +1703,6 @@ class MainActivity : Activity() {
                     SetupProgress.setLastChannelCount(this, total)
                     if (identifyCancelled) showStatusBriefly(getString(R.string.identify_cancelled))
                     else showStatusFor(getString(R.string.setup_done, ok, total, whole), SETUP_DONE_MS)
-                    // On devices where publishing has already worked, the identified channels go to the system right away.
-                    if (!identifyCancelled && ok > 0 && ChannelPublisher.works(this)) {
-                        handler.postDelayed({ publishChannels(automatic = true) }, SETUP_DONE_MS)
-                        return@post
-                    }
                 } else {
                     showStatusBriefly(getString(if (identifyCancelled) R.string.identify_cancelled else R.string.identify_done, ok, total))
                 }

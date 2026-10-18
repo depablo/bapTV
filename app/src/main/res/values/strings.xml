@@ -276,4 +276,6 @@
     <string name="banner_hint_discovery">The player is checking which channels exist – the picture may flicker. BACK – stop</string>
     <string name="banner_hint_identify">The player switches channels by itself to read their names, numbers and TV guide. BACK – stop</string>
     <string name="banner_preparing">Preparing…</string>
+    <string name="publish_warning">The channels are handed to the tuner and become visible in the system and in other TV apps.\n\nWarning: a later channel scan may not remove them (for example after moving house or when a multiplex changes frequency), and bapTV cannot delete them itself. Publish only if you are sure the channel list is correct.</string>
+    <string name="publish_confirm">Publish</string>
 </resources>

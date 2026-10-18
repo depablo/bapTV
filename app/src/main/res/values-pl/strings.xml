@@ -275,4 +275,6 @@
     <string name="banner_hint_discovery">Odtwarzacz sprawdza, które kanały istnieją – obraz może migać. BACK – przerwij</string>
     <string name="banner_hint_identify">Odtwarzacz sam przełącza kanały, żeby odczytać ich nazwy, numery i program TV. BACK – przerwij</string>
     <string name="banner_preparing">Przygotowanie…</string>
+    <string name="publish_warning">Kanały zostaną przekazane do tunera i będą widoczne w systemie oraz w innych aplikacjach TV.\n\nUwaga: późniejsze skanowanie może ich nie usunąć (np. po przeprowadzce albo zmianie częstotliwości multipleksu), a bapTV nie potrafi ich samo skasować. Publikuj tylko, jeśli lista kanałów jest na pewno poprawna.</string>
+    <string name="publish_confirm">Opublikuj</string>
 </resources>

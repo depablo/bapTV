@@ -18,8 +18,8 @@ import java.util.Locale
  * dtvinput then writes the channels to TvContract visible to every app – with the broadcaster's numbering
  * and without the ID probing the player otherwise needs ([ChannelRepository.loadChannels] prefers them).
  *
- * The "json" install type is not documented: the result is checked afterwards (channels visible in TvContract)
- * and recorded, so an automatic publish after setup happens only on devices where a manual one has worked.
+ * The "json" install type is not documented, so the result is checked afterwards (channels visible in TvContract).
+ * Published channels may not be removed by a later full scan – publishing runs only on the user's request.
  */
 class ChannelPublisher(private val context: Context) {
 
@@ -111,7 +111,6 @@ class ChannelPublisher(private val context: Context) {
         val visible = visibleChannels()
         val result = Result(queue.size, failedMuxes, visible)
         val ok = visible > 0
-        context.getSharedPreferences("publish", Context.MODE_PRIVATE).edit().putBoolean(PREF_WORKS, ok).apply()
         DebugLog.log(TAG, "publishing done in ${(System.currentTimeMillis() - startedAt) / 1000} s: multiplexes ${queue.size}, " +
             "failed $failedMuxes, channels visible in TvContract: $visible" + if (ok) "" else " – dtvinput ignored searchable=1 or the json install")
         val callback = onDone
@@ -147,13 +146,9 @@ class ChannelPublisher(private val context: Context) {
 
     companion object {
         private const val TAG = "Publish"
-        private const val PREF_WORKS = "works"
         private const val TUNER_RELEASE_DELAY_MS = 3000L
         private const val BETWEEN_MUXES_MS = 1500L
         private const val MUX_TIMEOUT_MS = 120_000L
-
-        /** A previous publish made channels visible – it can run by itself after setup. */
-        fun works(context: Context) = context.getSharedPreferences("publish", Context.MODE_PRIVATE).getBoolean(PREF_WORKS, false)
 
         private fun fmt(mhz: Double) = if (mhz % 1.0 == 0.0) mhz.toLong().toString() else String.format(Locale.US, "%.1f", mhz)
 

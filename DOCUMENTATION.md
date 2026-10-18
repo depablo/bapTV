@@ -254,8 +254,12 @@ show the same names and numbers, and bapTV reads them directly instead of probin
 - Afterwards the app checks that the channels are visible. If they are, the discovered list is
   dropped and playback returns to the channel watched before; names, hiding, order and learned
   HbbTV data carry over to the new channel IDs. If they are not, nothing changes.
-- Once publishing has worked on a device, it runs by itself at the end of each one-pass setup.
-- A new scan replaces the published channels; publish again after identification.
+- Publishing runs only from the menu, after a confirmation with a warning.
+- **A later full scan may not remove published channels**: the tuner input's scan clears only the
+  channels it found itself, and bapTV cannot delete channels of another input. If the channel list
+  changes (moving house, a multiplex changing frequency), the old published channels may stay and,
+  because bapTV prefers channels visible in `TvContract`, hide the new scan. Publish only a list
+  that is known to be correct.
 
 This uses an undocumented install mode of the tuner input (see [Fragile points](#fragile-points)).
 
@@ -557,7 +561,7 @@ Resources: English strings in `res/values` (default) and Polish in `res/values-p
 - If a tuner input marks its channels searchable, probing is not needed and channels come with
   their names directly from `TvContract`.
 - Publishing channels uses the input's `"type":"json"` install request, which is not documented. The
-  app verifies the result and enables automatic publishing only after it has worked once.
+  app verifies the result; channels installed this way may survive a later scan.
 
 ## 14. Emulator development
 

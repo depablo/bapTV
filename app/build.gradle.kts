@@ -28,8 +28,8 @@ android {
         // The target device runs Android TV 11 (API 30). targetSdk 29: on Android 11 only then does
         // requestLegacyExternalStorage work, which is needed to read dtvinput recordings (HbbTV experiment).
         targetSdk = 29
-        versionCode = 53
-        versionName = "1.2.0"
+        versionCode = 54
+        versionName = "1.2.1"
         // Build time in /status: the script uses it to check that the set-top box runs the version just sent.
         buildConfigField("long", "BUILD_TIME", "${System.currentTimeMillis()}L")
         // Report service (server/reports): receives diagnostics reports sent with the user's consent.
