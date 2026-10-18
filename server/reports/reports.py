@@ -12,6 +12,7 @@ Standard library only. Configuration through environment variables; secrets from
 """
 import base64
 import hmac
+import html
 import json
 import logging
 import os
@@ -226,6 +227,19 @@ class Store:
         path = self.dir / f"{report_id}.json"
         return json.loads(path.read_text()) if path.exists() else None
 
+    def list(self, limit: int = 500):
+        """Newest first: id, receive time, summary and issue of each stored report."""
+        paths = sorted(self.dir.glob("*.json"), key=lambda p: p.stat().st_mtime, reverse=True)[:limit]
+        result = []
+        for path in paths:
+            try:
+                record = json.loads(path.read_text())
+            except (OSError, ValueError):
+                continue
+            result.append({"id": path.stem, "received": record.get("received"),
+                           "summary": record.get("summary", {}), "issue": record.get("issue")})
+        return result
+
     def prune(self, now: float = None):
         now = time.time() if now is None else now
         removed = 0
@@ -235,6 +249,41 @@ class Store:
                 removed += 1
         if removed:
             logging.info("pruned %d old reports", removed)
+
+
+def admin_page(reports: list) -> str:
+    """Plain HTML list of stored reports for the admin (behind HTTP Basic auth)."""
+    def esc(v):
+        return html.escape(str(v if v is not None else ""))
+    rows = []
+    for r in reports:
+        s = r["summary"]
+        when = time.strftime("%Y-%m-%d %H:%M", time.gmtime(r["received"])) if r.get("received") else ""
+        issue = r.get("issue")
+        issue_link = f'<a href="{esc(issue["url"])}">#{esc(issue["number"])}</a>' if issue else ""
+        device = " ".join(x for x in (s.get("manufacturer"), s.get("model")) if x)
+        rows.append(
+            f'<tr><td>{esc(when)}</td><td><a href="/admin/reports/{esc(r["id"])}.txt">{esc(r["id"])}</a></td>'
+            f'<td>{esc(s.get("reason", ""))}</td><td>{esc(device)}</td><td>{esc(s.get("appVersion", ""))}</td>'
+            f'<td>{esc(s.get("android", ""))}</td><td>{esc(s.get("error", ""))}</td><td>{issue_link}</td></tr>')
+    return (
+        '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">'
+        '<title>bapTV reports</title><style>body{font-family:sans-serif;margin:16px}table{border-collapse:collapse;width:100%}'
+        'td,th{border-bottom:1px solid #ccc;padding:4px 8px;text-align:left;vertical-align:top;font-size:14px}'
+        'td:nth-child(7){max-width:420px;word-break:break-word}@media (prefers-color-scheme:dark){body{background:#111;color:#ddd}a{color:#8ab4f8}}</style>'
+        f'</head><body><h1>bapTV reports ({len(reports)})</h1><table><tr><th>Received (UTC)</th><th>Report</th><th>Reason</th>'
+        '<th>Device</th><th>Version</th><th>Android</th><th>Error</th><th>Issue</th></tr>' + "".join(rows) + '</table></body></html>')
+
+
+def report_text(report_id: str, record: dict) -> str:
+    """Full report as plain text: summary header, then the diagnostics report from the app."""
+    lines = [f"Report {report_id}"]
+    if record.get("received"):
+        lines.append("Received: " + time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime(record["received"])))
+    if record.get("issue"):
+        lines.append(f"Issue: {record['issue'].get('url')}")
+    lines += [f"{k}: {v}" for k, v in record.get("summary", {}).items()]
+    return "\n".join(lines) + "\n\n" + record.get("report", "")
 
 
 class App:
@@ -300,16 +349,40 @@ def make_handler(app: App):
             self.end_headers()
             self.wfile.write(data)
 
+        def send_text(self, status, text, content_type):
+            data = text.encode("utf-8")
+            self.send_response(status)
+            self.send_header("Content-Type", content_type)
+            self.send_header("Content-Length", str(len(data)))
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("X-Content-Type-Options", "nosniff")
+            self.send_header("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'")
+            self.end_headers()
+            self.wfile.write(data)
+
         def do_GET(self):
-            if self.path == "/healthz":
+            path = self.path.split("?", 1)[0]
+            if path == "/healthz":
                 return self.send_json(200, {"ok": True, "github": bool(app.github.token() and app.cfg.github_repo)})
-            if self.path.startswith("/v1/reports/"):
-                if not app.check_admin(self.headers.get("Authorization", "")):
-                    return self.send_json(401, {"error": "authentication required"},
-                                          {"WWW-Authenticate": 'Basic realm="baptv-reports"'})
-                record = app.store.load(self.path.rsplit("/", 1)[-1])
-                return self.send_json(200, record) if record else self.send_json(404, {"error": "not found"})
-            self.send_json(404, {"error": "not found"})
+            admin_paths = ("/admin", "/v1/reports")
+            if not any(path == p or path.startswith(p + "/") for p in admin_paths):
+                return self.send_json(404, {"error": "not found"})
+            if not app.check_admin(self.headers.get("Authorization", "")):
+                return self.send_json(401, {"error": "authentication required"},
+                                      {"WWW-Authenticate": 'Basic realm="baptv-reports"'})
+            if path in ("/admin", "/admin/"):
+                return self.send_text(200, admin_page(app.store.list()), "text/html; charset=utf-8")
+            if path == "/v1/reports":
+                return self.send_json(200, {"reports": app.store.list()})
+            report_id = path.rsplit("/", 1)[-1]
+            as_text = path.startswith("/admin/reports/") and report_id.endswith(".txt")
+            report_id = report_id[:-4] if as_text else report_id
+            record = app.store.load(report_id)
+            if not record:
+                return self.send_json(404, {"error": "not found"})
+            if as_text:
+                return self.send_text(200, report_text(report_id, record), "text/plain; charset=utf-8")
+            self.send_json(200, record)
 
         def do_POST(self):
             if self.path != "/v1/report":

@@ -70,6 +70,18 @@ class ReportsTest(unittest.TestCase):
         bomb = gzip.compress(b"0" * (reports.MAX_DECOMPRESSED + 10))
         self.assertEqual(400, self.app.submit(bomb, "gzip", "d")[0])
 
+    def test_admin_list_and_text(self):
+        _, first = self.app.submit(body(model="A1", error="<script>x</script>"), "", "ip1")
+        _, second = self.app.submit(body(model="B2"), "", "ip2")
+        listed = self.app.store.list()
+        self.assertEqual({first["id"], second["id"]}, {r["id"] for r in listed})
+        page = reports.admin_page(listed)
+        self.assertIn(f'/admin/reports/{first["id"]}.txt', page)
+        self.assertNotIn("<script>", page)
+        text = reports.report_text(first["id"], self.app.store.load(first["id"]))
+        self.assertIn("model: A1", text)
+        self.assertIn("PRIVATE-CHANNEL-DATA", text)
+
     def test_load_rejects_path_traversal(self):
         self.assertIsNone(self.app.store.load("../../etc/passwd"))
 

@@ -5,7 +5,10 @@ agrees) and opens a GitHub issue for each one. Python standard library only, pac
 
 - `POST /v1/report` – JSON `{"summary": {...}, "report": "<full text>"}`, optionally gzip-compressed
   (`Content-Encoding: gzip`). Answers `201 {"id": "...", "issue": {"number": 12, "url": "..."}}`.
-- `GET /v1/reports/<id>` – the stored report, HTTP Basic auth with the admin password (any user name).
+- `GET /admin` – list of stored reports in the browser (newest first, with links to the full reports
+  and the GitHub issues). HTTP Basic auth with the admin password; any user name.
+- `GET /admin/reports/<id>.txt` – one full report as plain text (same auth).
+- `GET /v1/reports` and `GET /v1/reports/<id>` – the same as JSON, for scripts (same auth).
 - `GET /healthz` – health check.
 
 Summary fields (all strings, optional unless noted): `appVersion` (required), `appVersionCode`,
