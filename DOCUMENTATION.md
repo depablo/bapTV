@@ -67,8 +67,10 @@ possible, the operator app, and the country and scan frequency plan.
 1. Install the APK (see [README](README.md#installing)) and start **bapTV**.
 2. Grant access to TV listings when asked. It is needed to read the channel list and guide of the
    tuner input.
-3. If there are no channels, the app opens the channel search screen. On devices with the Google
-   DTV stack, **Scan** runs the whole setup in one go (see [Channel scan](#11-channel-scan)).
+3. On first start, and whenever there are no channels, the app opens the channel search screen
+   (after any permission dialogs are answered). On devices with the Google DTV stack, **Scan** runs
+   the whole setup in one go (see [Channel scan](#11-channel-scan)). Later starts without visible
+   channels detect the channels of an earlier scan instead (for example one made in the operator app).
    On other devices, scan for channels in the system TV settings or in the tuner's own app; bapTV
    then shows the channels found there.
 4. On Google DTV stack devices the app also asks for storage access (at most once a day). It is
@@ -165,7 +167,7 @@ Entries that the device does not support are hidden.
 |---|---|
 | **Watching** | Channel list · TV guide · Audio track · Subtitles · Pause live TV / Back to live TV |
 | **Recordings** | Record current programme / Stop recording · Recordings · Free space (with an estimate in hours) |
-| **Channels** | Search for channels · Manage channels · Channel numbers (broadcaster LCN / in order) · Identify channels and get the guide · Detect channels again |
+| **Channels** | Search for channels · Manage channels · Channel numbers (broadcaster LCN / in order) · Identify channels and get the guide · Detect channels again · Publish channels to the system |
 | **Settings** | Language (system / Polish / English) · HbbTV on/off ("Not available on this device" where unsupported) · Refresh HbbTV data for channel |
 | **Diagnostics** | Signal information · Diagnostics · Debug overlay · Open current channel in *operator app* |
 
@@ -235,6 +237,27 @@ old entries).
 - On demand: Menu → Channels → **Identify channels and get the guide** goes through all multiplexes
   with progress shown on screen (BACK stops it) and returns to the watched channel at the end.
 - Automatically after a scan (see [Channel scan](#11-channel-scan)).
+
+While channels are detected or identified, a banner at the top of the screen shows the stage, the
+progress with the time left, and that BACK stops it. The channel info panel stays hidden meanwhile,
+because the player switches channels by itself.
+
+### Publishing channels to the system
+
+Menu → Channels → **Publish channels to the system** (Google DTV stack, after identification) hands
+the identified channels back to the tuner input as an explicit channel list: per multiplex the
+frequency, ONID/TSID/SID, name, LCN number and service type, marked as searchable. The input then
+stores them in `TvContract` where every app can see them, so the system launcher and other TV apps
+show the same names and numbers, and bapTV reads them directly instead of probing channel IDs.
+
+- The player releases the tuner for about a minute while the input installs the multiplexes.
+- Afterwards the app checks that the channels are visible. If they are, the discovered list is
+  dropped and playback returns to the channel watched before; names, hiding, order and learned
+  HbbTV data carry over to the new channel IDs. If they are not, nothing changes.
+- Once publishing has worked on a device, it runs by itself at the end of each one-pass setup.
+- A new scan replaces the published channels; publish again after identification.
+
+This uses an undocumented install mode of the tuner input (see [Fragile points](#fragile-points)).
 
 ### Where the guide is shown
 
@@ -396,7 +419,13 @@ remaining. The estimate uses per-frequency, per-ID and per-channel times that ar
 average after each run (`SetupProgress`). Discovery ends once as many channels have been found as
 the scan reported.
 
+Stages 2 and 3 show a banner at the top of the screen for their whole duration.
+
 **Detect channels again** in the menu repeats stage 2 (and then identification) without a new scan.
+Stages 2 and 3 are needed even though the scan has finished: the Google DTV input stores the scanned
+channels as not searchable, so they are not visible to the player until they are discovered, and
+publishing them back ([Publishing channels](#publishing-channels-to-the-system)) needs the identifiers
+that identification provides.
 
 ## 12. Diagnostics
 
@@ -476,6 +505,7 @@ Debug builds additionally offer a local HTTP server; see
 | `ChannelRepository` | Loads channels (from `TvContract` or discovered), applies identification, the service catalogue, custom names, order, hiding, numbering and duplicate removal; provides programmes |
 | `ChannelStore` | Persistent channel settings keyed by multiplex and service number |
 | `ServiceCatalog` | Built-in names and LCNs of Polish national terrestrial services by service ID |
+| `ChannelPublisher` | Publishes identified channels to `TvContract` through the tuner input's JSON install mode |
 | `EpgStore` | Guide data from EIT, stored per multiplex and merged |
 | `TsProbe` | Short TIF recordings for stream analysis |
 | `TsAnalyzer` | MPEG-TS parser: PAT, PMT, AIT, EIT, DVB text decoding (including ISO 6937) |
@@ -526,6 +556,8 @@ Resources: English strings in `res/values` (default) and Polish in `res/values-p
   API.
 - If a tuner input marks its channels searchable, probing is not needed and channels come with
   their names directly from `TvContract`.
+- Publishing channels uses the input's `"type":"json"` install request, which is not documented. The
+  app verifies the result and enables automatic publishing only after it has worked once.
 
 ## 14. Emulator development
 
@@ -660,6 +692,7 @@ Endpoints marked with 🔑 require the token.
 | `POST /signal/probe?freq=<MHz>&std=t2\|t&repeat=1`, `POST /signal/probe/stop` | single-frequency check |
 | `POST /signal/lna?on=1\|0` | set the tuner LNA amplifier |
 | `POST /signal/rediscover` | detect channels again, then identify them |
+| `POST /publish` 🔑 | publish identified channels to the system (as the menu entry) |
 
 #### Antenna alignment page (`/signal`)
 

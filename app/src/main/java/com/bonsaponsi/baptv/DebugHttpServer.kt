@@ -186,6 +186,10 @@ class DebugHttpServer(private val context: Context, val port: Int = DEFAULT_PORT
             val f = PlayerRemote.timeshift ?: return text("Player not running\n", "409 Conflict")
             text((onMain { f(request.query["action"].orEmpty(), request.query["arg"]) } ?: "no response") + "\n")
         }
+        "POST" to "/publish" -> {
+            val f = PlayerRemote.publish ?: return text("Player not running\n", "409 Conflict")
+            text((onMain { f() } ?: "no response") + "\n")
+        }
         "GET" to "/recordings" -> if (request.query["format"] == "html") Response("200 OK", HTML, recordingsPage())
             else Response("200 OK", JSON, Recorder.json(context).toString(2))
         "POST" to "/recordings" -> {
@@ -440,7 +444,7 @@ class DebugHttpServer(private val context: Context, val port: Int = DEFAULT_PORT
         private const val JSON = "application/json; charset=utf-8"
         private val RECORDING_FILE = Regex("/recordings/(\\d+)\\.ts")
         private val QUIET_PATHS = setOf("/status", "/log.txt", "/probe.ts", "/screenshot.png", "/hbbtv", "/signal.json")
-        private val KNOWN_PATHS = setOf("/", "/report.txt", "/log.txt", "/log", "/logcat.txt", "/status", "/install", "/launch", "/restart", "/probe", "/probe.ts", "/key", "/hbbtv", "/hbbtv/eval", "/screenshot.png", "/channels", "/epg", "/open", "/capabilities", "/recordings", "/timeshift", "/signal", "/signal.json", "/signal/cycle", "/signal/stop", "/signal/tune", "/signal/probe", "/signal/probe/stop", "/signal/lna", "/signal/rediscover")
+        private val KNOWN_PATHS = setOf("/", "/report.txt", "/log.txt", "/log", "/logcat.txt", "/status", "/install", "/launch", "/restart", "/probe", "/probe.ts", "/key", "/hbbtv", "/hbbtv/eval", "/screenshot.png", "/channels", "/epg", "/open", "/capabilities", "/recordings", "/timeshift", "/signal", "/signal.json", "/signal/cycle", "/signal/stop", "/signal/tune", "/signal/probe", "/signal/probe/stop", "/signal/lna", "/signal/rediscover", "/publish")
 
         /** One server per process – kept alive by [DebugServerService]. */
         @Volatile var instance: DebugHttpServer? = null

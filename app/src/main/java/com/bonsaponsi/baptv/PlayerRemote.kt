@@ -13,4 +13,6 @@ object PlayerRemote {
     @Volatile var timeshiftState: (() -> org.json.JSONObject)? = null
     /** Recordings (action: start|stop|play|live, arg: id of the recording to play). */
     @Volatile var recording: ((String, String?) -> String)? = null
+    /** Publishing identified channels to TvContract ([ChannelPublisher]); returns a status line. */
+    @Volatile var publish: (() -> String)? = null
 }

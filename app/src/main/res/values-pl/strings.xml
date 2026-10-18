@@ -45,7 +45,7 @@
     <string name="rename_title">Nazwa kanału %1$s</string>
     <string name="discovered_name">Kanał %1$d</string>
     <string name="discovery_preparing">Wykrywanie kanałów…</string>
-    <string name="discovery_progress">Wykrywanie kanałów: sprawdzam #%1$d · znaleziono %2$d\n(BACK – przerwij)</string>
+    <string name="discovery_progress">Sprawdzam #%1$d · znaleziono %2$d</string>
     <string name="discovery_cancelled">Wykrywanie kanałów przerwane. Wznowi się po ponownym otwarciu aplikacji (lub MENU → Wykryj kanały ponownie).</string>
     <string name="discovery_done_detail">Wykryto: TV %1$d, radio %2$d, kodowane %3$d. Nazwy: MENU → Zmień nazwę.</string>
     <string name="discovery_none">Nie wykryto kanałów. Wyszukaj kanały (OK) lub sprawdź Diagnostykę.</string>
@@ -131,9 +131,9 @@
     <string name="setup_estimate">Szacowany czas całości: %1$s (skanowanie %2$s · wykrywanie kanałów %3$s · rozpoznawanie %4$s, przy ok. %5$d kanałach). Po skanowaniu aplikacja sama przejdzie do kolejnych etapów.</string>
     <string name="setup_stage1_remaining">Etap 1/3 – skanowanie · do końca całości %1$s</string>
     <string name="setup_stage1_done">Etap 1/3 zakończony: %1$d kanałów. Przechodzę do wykrywania i rozpoznawania (%2$s)…</string>
-    <string name="setup_stage2">Etap 2/3 – wykrywanie kanałów: znaleziono %1$d z %2$d · do końca całości %3$s\n(BACK – przerwij)</string>
-    <string name="setup_stage3">Etap 3/3 – rozpoznawanie: %1$d/%2$d – %3$s · do końca %4$s\n(BACK – przerwij)</string>
-    <string name="identify_progress_eta">Rozpoznawanie kanałów: %1$d/%2$d – %3$s · do końca %4$s</string>
+    <string name="setup_stage2">Znaleziono %1$d z %2$d · do końca całości %3$s</string>
+    <string name="setup_stage3">%1$d/%2$d – %3$s · do końca %4$s</string>
+    <string name="identify_progress_eta">%1$d/%2$d – %3$s · do końca %4$s</string>
     <string name="setup_done">Gotowe: rozpoznano %1$d z %2$d kanałów, cały przebieg %3$s</string>
     <string name="info_hint_1">▼ więcej o programie</string>
     <string name="info_hint_2">▼ dźwięk i napisy · ▲ mniej</string>
@@ -263,4 +263,16 @@
     <string name="menu_about">O aplikacji bapTV</string>
     <string name="about_title">bapTV %1$s</string>
     <string name="about_message">Odtwarzacz telewizji naziemnej (DVB-T/T2) dla Android TV.\n\nKontakt: %1$s\nKod źródłowy, zgłoszenia i nowe wersje: zeskanuj kod albo otwórz adres poniżej.\nLicencja: Apache License 2.0</string>
+    <string name="menu_publish">Opublikuj kanały w systemie</string>
+    <string name="publish_running">Publikowanie %1$d kanałów w systemie… obraz wróci za minutę</string>
+    <string name="publish_done">Opublikowano kanałów: %1$d. Są teraz widoczne w systemie z nazwami i numerami.</string>
+    <string name="publish_failed">Tuner nie przyjął kanałów – nadal używana jest wykryta lista.</string>
+    <string name="publish_nothing">Brak zidentyfikowanych kanałów do opublikowania – najpierw uruchom identyfikację kanałów.</string>
+    <string name="banner_setup_stage2">Etap 2/3 – wykrywanie kanałów</string>
+    <string name="banner_setup_stage3">Etap 3/3 – rozpoznawanie kanałów</string>
+    <string name="banner_discovery">Wykrywanie kanałów</string>
+    <string name="banner_identify">Rozpoznawanie kanałów</string>
+    <string name="banner_hint_discovery">Odtwarzacz sprawdza, które kanały istnieją – obraz może migać. BACK – przerwij</string>
+    <string name="banner_hint_identify">Odtwarzacz sam przełącza kanały, żeby odczytać ich nazwy, numery i program TV. BACK – przerwij</string>
+    <string name="banner_preparing">Przygotowanie…</string>
 </resources>

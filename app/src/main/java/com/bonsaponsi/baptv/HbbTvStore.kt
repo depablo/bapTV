@@ -68,6 +68,20 @@ class HbbTvStore(context: Context) {
     fun all(): List<Entry> = prefs.all.keys.filter { it.startsWith("ch_") }
         .mapNotNull { get(it.removePrefix("ch_").toLongOrNull() ?: return@mapNotNull null) }
 
+    /**
+     * Channels re-created under new IDs (published to TvContract, [ChannelPublisher]) take over the learned data
+     * of the same service (TSID + SID), so the radio/scrambled/virtual marks and HbbTV apps stay.
+     */
+    fun carryOver(channels: List<Channel>) {
+        val missing = channels.filter { it.tsid != null && it.sid != null && !prefs.contains("ch_${it.id}") }
+        if (missing.isEmpty()) return
+        val bySid = all().filter { it.tsid != null && it.sid != null }.groupBy { it.tsid to it.sid }
+            .mapValues { (_, list) -> list.maxBy { it.learnedAt } }
+        var copied = 0
+        missing.forEach { ch -> bySid[ch.tsid to ch.sid]?.let { put(it.copy(channelId = ch.id)); copied++ } }
+        if (copied > 0) DebugLog.log("HbbTV", "learned data carried over to $copied channels with new IDs")
+    }
+
     var enabled: Boolean
         get() = prefs.getBoolean("enabled", true)
         set(value) { prefs.edit().putBoolean("enabled", value).apply() }

@@ -18,6 +18,7 @@ with no external libraries.
 - Recording: manual, or scheduled from the TV guide; recordings list and playback
 - HbbTV applications (red button) started from the channel's AIT
 - In-app channel scan (DVB-T/T2, UHF with optional VHF) on devices with the Google DTV stack
+- Identified channels can be published back to the system, with names and LCN numbers, for other TV apps
 - Signal information (strength, SNR, BER) where the tuner reports it
 - Diagnostics screen with a full report that you can save to a file or send to the developer
 - English and Polish user interface
@@ -43,7 +44,7 @@ The Diagnostics screen shows the detected capabilities.
    - from a computer with developer options enabled on the TV: `adb install baptv.apk`.
 3. Allow installing from unknown sources for the app you use to open the APK when Android asks.
 4. Start **bapTV** from the launcher. On first start it asks for access to TV listings (channel list
-   and guide). If no channels are found, it opens the channel search screen.
+   and guide) and then opens the channel search screen.
 
 ## Building from source
 

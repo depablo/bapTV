@@ -32,6 +32,7 @@ class MainActivity : Activity() {
 
     private lateinit var tvView: TvView
     private lateinit var status: TextView
+    private lateinit var setupBanner: View
     private lateinit var recBadge: TextView
     private lateinit var numberEntry: TextView
     private lateinit var banner: LinearLayout
@@ -50,6 +51,8 @@ class MainActivity : Activity() {
     private val io = BackgroundWorker("player-io")
     /** Channel AIT learning (records a few seconds) – a separate thread so it does not block channel loading. */
     private val learnExecutor = BackgroundWorker("player-learn")
+    /** Publishing channels to TvContract is running ([ChannelPublisher]) – the tuner belongs to dtvinput. */
+    private var publisher: ChannelPublisher? = null
     private lateinit var hbb: HbbTvBrowser
     private lateinit var hbbStore: HbbTvStore
     /** Channel change requested by the HbbTV app – the app keeps running (we do not reload it). */
@@ -67,6 +70,12 @@ class MainActivity : Activity() {
     /** Scheduled recording warning – dismissed in onStop (otherwise WindowLeaked). */
     private var upcomingDialog: android.app.Dialog? = null
     private var listingsAsked = false
+    /**
+     * A system permission dialog is open. A second request at that time comes back empty at once
+     * (first launch: storage and channel list) – the empty-list handling waits for the dialog instead.
+     */
+    private var permissionDialogOpen = false
+    private var reloadAfterPermissions = false
 
     /** Recording being played (instead of live TV), or null. */
     private var playingRecording: Recorder.Entry? = null
@@ -192,6 +201,7 @@ class MainActivity : Activity() {
         window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         tvView = findViewById(R.id.tv_view)
         status = findViewById(R.id.status)
+        setupBanner = findViewById(R.id.setup_banner)
         recBadge = findViewById(R.id.rec_badge)
         numberEntry = findViewById(R.id.number_entry)
         banner = findViewById(R.id.info_banner)
@@ -293,6 +303,7 @@ class MainActivity : Activity() {
             tvView.reset()
         }
         PlayerRemote.timeshiftState = { timeshift.json().put("status", tsStatus) }
+        PlayerRemote.publish = { publishChannels(automatic = false) }
         TsProbe.tuneHook = { id ->
             val index = channels.indexOfFirst { it.id == id }
             if (index >= 0) tuneTo(index)
@@ -323,7 +334,7 @@ class MainActivity : Activity() {
         val epg = Dtv.PERMISSION_READ_EPG
         if (checkSelfPermission(epg) != PackageManager.PERMISSION_GRANTED && checkSelfPermission(Dtv.listingsPermission(this)) != PackageManager.PERMISSION_GRANTED) {
             DebugLog.log("Player", "no permission for the channel list – requesting")
-            requestPermissions(arrayOf(epg, Dtv.listingsPermission(this)).distinct().toTypedArray(), REQUEST_PERMISSION)
+            askPermissions(arrayOf(epg, Dtv.listingsPermission(this)).distinct().toTypedArray(), REQUEST_PERMISSION)
             showStatus(getString(R.string.need_permission))
             return
         }
@@ -343,7 +354,7 @@ class MainActivity : Activity() {
         val write = android.Manifest.permission.WRITE_EXTERNAL_STORAGE
         // Write (deleting recordings) is in the same group as read – with read granted the system does not prompt.
         if (TsProbe.hasStoragePermission(this) && checkSelfPermission(write) != PackageManager.PERMISSION_GRANTED) {
-            requestPermissions(arrayOf(write), REQUEST_STORAGE)
+            askPermissions(arrayOf(write), REQUEST_STORAGE)
             return
         }
         if (TsProbe.hasStoragePermission(this)) return
@@ -354,7 +365,7 @@ class MainActivity : Activity() {
         if (!requested && System.currentTimeMillis() - lastAsked < STORAGE_ASK_INTERVAL_MS) return
         prefs.edit().putLong(PREF_STORAGE_ASKED, System.currentTimeMillis()).apply()
         DebugLog.log("Player", "requesting storage access (dtvinput recordings)")
-        requestPermissions(arrayOf(android.Manifest.permission.READ_EXTERNAL_STORAGE, write), REQUEST_STORAGE)
+        askPermissions(arrayOf(android.Manifest.permission.READ_EXTERNAL_STORAGE, write), REQUEST_STORAGE)
     }
 
     /**
@@ -416,16 +427,27 @@ class MainActivity : Activity() {
             PlayerRemote.releaseTuner = null
             PlayerRemote.timeshiftState = null
             PlayerRemote.hbb = null
+            PlayerRemote.publish = null
         }
+        publisher?.cancel()
+
         hbb.destroy()
         learnExecutor.shutdownNow()
         io.shutdownNow()
         super.onDestroy()
     }
 
+    private fun askPermissions(permissions: Array<String>, requestCode: Int) {
+        permissionDialogOpen = true
+        requestPermissions(permissions, requestCode)
+    }
+
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
         DebugLog.log("Player", "permission result: ${permissions.zip(grantResults.toList())}")
-        if (requestCode == REQUEST_PERMISSION && grantResults.any { it == PackageManager.PERMISSION_GRANTED }) {
+        permissionDialogOpen = false
+        // Also when refused: the empty list then leads on to the scan screen (listingsAsked prevents asking again).
+        if (requestCode == REQUEST_PERMISSION || reloadAfterPermissions) {
+            reloadAfterPermissions = false
             loadChannelsAndPlay()
         }
         if (requestCode == REQUEST_STORAGE && TsProbe.hasStoragePermission(this)) {
@@ -453,17 +475,26 @@ class MainActivity : Activity() {
                 channels = loaded
                 adapter.notifyDataSetChanged()
                 if (loaded.isEmpty()) {
+                    if (permissionDialogOpen) {
+                        DebugLog.log("Player", "no channels – waiting for the permission dialog to close")
+                        reloadAfterPermissions = true
+                        return@post
+                    }
                     // TvProvider hides other inputs' channels without READ_TV_LISTINGS (emulator) – ask once per process.
                     val listings = Dtv.listingsPermission(this)
                     if (listings != Dtv.PERMISSION_READ_EPG && !listingsAsked && checkSelfPermission(listings) != PackageManager.PERMISSION_GRANTED) {
                         listingsAsked = true
                         DebugLog.log("Player", "no channels and no READ_TV_LISTINGS – requesting permission")
-                        requestPermissions(arrayOf(listings), REQUEST_PERMISSION)
+                        askPermissions(arrayOf(listings), REQUEST_PERMISSION)
                         return@post
                     }
-                    // No channels: on dtvinput we discover them by probing, elsewhere – the scan screen (TV input setup wizard).
-                    if (caps.channelDiscovery) startDiscovery(tuner) else if (!autoScanOpened) {
+                    // No channels: first launch – the scan screen; later on dtvinput we discover them by probing
+                    // (channels from an earlier scan), elsewhere – the scan screen (TV input setup wizard).
+                    val firstLaunch = !prefs.getBoolean(PREF_FIRST_SCAN_OPENED, false)
+                    if (caps.channelDiscovery && !firstLaunch) startDiscovery(tuner) else if (!autoScanOpened) {
                         autoScanOpened = true
+                        prefs.edit().putBoolean(PREF_FIRST_SCAN_OPENED, true).apply()
+                        DebugLog.log("Player", "no channels${if (firstLaunch) " on first launch" else ""} – opening the scan screen")
                         showStatus(getString(R.string.no_channels_scan))
                         startActivity(Intent(this, ScanActivity::class.java))
                     } else {
@@ -474,7 +505,7 @@ class MainActivity : Activity() {
                 if (identifyAfterLoad) {
                     identifyAfterLoad = false
                     if (caps.streamAnalysis && loaded.any { !it.identified }) handler.postDelayed({ identifyAll() }, IDENTIFY_SETTLE_MS)
-                    else SetupProgress.endPipeline(this)
+                    else { SetupProgress.endPipeline(this); hideSetupBanner() }
                 }
                 pendingRecordingId?.also { pendingRecordingId = null }?.let { id ->
                     val entry = Recorder.list(this).firstOrNull { it.id == id }
@@ -492,6 +523,11 @@ class MainActivity : Activity() {
                     currentIndex = loaded.indexOfFirst { it.id == prefs.getLong(PREF_LAST_CHANNEL, -1L) }.coerceAtLeast(0)
                     if (chosen != null && chosen != loaded.getOrNull(currentIndex)?.id) tuneTo(loaded.indexOfFirst { it.id == chosen }.coerceAtLeast(0))
                     return@post
+                }
+                // After publishing: the service watched before, now under a new ID.
+                lastPublishedService?.also { lastPublishedService = null }?.let { (tsid, sid) ->
+                    val index = loaded.indexOfFirst { it.tsid == tsid && it.sid == sid }
+                    if (index >= 0) { tuneTo(index); return@post }
                 }
                 // While recording, the player returns to the channel being recorded (single tuner).
                 val lastId = Recorder.active?.channelId ?: pendingChannelId?.also { pendingChannelId = null } ?: prefs.getLong(PREF_LAST_CHANNEL, -1L)
@@ -539,8 +575,9 @@ class MainActivity : Activity() {
         onHbbTuned(channel)
         audio.apply("tune")
         adapter.notifyDataSetChanged()
-        // After a channel change the panel returns to level 1 (now/next).
-        showInfo(1)
+        // After a channel change the panel returns to level 1 (now/next); not during identification –
+        // channels switch by themselves then and the setup banner shows what is going on.
+        if (!identifying) showInfo(1)
         renderOverlay()
     }
 
@@ -552,6 +589,25 @@ class MainActivity : Activity() {
         if (index >= 0) tuneTo(index)
     }
 
+    /**
+     * Banner at the top that stays for the whole channel discovery / identification, so it is clear why
+     * the picture flickers and channels switch by themselves. [percent] null – progress unknown.
+     */
+    private fun showSetupBanner(title: String, detail: String, hint: String, percent: Int?) {
+        setupBanner.findViewById<TextView>(R.id.setup_banner_title).text = title
+        setupBanner.findViewById<TextView>(R.id.setup_banner_detail).text = detail
+        setupBanner.findViewById<TextView>(R.id.setup_banner_hint).text = hint
+        setupBanner.findViewById<android.widget.ProgressBar>(R.id.setup_banner_progress).apply {
+            isIndeterminate = percent == null
+            percent?.let { progress = it.coerceIn(0, 100) }
+        }
+        setupBanner.visibility = View.VISIBLE
+    }
+
+    private fun hideSetupBanner() {
+        setupBanner.visibility = View.GONE
+    }
+
     private fun showStatus(text: String?) {
         status.text = text
         status.visibility = if (text.isNullOrEmpty()) View.GONE else View.VISIBLE
@@ -561,7 +617,10 @@ class MainActivity : Activity() {
 
     private fun startDiscovery(tuner: TvInputInfo) {
         if (prober != null) return
-        showStatus(getString(R.string.discovery_preparing))
+        showSetupBanner(
+            getString(if (SetupProgress.inPipeline(this)) R.string.banner_setup_stage2 else R.string.banner_discovery),
+            getString(R.string.banner_preparing), getString(R.string.banner_hint_discovery), null,
+        )
         io.execute {
             val ceiling = repository.findChannelIdCeiling()
             val epg = repository.epgChannelIds()
@@ -633,7 +692,11 @@ class MainActivity : Activity() {
             tracksVideo = false
             tracksAudio = false
             casDenied = false
-            showStatus(progressText())
+            showSetupBanner(
+                getString(if (pipeline) R.string.banner_setup_stage2 else R.string.banner_discovery),
+                progressText(), getString(R.string.banner_hint_discovery),
+                if (expected > 0) found.size * 100 / expected else null,
+            )
             tvView.tune(tuner.id, TvContract.buildChannelUri(probingId))
             handler.postDelayed(timeout, PROBE_TIMEOUT_MS)
         }
@@ -746,6 +809,7 @@ class MainActivity : Activity() {
                     list.joinToString { "${it.number}=#${it.id}${if (it.isRadio) "♪" else ""}${if (it.scrambled) "🔒" else ""}" }
             )
             DebugLog.log("Discovery", "multiplexes: ${ChannelStore.muxSummary(list)}")
+            hideSetupBanner()
             if (!save) {
                 showStatus(getString(R.string.discovery_cancelled))
                 return
@@ -758,6 +822,9 @@ class MainActivity : Activity() {
             SetupProgress.learn(this@MainActivity, "perProbe", (SystemClock.elapsedRealtime() - startedAt) / 1000.0, checkedIds.size)
             store.saveDiscovered(list)
             identifyAfterLoad = true
+            // Stage 3 starts after the list loads – the banner stays meanwhile.
+            if (pipeline) showSetupBanner(getString(R.string.banner_setup_stage3), getString(R.string.banner_preparing),
+                getString(R.string.banner_hint_identify), 0)
             showStatusBriefly(
                 getString(R.string.discovery_done_detail, list.count { !it.isRadio && !it.scrambled }, list.count { it.isRadio && !it.scrambled }, list.count { it.scrambled }) +
                     "\n" + ChannelStore.muxSummary(list)
@@ -765,6 +832,56 @@ class MainActivity : Activity() {
             loadChannelsAndPlay()
         }
     }
+
+    /**
+     * Publishes identified channels to TvContract through dtvinput ([ChannelPublisher]). On success they are
+     * visible to every app (system launcher, other TV apps) with names and LCN numbers, and the player stops
+     * relying on the discovered ID list. The tuner is released for the time of the install.
+     */
+    private fun publishChannels(automatic: Boolean): String {
+        if (publisher != null) return "publishing already running"
+        if (identifying) return "identification running – try later"
+        if (Recorder.active != null) return "recording running – try later"
+        val tuner = input ?: return "no tuner input"
+        val toPublish = channels.filter { it.discovered && it.identified }
+        if (toPublish.isEmpty()) {
+            showStatusBriefly(getString(R.string.publish_nothing))
+            return "nothing to publish – identify channels first"
+        }
+        DebugLog.log("Publish", "start (${if (automatic) "after setup" else "manual"}): ${toPublish.size} of ${channels.size} channels")
+        val previousId = channels.getOrNull(currentIndex)?.id
+        val previous = channels.getOrNull(currentIndex)
+        timeshift.reset()
+        hbb.stop()
+        tvView.reset()
+        showStatus(getString(R.string.publish_running, toPublish.size))
+        val p = ChannelPublisher(this)
+        publisher = p
+        // Hidden channels are published too – hiding is a player setting kept under the DVB key.
+        io.execute {
+            val all = repository.loadChannels(tuner.id, includeHidden = true).filter { it.discovered && it.identified }
+            handler.post {
+                if (isDestroyed || publisher !== p) return@post
+                p.publish(all) { result ->
+                    publisher = null
+                    if (result.visibleChannels > 0) {
+                        store.clearDiscovered()
+                        showStatusFor(getString(R.string.publish_done, result.visibleChannels), SETUP_DONE_MS)
+                        // The same service under its new ID.
+                        lastPublishedService = previous?.let { it.tsid to it.sid }
+                    } else {
+                        showStatusFor(getString(R.string.publish_failed), SETUP_DONE_MS)
+                        DebugLog.log("Publish", "keeping the discovered list (last channel #$previousId)")
+                    }
+                    loadChannelsAndPlay()
+                }
+            }
+        }
+        return "publishing ${toPublish.size} channels started – see the log (Publish)"
+    }
+
+    /** Service watched before publishing – after reloading, the player returns to it under its new ID. */
+    private var lastPublishedService: Pair<Int?, Int?>? = null
 
     private fun rediscover() {
         val tuner = input ?: return
@@ -1066,6 +1183,8 @@ class MainActivity : Activity() {
             },
             MenuPanel.Entry(getString(R.string.menu_identify), after = leave) { identifyAll() }.takeIf { caps.streamAnalysis },
             MenuPanel.Entry(getString(R.string.menu_rediscover), after = leave) { rediscover() }.takeIf { caps.channelDiscovery },
+            MenuPanel.Entry(getString(R.string.menu_publish), after = leave) { publishChannels(automatic = false) }
+                .takeIf { caps.inAppScan && channels.any { it.discovered && it.identified } },
         )
         val settings = listOfNotNull(
             MenuPanel.Entry(getString(R.string.menu_about), BuildConfig.VERSION_NAME) { showAbout(menu::returned) },
@@ -1483,10 +1602,11 @@ class MainActivity : Activity() {
      * One longer recording per multiplex also yields a week of TV guide data.
      */
     private fun identifyAll() {
-        if (Recorder.active != null) return
-        if (!DeviceCapabilities.get(this).streamAnalysis) return
         if (identifying) return
+        // The stage 3 banner shown after discovery must not stay when identification does not start.
+        if (Recorder.active != null || !DeviceCapabilities.get(this).streamAnalysis) { hideSetupBanner(); return }
         if (!TsProbe.hasStoragePermission(this)) {
+            hideSetupBanner()
             showStatusBriefly(getString(R.string.identify_no_permission))
             maybeRequestStorage(Intent().putExtra(TsProbe.EXTRA_REQUEST_STORAGE, true))
             return
@@ -1499,6 +1619,8 @@ class MainActivity : Activity() {
         val identifyPrefs = getSharedPreferences("identify", MODE_PRIVATE)
         val pipeline = SetupProgress.inPipeline(this)
         DebugLog.log("Identify", "full identification of ${snapshot.size} channels" + if (pipeline) " (setup stage 3/3)" else "")
+        showSetupBanner(getString(if (pipeline) R.string.banner_setup_stage3 else R.string.banner_identify),
+            getString(R.string.banner_preparing), getString(R.string.banner_hint_identify), 0)
         fun tuneAndWait(id: Long, settleMs: Long) {
             val latch = java.util.concurrent.CountDownLatch(1)
             handler.post {
@@ -1520,9 +1642,13 @@ class MainActivity : Activity() {
                 val perChannel = if (done > 3) elapsed / (done - 1) else SetupProgress.rates(this).perChannel
                 val left = SetupProgress.format((snapshot.size - done + 1) * perChannel)
                 handler.post {
-                    showStatus(
+                    if (!identifying) return@post
+                    showSetupBanner(
+                        getString(if (pipeline) R.string.banner_setup_stage3 else R.string.banner_identify),
                         if (pipeline) getString(R.string.setup_stage3, done, snapshot.size, ch.name, left)
-                        else getString(R.string.identify_progress_eta, done, snapshot.size, ch.name, left)
+                        else getString(R.string.identify_progress_eta, done, snapshot.size, ch.name, left),
+                        getString(R.string.banner_hint_identify),
+                        (done - 1) * 100 / snapshot.size.coerceAtLeast(1),
                     )
                 }
             }
@@ -1557,6 +1683,7 @@ class MainActivity : Activity() {
             val total = snapshot.size
             handler.post {
                 identifying = false
+                hideSetupBanner()
                 DebugLog.log("Identify", "identification done: $ok/$total" + if (identifyCancelled) " (cancelled)" else "")
                 if (pipeline) {
                     val whole = SetupProgress.format(SetupProgress.elapsedSinceStart(this))
@@ -1564,6 +1691,11 @@ class MainActivity : Activity() {
                     SetupProgress.setLastChannelCount(this, total)
                     if (identifyCancelled) showStatusBriefly(getString(R.string.identify_cancelled))
                     else showStatusFor(getString(R.string.setup_done, ok, total, whole), SETUP_DONE_MS)
+                    // On devices where publishing has already worked, the identified channels go to the system right away.
+                    if (!identifyCancelled && ok > 0 && ChannelPublisher.works(this)) {
+                        handler.postDelayed({ publishChannels(automatic = true) }, SETUP_DONE_MS)
+                        return@post
+                    }
                 } else {
                     showStatusBriefly(getString(if (identifyCancelled) R.string.identify_cancelled else R.string.identify_done, ok, total))
                 }
@@ -1893,6 +2025,7 @@ class MainActivity : Activity() {
         private var autoScanOpened = false
         private const val REQUEST_RECORDINGS = 4
         private const val PREF_STORAGE_ASKED = "storage_asked"
+        private const val PREF_FIRST_SCAN_OPENED = "first_scan_opened"
         private const val STORAGE_ASK_INTERVAL_MS = 24 * 3600_000L
         private const val PREF_SAME_MUX_BUSY = "same_mux_busy"
         /** Time for playback to settle after a channel switch before recording. */

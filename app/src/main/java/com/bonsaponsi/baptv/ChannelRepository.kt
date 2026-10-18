@@ -55,6 +55,7 @@ class ChannelRepository(private val context: Context) {
         }
         // Channel settings from before a rescan (old IDs) move to DVB keys.
         services.all().forEach { e -> store.migrate(e.channelId, e.tsid, e.sid) }
+        if (fromProvider.isNotEmpty()) services.carryOver(fromProvider)
         return organise(dropDuplicates(identify(channels)), includeHidden)
     }
 
