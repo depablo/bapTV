@@ -1692,7 +1692,7 @@ class MainActivity : Activity() {
                 } else if (channels.isEmpty()) {
                     startActivity(Intent(this, ScanActivity::class.java))
                 } else {
-                    showChannelList()
+                    showMenu()
                 }
                 return true
             }

@@ -74,7 +74,7 @@ developed without a tuner. See [DOCUMENTATION.md](DOCUMENTATION.md) for details.
 |---|---|
 | CH+ / CH− | Next / previous channel |
 | 0–9 | Select a channel by number |
-| OK | Channel list |
+| OK | Menu (channel list: Menu → Channels) |
 | ▼ / ▲ | Open / step through / close the info panel |
 | ⏯ (Play/Pause) | Pause live TV; while paused: pause / resume |
 | ◀ ▶ (while paused) | Seek 10 s (hold: 30 s) |

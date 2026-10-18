@@ -87,7 +87,7 @@ MENU key; the menu is therefore also available on REC and SETTINGS.
 |---|---|---|---|
 | CH+ / CH− | `CHANNEL_UP` / `CHANNEL_DOWN` (also `PAGE_UP` / `PAGE_DOWN`) | next / previous channel | asks for confirmation: changing the channel ends the pause |
 | 0–9 | `0`…`9` | channel number entry (up to 4 digits, confirmed after 1.5 s or with OK) | as above |
-| OK | `DPAD_CENTER` / `ENTER` | channel list (channel search screen when there are no channels) | with the info banner open: pause / resume |
+| OK | `DPAD_CENTER` / `ENTER` | menu (channel search screen when there are no channels) | with the info banner open: pause / resume |
 | ▼ | `DPAD_DOWN` | open the info panel / go one level deeper | banner with the pause bar |
 | ▲ | `DPAD_UP` | go one level back / close the info panel | |
 | ▶ | `DPAD_RIGHT` | open the info panel; at level 3 move between buttons | seek forward 10 s (hold: 30 s) |
@@ -173,7 +173,7 @@ Entries that the device does not support are hidden.
 
 ### Channel list
 
-OK opens the channel list. It shows the channel number and name, the current programme with its
+**Menu → Channels** (OK opens the menu) opens the channel list. It shows the channel number and name, the current programme with its
 progress, and markers for radio (♪), encrypted and HbbTV-only channels. A long press on OK on a
 channel renames it.
 
