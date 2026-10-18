@@ -1,0 +1,145 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Reading the channel list and EPG of other TV inputs (runtime permission). -->
+    <uses-permission android:name="com.android.providers.tv.permission.READ_EPG_DATA" />
+    <!-- Android 11: reading channels and TV listings of other inputs (TvProvider checks this permission). -->
+    <uses-permission android:name="android.permission.READ_TV_LISTINGS" />
+    <!-- Inserting/deleting a temporary channel to find the highest _id (channel detection). -->
+    <uses-permission android:name="com.android.providers.tv.permission.WRITE_EPG_DATA" />
+    <!-- Signal statistics from DtvProvider (normal permission). -->
+    <uses-permission android:name="com.google.android.tv.dtvprovider.permission.READ" />
+    <!-- Writing tuner settings (e.g. LNA) to the tvsettings table – normal permission. -->
+    <uses-permission android:name="com.google.android.tv.dtvprovider.permission.WRITE" />
+    <!--
+        Scanning directly through dtvinput. A signature|privileged permission:
+        granted only when the app is installed as a priv-app (with an allowlist)
+        or signed with the platform key. Without it scanning goes through InstallerService (ScanActivity).
+    -->
+    <uses-permission android:name="com.google.android.tv.dtvinput.permission.INSTALL_TV_CHANNELS" />
+
+    <!-- Built-in Diagnostics web server (view the report from a phone/computer without adb). -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <!-- The web server runs in a foreground service so it survives the app's screens being closed. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <!-- Restores the web server after a set-top box reboot (if it was enabled). -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <!-- Self-update via the web server (requires the "unknown sources" permission for this app). -->
+
+    <!--
+        HbbTV experiment: reading dtvinput recordings from Android/media/com.google.android.tv.dtvinput/Records
+        (targetSdk 29 + requestLegacyExternalStorage – path-based access to shared storage).
+    -->
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+    <!-- Deleting recordings after analysis (same permission group – granted without an extra prompt). -->
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+
+    <uses-feature android:name="android.software.leanback" android:required="false" />
+    <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
+    <uses-feature android:name="android.software.live_tv" android:required="false" />
+
+    <queries>
+        <package android:name="com.google.android.tv.dtvinput" />
+        <package android:name="com.google.android.tv.dtvprovider.service" />
+        <package android:name="com.google.android.tv.dtvsetup.demo" />
+        <package android:name="com.google.android.tv.teletextservice" />
+        <package android:name="com.android.providers.tv" />
+        <package android:name="com.droidlogic.tvinput" />
+        <package android:name="com.droidlogic.android.tv" />
+        <intent>
+            <action android:name="android.media.tv.TvInputService" />
+        </intent>
+    </queries>
+
+    <application
+        android:name=".App"
+        android:allowBackup="false"
+        android:banner="@drawable/banner"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:requestLegacyExternalStorage="true"
+        android:usesCleartextTraffic="true"
+        android:supportsRtl="true"
+        android:theme="@style/AppTheme">
+
+        <activity
+            android:name=".MainActivity"
+            android:configChanges="keyboard|keyboardHidden|navigation|orientation|screenSize|screenLayout|smallestScreenSize"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:screenOrientation="landscape">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+                <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- Launcher tile for the operator TV app when it has no launcher entry of its own;
+             disabled by default, enabled at runtime by OperatorApp.syncShortcut. -->
+        <activity
+            android:name=".OperatorShortcutActivity"
+            android:banner="@drawable/banner_operator"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher"
+            android:label="@string/operator_shortcut_label"
+            android:taskAffinity=""
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:theme="@android:style/Theme.NoDisplay">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+                <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <activity
+            android:name=".ScanActivity"
+            android:exported="false"
+            android:screenOrientation="landscape" />
+
+        <activity
+            android:name=".RecordingsActivity"
+            android:exported="false"
+            android:screenOrientation="landscape" />
+
+        <activity
+            android:name=".ChannelsActivity"
+            android:exported="false"
+            android:screenOrientation="landscape" />
+
+        <activity
+            android:name=".GuideActivity"
+            android:exported="false"
+            android:screenOrientation="landscape" />
+
+        <activity
+            android:name=".DiagnosticsActivity"
+            android:exported="false"
+            android:screenOrientation="landscape" />
+
+        <service
+            android:name=".DebugServerService"
+            android:exported="false" />
+
+
+        <receiver
+            android:name=".RecordingAlarmReceiver"
+            android:exported="false" />
+
+        <service
+            android:name=".RecordingService"
+            android:exported="false" />
+
+        <receiver
+            android:name=".UpdateReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
+    </application>
+</manifest>

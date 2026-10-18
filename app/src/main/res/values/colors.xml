@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="overlay_bg">#CC101418</color>
+    <color name="panel_bg">#E6101418</color>
+    <color name="accent">#FF3D8BFD</color>
+    <color name="text_primary">#FFFFFFFF</color>
+    <color name="text_secondary">#FFB0B8C4</color>
+    <color name="item_focused">#FF2A3A55</color>
+    <color name="banner_bg">#FF0F2747</color>
+</resources>

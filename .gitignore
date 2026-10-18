@@ -1,0 +1,11 @@
+*.apk
+*.iml
+.emu-token
+.gradle/
+.idea/
+.kotlin/
+.tv-host
+.tv-token
+build/
+emu.png
+local.properties

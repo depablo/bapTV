@@ -1,0 +1,36 @@
+# bapTV report intake. Put a reverse proxy with HTTPS in front of it (see README.md).
+services:
+  reports:
+    build: .
+    image: baptv-reports
+    restart: unless-stopped
+    environment:
+      GITHUB_REPO: ${GITHUB_REPO:-depablo/bapTV}
+      GITHUB_LABELS: ${GITHUB_LABELS:-}
+      PUBLIC_URL: ${PUBLIC_URL:-https://reports.bonsaponsi.com}
+      # 1 = take the client IP from X-Forwarded-For (only behind your own reverse proxy).
+      TRUST_PROXY: ${TRUST_PROXY:-1}
+      RATE_PER_IP_HOUR: ${RATE_PER_IP_HOUR:-5}
+      MAX_ISSUES_PER_DAY: ${MAX_ISSUES_PER_DAY:-30}
+      RETENTION_DAYS: ${RETENTION_DAYS:-180}
+    secrets:
+      - github_token
+      - admin_password
+    volumes:
+      - reports-data:/data
+    ports:
+      # Only reachable from the host; the reverse proxy forwards to it.
+      - "127.0.0.1:${HOST_PORT:-8087}:8080"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    mem_limit: 128m
+
+secrets:
+  github_token:
+    file: ./secrets/github_token
+  admin_password:
+    file: ./secrets/admin_password
+
+volumes:
+  reports-data:

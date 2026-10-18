@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Developer tools merged into debug builds only: installing new versions over the local network
+     (debug HTTP server) and an accessibility service that confirms those installs. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+
+    <application>
+        <!-- Remote operation without adb: confirming updates and restarting afterwards. -->
+        <service
+            android:name=".InstallClickService"
+            android:exported="true"
+            android:label="@string/auto_install_service"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/install_click_service" />
+        </service>
+    </application>
+</manifest>

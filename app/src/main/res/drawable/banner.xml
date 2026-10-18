@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android TV launcher banner (16:9 aspect, 320x180). -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item><shape><solid android:color="@color/banner_bg" /><size android:width="320dp" android:height="180dp" /></shape></item>
+    <item android:width="120dp" android:height="120dp" android:gravity="center" android:drawable="@drawable/ic_tv" />
+</layer-list>

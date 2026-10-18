@@ -1,0 +1,305 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Antenna signal</title>
+<style>
+  :root {
+    --bg: #11151c; --panel: #1b212b; --text: #f3f0e8; --muted: #a9b3c1; --line: #2a3240;
+    --good: #2fb86b; --mid: #e0a526; --bad: #e0503a; --accent: #ff7a2f; --blue: #5aa9ff;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  main { max-width: 980px; margin: 0 auto; padding: 16px; }
+  header { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; padding: 16px; border-radius: 16px; background: var(--panel); transition: background .4s; }
+  header h1 { margin: 0; font-size: 22px; flex: 1 1 auto; }
+  .pill { padding: 4px 12px; border-radius: 999px; background: rgba(0,0,0,.25); font-size: 14px; white-space: nowrap; }
+  header.good { background: #165c37; } header.mid { background: #6b4f10; } header.bad { background: #6e2318; } header.none { background: var(--panel); }
+  .quality { width: 100%; font-size: 15px; color: var(--text); opacity: .9; }
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; margin-top: 12px; }
+  .tile { background: var(--panel); border-radius: 16px; padding: 16px; }
+  .tile .name { color: var(--muted); font-size: 14px; letter-spacing: .08em; text-transform: uppercase; }
+  .tile .value { font-size: 56px; font-weight: 700; line-height: 1.1; font-variant-numeric: tabular-nums; }
+  .tile .trend { font-size: 28px; margin-left: 8px; }
+  .tile .range { color: var(--muted); font-size: 14px; font-variant-numeric: tabular-nums; }
+  .tile canvas { width: 100%; height: 64px; display: block; margin-top: 8px; }
+  section { background: var(--panel); border-radius: 16px; padding: 16px; margin-top: 12px; }
+  section h2 { margin: 0 0 12px; font-size: 17px; }
+  .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  button { font: inherit; color: var(--text); background: #2a3240; border: 1px solid #3a4352; border-radius: 10px; padding: 10px 14px; cursor: pointer; }
+  button:hover { border-color: var(--accent); }
+  button.current { background: var(--accent); border-color: var(--accent); color: #11151c; font-weight: 600; }
+  button.primary { border-color: var(--accent); }
+  button:disabled { opacity: .5; cursor: default; }
+  .msg { color: var(--muted); font-size: 14px; margin-top: 8px; min-height: 1.4em; }
+  table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; font-size: 15px; }
+  th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); }
+  th { color: var(--muted); font-weight: 600; }
+  details { color: var(--muted); font-size: 14px; }
+  pre { white-space: pre-wrap; word-break: break-all; font-size: 13px; margin: 8px 0 0; }
+  .offline { color: var(--bad); }
+  .hint { color: var(--muted); font-size: 14px; margin: 12px 4px 0; }
+</style>
+</head>
+<body>
+<main>
+  <header id="head" class="none">
+    <h1>Antenna signal</h1>
+    <span class="pill" id="freq">–</span>
+    <span class="pill" id="state">connecting…</span>
+    <div class="quality" id="quality">Waiting for tuner data…</div>
+  </header>
+
+  <div class="tiles">
+    <div class="tile"><div class="name">Signal strength (RSSI)</div><div><span class="value" id="v-rssi">–</span><span class="trend" id="t-rssi"></span></div><div class="range" id="r-rssi"></div><canvas id="c-rssi"></canvas></div>
+    <div class="tile"><div class="name">SNR</div><div><span class="value" id="v-snr">–</span><span class="trend" id="t-snr"></span></div><div class="range" id="r-snr"></div><canvas id="c-snr"></canvas></div>
+    <div class="tile"><div class="name">BER</div><div><span class="value" id="v-ber">–</span><span class="trend" id="t-ber"></span></div><div class="range" id="r-ber"></div><canvas id="c-ber"></canvas></div>
+  </div>
+
+  <section>
+    <h2>Multiplex being measured</h2>
+    <div class="row" id="muxes"><span class="msg">No known multiplexes.</span></div>
+    <div class="msg" id="tune-msg"></div>
+  </section>
+
+  <section>
+    <h2>Multiplex cycle</h2>
+    <div class="row">
+      <button class="primary" id="cycle">Start cycle</button>
+      <button id="stop" disabled>Stop</button>
+      <button id="sound">Sound: off</button>
+    </div>
+    <div class="msg" id="cycle-msg"></div>
+    <table id="results" hidden>
+      <thead><tr><th>Multiplex</th><th>RSSI min / avg / max</th><th>SNR min / avg / max</th><th>BER min / avg / max</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2>Check a frequency (multiplex without channels)</h2>
+    <p class="msg" style="margin-top:0">Single-frequency scan: the tuner briefly leaves the channel being watched. Without a signal the tuner reports no values – the result is “present / absent”.
+      To aim the antenna, enable repeat and turn it slowly, waiting for the next result (a few seconds).</p>
+    <div class="row" style="margin-top:8px">
+      <button data-freq="658" data-std="t2">658 MHz · MUX-2</button>
+      <button data-freq="602" data-std="t2">602 MHz · MUX-1</button>
+      <button data-freq="184.5" data-std="t">184.5 MHz · MUX-8 (VHF, DVB-T)</button>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <input id="pf" type="number" step="0.5" min="170" max="870" value="658" style="width:110px;font:inherit;padding:9px;border-radius:10px;border:1px solid #3a4352;background:#11151c;color:var(--text)"> MHz
+      <select id="pstd" style="font:inherit;padding:9px;border-radius:10px;border:1px solid #3a4352;background:#11151c;color:var(--text)">
+        <option value="t2">DVB-T2</option><option value="t">DVB-T</option>
+      </select>
+      <label><input type="checkbox" id="prepeat"> repeat</label>
+      <label title="Amplifier in the tuner – helps with a weak signal, may overload with a strong one"><input type="checkbox" id="plna"> LNA amplifier</label>
+      <button class="primary" id="pstart">Check</button>
+      <button id="pstop" disabled>Stop</button>
+    </div>
+    <div class="msg" id="probe-msg"></div>
+    <div class="row" id="found" hidden style="margin-top:8px">
+      <span style="color:var(--good);font-weight:600">Services found on a new frequency.</span>
+      <button class="primary" id="addfound">Add new channels (discovery + identification)</button>
+    </div>
+    <table id="presults" hidden style="margin-top:8px">
+      <thead><tr><th>Time</th><th>Frequency</th><th>Result</th><th>RSSI / SNR / BER</th><th>Services</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </section>
+
+  <section>
+    <details>
+      <summary>Raw tuner data (for unit calibration)</summary>
+      <pre id="raw">–</pre>
+    </details>
+  </section>
+
+  <p class="hint">The page switches the tuner by itself – no remote needed. There is only one tuner, so only one multiplex can be watched live at a time.
+    The color is based on the worse of SNR and BER (quality indicators 0–100, 100 = clean reception); RSSI is signal strength and discriminates poorly.</p>
+</main>
+<script>
+(function () {
+  'use strict';
+  var METRICS = ['rssi', 'snr', 'ber'];
+  var COLORS = { rssi: '#5aa9ff', snr: '#ff7a2f', ber: '#a9b3c1' };
+  var last = null, online = true, soundOn = false, audio = null, nextBeep = 0;
+
+  function $(id) { return document.getElementById(id); }
+  function fmt(v) { return v === undefined || v === null ? '–' : (Math.abs(v) >= 100 ? v.toFixed(0) : v.toFixed(1)); }
+  function post(url) { return fetch(url, { method: 'POST' }).then(function (r) { return r.text(); }); }
+
+  // Quality 0..1. The tuner driver reports SNR and BER as quality indicators 0–100 (100 = clean reception;
+  // 2026-10-16: MUX-2 with a weak signal had 18/18 at RSSI 24, the others 100/100) – the worse one counts.
+  // RSSI (strength) discriminates poorly, so only when SNR/BER are missing. null = no data.
+  function quality(s) {
+    if (!s) return null;
+    var q = [s.snr, s.ber].filter(function (v) { return typeof v === 'number' && v >= 0 && v <= 100; });
+    if (q.length) return Math.min.apply(null, q) / 100;
+    if (typeof s.rssi === 'number' && s.rssi >= 0 && s.rssi <= 100) return s.rssi / 100;
+    return null;
+  }
+
+  function draw(canvas, values, color) {
+    var dpr = window.devicePixelRatio || 1, w = canvas.clientWidth, h = canvas.clientHeight;
+    canvas.width = w * dpr; canvas.height = h * dpr;
+    var g = canvas.getContext('2d'); g.scale(dpr, dpr); g.clearRect(0, 0, w, h);
+    var pts = values.filter(function (v) { return typeof v === 'number'; });
+    if (pts.length < 2) return;
+    var min = Math.min.apply(null, pts), max = Math.max.apply(null, pts);
+    if (max - min < 1e-9) { min -= 1; max += 1; }
+    g.strokeStyle = color; g.lineWidth = 2; g.beginPath();
+    var n = values.length, started = false;
+    values.forEach(function (v, i) {
+      if (typeof v !== 'number') { started = false; return; }
+      var x = n === 1 ? w : (i / (n - 1)) * w, y = h - 4 - ((v - min) / (max - min)) * (h - 8);
+      if (started) g.lineTo(x, y); else { g.moveTo(x, y); started = true; }
+    });
+    g.stroke();
+  }
+
+  function render(d) {
+    last = d;
+    var h = d.history || [], cur = h.length ? h[h.length - 1] : null;
+    $('freq').textContent = d.frequency ? Math.round(d.frequency) + ' MHz' : '? MHz';
+    $('state').textContent = (d.player ? 'player running' : 'player off') + (d.state ? ' · ' + d.state : '');
+    var q = quality(cur), head = $('head');
+    head.className = q === null ? 'none' : q >= 0.6 ? 'good' : q >= 0.35 ? 'mid' : 'bad';
+    var caps = d.capabilities || {};
+    $('quality').textContent = q === null ? (caps.tunerStats === false
+        ? 'This device does not expose tuner statistics (no dtvprovider) – signal measurement unavailable.' : 'No tuner statistics.') :
+      (q >= 0.6 ? 'Good signal' : q >= 0.35 ? 'Weak signal' : 'Very weak signal') + ' (' + Math.round(q * 100) + '%)';
+
+    METRICS.forEach(function (k) {
+      var series = h.map(function (s) { return s[k]; });
+      var nums = series.filter(function (v) { return typeof v === 'number'; });
+      $('v-' + k).textContent = fmt(cur ? cur[k] : null);
+      $('r-' + k).textContent = nums.length ? '2 min: ' + fmt(Math.min.apply(null, nums)) + ' – ' + fmt(Math.max.apply(null, nums)) : '';
+      // Trend: the last second compared with the previous 5 seconds.
+      var recent = nums.slice(-2), before = nums.slice(-12, -2), t = '';
+      if (recent.length && before.length) {
+        var a = recent.reduce(function (x, y) { return x + y; }, 0) / recent.length;
+        var b = before.reduce(function (x, y) { return x + y; }, 0) / before.length;
+        var eps = Math.max(0.5, Math.abs(b) * 0.02);
+        t = a > b + eps ? '▲' : a < b - eps ? '▼' : '';
+      }
+      $('t-' + k).textContent = t;
+      draw($('c-' + k), series, COLORS[k]);
+    });
+
+    var mux = $('muxes');
+    mux.textContent = '';
+    (d.multiplexes || []).forEach(function (m) {
+      var b = document.createElement('button');
+      b.textContent = Math.round(m.frequency) + ' MHz · ' + m.name;
+      if (d.frequency && Math.abs(d.frequency - m.frequency) < 0.5) b.className = 'current';
+      b.disabled = d.cycle && d.cycle.running;
+      b.onclick = function () {
+        $('tune-msg').textContent = 'Switching…';
+        post('/signal/tune?freq=' + m.frequency).then(function (t) { $('tune-msg').textContent = t; });
+      };
+      mux.appendChild(b);
+    });
+    if (!(d.multiplexes || []).length) mux.innerHTML = '<span class="msg">No known multiplexes – player off or channel list empty. Starting the cycle will start the player.</span>';
+
+    var c = d.cycle || {};
+    $('cycle').disabled = !!c.running;
+    $('stop').disabled = !c.running;
+    $('cycle-msg').textContent = c.status || '';
+    var tb = $('results').querySelector('tbody');
+    tb.textContent = '';
+    (c.results || []).forEach(function (r) {
+      var tr = document.createElement('tr');
+      var cells = [Math.round(r.frequency) + ' MHz · ' + r.name].concat(METRICS.map(function (k) {
+        return r[k] ? fmt(r[k].min) + ' / ' + fmt(r[k].avg) + ' / ' + fmt(r[k].max) : 'n/a';
+      }));
+      cells.forEach(function (text) { var td = document.createElement('td'); td.textContent = text; tr.appendChild(td); });
+      tb.appendChild(tr);
+    });
+    $('results').hidden = !(c.results || []).length;
+    $('raw').textContent = JSON.stringify(d.raw, null, 2);
+
+    var p = d.probe || {};
+    $('pstart').disabled = !!p.running || (c && c.running);
+    $('pstop').disabled = !p.running;
+    Array.prototype.forEach.call(document.querySelectorAll('button[data-freq]'), function (b) { b.disabled = !!p.running || (c && c.running); });
+    if (p.status) $('probe-msg').textContent = p.status;
+    if (document.activeElement !== $('plna')) $('plna').checked = String(d.lna) === 'true';
+    $('found').hidden = !p.servicesFound;
+    var pb = $('presults').querySelector('tbody');
+    pb.textContent = '';
+    (p.results || []).forEach(function (r) {
+      var tr = document.createElement('tr');
+      var stats = METRICS.map(function (k) { return r[k] ? fmt(r[k].max) : '–'; }).join(' / ');
+      [new Date(r.time).toLocaleTimeString(), fmt(r.frequency) + ' MHz ' + r.standard,
+       r.locked ? 'SIGNAL' : 'no signal', stats, String(r.services)].forEach(function (text, i) {
+        var td = document.createElement('td'); td.textContent = text;
+        if (i === 2) td.style.color = r.locked ? 'var(--good)' : 'var(--bad)';
+        tr.appendChild(td);
+      });
+      pb.appendChild(tr);
+    });
+    $('presults').hidden = !(p.results || []).length;
+  }
+
+  // Sound like a Geiger counter: the better the signal, the more frequent and higher the ticks.
+  function beepLoop() {
+    if (soundOn && audio && last) {
+      var h = last.history || [], q = quality(h.length ? h[h.length - 1] : null);
+      var now = audio.currentTime;
+      if (q !== null && now >= nextBeep) {
+        var o = audio.createOscillator(), g = audio.createGain();
+        o.frequency.value = 300 + q * 900;
+        g.gain.setValueAtTime(0.2, now); g.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+        o.connect(g); g.connect(audio.destination); o.start(now); o.stop(now + 0.09);
+        nextBeep = now + (1.2 - q);
+      }
+    }
+    requestAnimationFrame(beepLoop);
+  }
+
+  function poll() {
+    fetch('/signal.json', { cache: 'no-store' })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (!online) { online = true; }
+        render(d);
+      })
+      .catch(function () {
+        online = false;
+        $('state').innerHTML = '<span class="offline">no connection to the set-top box</span>';
+      })
+      .then(function () { setTimeout(poll, 500); });
+  }
+
+  function probe(freq, std) {
+    var rep = $('prepeat').checked ? '1' : '0';
+    $('probe-msg').textContent = 'Starting…';
+    post('/signal/probe?freq=' + encodeURIComponent(freq) + '&std=' + encodeURIComponent(std) + '&repeat=' + rep).then(function (t) { $('probe-msg').textContent = t; });
+  }
+  Array.prototype.forEach.call(document.querySelectorAll('button[data-freq]'), function (b) {
+    b.onclick = function () { $('pf').value = b.getAttribute('data-freq'); $('pstd').value = b.getAttribute('data-std'); probe(b.getAttribute('data-freq'), b.getAttribute('data-std')); };
+  });
+  $('plna').onchange = function () {
+    post('/signal/lna?on=' + ($('plna').checked ? '1' : '0')).then(function (t) { $('probe-msg').textContent = t; });
+  };
+  $('pstart').onclick = function () { probe($('pf').value, $('pstd').value); };
+  $('pstop').onclick = function () { post('/signal/probe/stop').then(function (t) { $('probe-msg').textContent = t; }); };
+  $('addfound').onclick = function () { post('/signal/rediscover').then(function (t) { $('probe-msg').textContent = t; }); };
+
+  $('cycle').onclick = function () {
+    $('cycle-msg').textContent = 'Starting…';
+    post('/signal/cycle').then(function (t) { $('cycle-msg').textContent = t; });
+  };
+  $('stop').onclick = function () { post('/signal/stop').then(function (t) { $('cycle-msg').textContent = t; }); };
+  $('sound').onclick = function () {
+    soundOn = !soundOn;
+    if (soundOn && !audio) audio = new (window.AudioContext || window.webkitAudioContext)();
+    $('sound').textContent = soundOn ? 'Sound: on' : 'Sound: off';
+  };
+
+  poll();
+  requestAnimationFrame(beepLoop);
+})();
+</script>
+</body>
+</html>
