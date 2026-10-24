@@ -694,6 +694,10 @@ Endpoints marked with 🔑 require the token.
 | `POST /signal/lna?on=1\|0` | set the tuner LNA amplifier |
 | `POST /signal/rediscover` | detect channels again, then identify them |
 | `POST /publish` 🔑 | publish identified channels to the system (as the menu entry) |
+| `GET /tvchannels?input=…` 🔑 | all `TvContract` channel rows visible to the app, all columns (debug builds) |
+| `POST /dtv/install?params=<JSON>` 🔑 | send an install request to the Google DTV installer service and log its events (debug builds). `{"type":"dvb-c","scan-mode":"clear"}` deletes all channels of the input |
+| `POST /dtv/action?action=…` 🔑 | send an intent action to the Google DTV input (debug builds) |
+| `POST /tvchannels/delete?id=…`, `POST /tvchannels/update?id=…&column=value` 🔑 | delete/update attempts on channel rows (debug builds; other inputs' rows are refused by the system) |
 
 #### Antenna alignment page (`/signal`)
 
