@@ -38,9 +38,6 @@
     <string name="no_channels">Brak kanałów. Naciśnij OK, aby wyszukać kanały, lub MENU → Diagnostyka.</string>
 
     <string name="menu_diagnostics">Diagnostyka</string>
-    <string name="operator_shortcut_label">Telewizja operatora</string>
-    <string name="operator_launch_failed">Nie udało się uruchomić aplikacji telewizyjnej operatora.</string>
-    <string name="menu_open_in_operator">Otwórz bieżący kanał w %1$s</string>
     <string name="menu_rediscover">Wykryj kanały ponownie</string>
     <string name="rename_title">Nazwa kanału %1$s</string>
     <string name="discovered_name">Kanał %1$d</string>
@@ -56,7 +53,6 @@
     <string name="scan_method_service">Skanuj</string>
     <string name="scan_method_direct">Skanuj (uprawnienie systemowe)</string>
     <string name="scan_method_setup">Kreator systemowy</string>
-    <string name="scan_method_operator">Skanuj w %1$s</string>
     <string name="scan_include_vhf">Uwzględnij pasmo VHF (177,5–230 MHz)</string>
     <string name="scan_dvbt2">Tryb DVB-T2 (odbiera też DVB-T)</string>
     <string name="scan_lna">Wzmacniacz LNA tunera</string>
@@ -68,7 +64,7 @@
     <string name="scan_close">Zamknij</string>
     <string name="scan_waiting">Zlecono skanowanie, oczekiwanie na tuner…</string>
     <string name="scan_tuner_ready">Tuner gotowy, skanowanie powinno się rozpocząć…</string>
-    <string name="scan_no_response">Brak odpowiedzi od tunera od %1$d s. Sprawdź Diagnostykę albo spróbuj skanowania w aplikacji operatora.</string>
+    <string name="scan_no_response">Brak odpowiedzi od tunera od %1$d s. Sprawdź Diagnostykę albo spróbuj kreatora systemowego.</string>
     <string name="scan_progress">Postęp: %1$d%% · kanałów: %2$d · stan: %3$s</string>
     <string name="scan_complete">Zakończono. Znaleziono kanałów: %1$d</string>
     <string name="scan_failed">Skanowanie nie powiodło się (nie znaleziono kanałów lub błąd tunera).</string>
@@ -76,9 +72,6 @@
     <string name="scan_no_setup">Tuner nie udostępnia kreatora konfiguracji.</string>
     <string name="scan_setup_returned">Powrót z kreatora (kod wyniku %1$d).</string>
     <string name="scan_send_failed">Nie udało się uruchomić skanowania: %1$s</string>
-    <string name="scan_no_operator">Brak aplikacji telewizyjnej operatora.</string>
-    <string name="scan_operator_open">Otwórz %1$s</string>
-    <string name="scan_operator_instructions">Uruchom wyszukiwanie kanałów w %1$s (zwykle w ustawieniach, w części o antenie lub DVB-T). Znalezione tam kanały pojawią się też w tej aplikacji.</string>
 
     <string name="diag_title">Diagnostyka</string>
     <string name="diag_refresh">Odśwież</string>
@@ -243,7 +236,6 @@
     <string name="manage_action_hide">Ukryj</string>
     <string name="manage_action_show">Pokaż</string>
     <string name="manage_rename_reset">Pusta nazwa przywraca nazwę nadawcy</string>
-    <string name="scan_method_operator_generic">Skanowanie w aplikacji operatora</string>
 
     <!-- Reports -->
     <string name="report_send_button">Wyślij raport</string>

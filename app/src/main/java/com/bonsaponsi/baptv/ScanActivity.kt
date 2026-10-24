@@ -24,7 +24,6 @@ import org.json.JSONObject
  *  - the dtvinput input's InstallerService (exported without permissions) – the default,
  *  - the ACTION_START_INSTALL broadcast – only with the INSTALL_TV_CHANNELS permission (priv-app),
  *  - the system input setup wizard (on set-top boxes with Google DTV it leads to DtvSetup Demo),
- *  - a scan in the operator's app.
  * Progress arrives via the INSTALL_EVENT broadcast, sent by dtvinput without permissions.
  */
 class ScanActivity : Activity() {
@@ -141,7 +140,6 @@ class ScanActivity : Activity() {
         findViewById<Button>(R.id.scan_service).setOnClickListener { startScan(Method.SERVICE) }
         directButton.setOnClickListener { startScan(Method.BROADCAST) }
         findViewById<Button>(R.id.scan_setup).setOnClickListener { openSystemSetup() }
-        findViewById<Button>(R.id.scan_operator).setOnClickListener { openOperatorApp() }
         findViewById<Button>(R.id.scan_diag).setOnClickListener { startActivity(Intent(this, DiagnosticsActivity::class.java)) }
         findViewById<Button>(R.id.scan_close).setOnClickListener { finish() }
         cancelButton.setOnClickListener { cancelScan() }
@@ -161,9 +159,6 @@ class ScanActivity : Activity() {
     /** Without dtvinput only the input setup wizard can scan; buttons and options unavailable on the device are hidden. */
     private fun applyCapabilities() {
         val caps = DeviceCapabilities.get(this)
-        findViewById<Button>(R.id.scan_operator).apply {
-            if (caps.operatorApp == null) visibility = View.GONE else text = getString(R.string.scan_method_operator, caps.operatorApp)
-        }
         if (!caps.systemSetup) findViewById<View>(R.id.scan_setup).visibility = View.GONE
         if (!caps.tunerStats) {
             lnaCheck.visibility = View.GONE
@@ -260,6 +255,7 @@ class ScanActivity : Activity() {
             return
         }
         scanning = method
+        SetupProgress.markScanned(this)
         visitedFrequencies.clear()
         lockedFrequencies.clear()
         startedAt = System.currentTimeMillis()
@@ -394,21 +390,6 @@ class ScanActivity : Activity() {
         } catch (e: ActivityNotFoundException) {
             DebugLog.error("Scan", "setup wizard activity not found", e)
             statusText.setText(R.string.scan_no_setup)
-        }
-    }
-
-    private fun openOperatorApp() {
-        val app = OperatorApp.find(this)
-        val launch = app?.launchIntent(this) ?: app?.let { Intent(Intent.ACTION_MAIN).setComponent(it.viewActivity) }
-        DebugLog.log("Scan", "operator app: ${app?.packageName} intent=$launch")
-        if (app == null || launch == null) {
-            statusText.setText(R.string.scan_no_operator)
-            return
-        }
-        TvDialog.confirm(this, getString(R.string.scan_method_operator, app.label), getString(R.string.scan_operator_instructions, app.label),
-            getString(R.string.scan_operator_open, app.label)) {
-            runCatching { startActivity(launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
-                .onFailure { DebugLog.error("Scan", "could not open the operator app", it) }
         }
     }
 

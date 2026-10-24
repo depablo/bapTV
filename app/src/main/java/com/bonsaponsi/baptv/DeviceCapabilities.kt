@@ -27,8 +27,6 @@ data class DeviceCapabilities(
     val channelsVisible: Boolean,
     /** A service recording can be read as a TS file – channel identification, EPG from EIT and HbbTV from AIT. */
     val streamAnalysis: Boolean,
-    /** The operator's live TV app ([OperatorApp]), if installed. */
-    val operatorApp: String?,
 ) {
     /** Channel discovery by probing IDs – a workaround for `searchable=0` in dtvinput. */
     val channelDiscovery get() = cbs && !channelsVisible
@@ -39,7 +37,7 @@ data class DeviceCapabilities(
     fun toJson(): JSONObject = JSONObject()
         .put("inputId", inputId).put("inputLabel", inputLabel)
         .put("cbs", cbs).put("tunerStats", tunerStats).put("systemSetup", systemSetup)
-        .put("channelsVisible", channelsVisible).put("streamAnalysis", streamAnalysis).put("operatorApp", operatorApp)
+        .put("channelsVisible", channelsVisible).put("streamAnalysis", streamAnalysis)
         .put("country", Region.country()).put("scanPlan", Region.plan().name)
         .put("features", JSONObject()
             .put("inAppScan", inAppScan).put("channelDiscovery", channelDiscovery)
@@ -53,7 +51,6 @@ data class DeviceCapabilities(
         "Input channel setup wizard: ${yes(systemSetup)}",
         "Channels visible in TvContract: ${yes(channelsVisible)}" + if (channelDiscovery) " – discovery by probing" else "",
         "Stream analysis from recordings (names, EPG from EIT, HbbTV): ${yes(streamAnalysis)}",
-        "Operator app: ${operatorApp ?: "none"}",
         "Country (from system settings): ${Region.country().ifEmpty { "unknown" }}, scan plan: ${Region.plan().name}",
     )
 
@@ -80,7 +77,6 @@ data class DeviceCapabilities(
                 channelsVisible = input?.let { countChannels(app, it.id) > 0 } ?: false,
                 // Reading the recording file is verified only with dtvinput (directory Android/media/<package>/Records).
                 streamAnalysis = cbs,
-                operatorApp = OperatorApp.find(app)?.label,
             )
             if (caps != cached) DebugLog.log("Caps", caps.describe().joinToString("; "))
             cached = caps

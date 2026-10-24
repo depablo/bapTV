@@ -75,25 +75,6 @@
             </intent-filter>
         </activity>
 
-        <!-- Launcher tile for the operator TV app when it has no launcher entry of its own;
-             disabled by default, enabled at runtime by OperatorApp.syncShortcut. -->
-        <activity
-            android:name=".OperatorShortcutActivity"
-            android:banner="@drawable/banner_operator"
-            android:enabled="false"
-            android:exported="true"
-            android:icon="@mipmap/ic_launcher"
-            android:label="@string/operator_shortcut_label"
-            android:taskAffinity=""
-            android:excludeFromRecents="true"
-            android:noHistory="true"
-            android:theme="@android:style/Theme.NoDisplay">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-                <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
-            </intent-filter>
-        </activity>
 
         <activity
             android:name=".ScanActivity"

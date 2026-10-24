@@ -53,14 +53,13 @@ What works depends on the tuner input. At startup the app detects the device cap
 | HbbTV applications | – | yes |
 | Signal statistics (RSSI, SNR, BER), tuner LNA setting | – | yes, when `dtvprovider` responds |
 
-If the tuner input has its own setup wizard, the channel search screen can open it. If the
-device has an operator TV app that can open TIF channels, bapTV can open the current channel in
-it and offers it as a scan method (see [Channel scan](#11-channel-scan)).
+If the tuner input has its own setup wizard, the channel search screen can open it (see
+[Channel scan](#11-channel-scan)).
 
 The Diagnostics report (section "Device capabilities") shows what was detected: the tuner input,
 whether the Google DTV stack is present, whether tuner statistics are available, whether the input
 has a setup wizard, whether its channels are visible in `TvContract`, whether stream analysis is
-possible, the operator app, and the country and scan frequency plan.
+possible, and the country and scan frequency plan.
 
 ## 2. Getting started
 
@@ -70,7 +69,7 @@ possible, the operator app, and the country and scan frequency plan.
 3. On first start, and whenever there are no channels, the app opens the channel search screen
    (after any permission dialogs are answered). On devices with the Google DTV stack, **Scan** runs
    the whole setup in one go (see [Channel scan](#11-channel-scan)). Later starts without visible
-   channels detect the channels of an earlier scan instead (for example one made in the operator app).
+   channels detect the channels of an earlier scan instead (for example one made by another TV app).
    On other devices, scan for channels in the system TV settings or in the tuner's own app; bapTV
    then shows the channels found there.
 4. On Google DTV stack devices the app also asks for storage access (at most once a day). It is
@@ -169,7 +168,7 @@ Entries that the device does not support are hidden.
 | **Recordings** | Record current programme / Stop recording · Recordings · Free space (with an estimate in hours) |
 | **Channels** | Search for channels · Manage channels · Channel numbers (broadcaster LCN / in order) · Identify channels and get the guide · Detect channels again · Publish channels to the system |
 | **Settings** | Language (system / Polish / English) · HbbTV on/off ("Not available on this device" where unsupported) · Refresh HbbTV data for channel |
-| **Diagnostics** | Signal information · Diagnostics · Debug overlay · Open current channel in *operator app* |
+| **Diagnostics** | Signal information · Diagnostics · Debug overlay |
 
 ## 6. Channels: list, numbering, management
 
@@ -387,7 +386,6 @@ Menu → Channels → **Search for channels**. The screen offers the methods the
 | **Scan** (default) | Google DTV stack | Starts a scan through the tuner input's installer service, which accepts scan parameters from other apps. Progress arrives as broadcast events. |
 | **Scan (system permission)** | only when the app holds `INSTALL_TV_CHANNELS` (installed as a privileged app or signed with the platform key) | Starts the scan with the tuner input's install broadcast. |
 | **System wizard** | the tuner input has a setup activity | Opens the input's own setup wizard (`TvInputInfo.createSetupIntent()`); come back to the app when it finishes. |
-| **Scan in *operator app*** | an operator TV app is installed | Shows instructions and opens the operator app; channels found there also appear in bapTV. |
 
 If the tuner does not allow other apps to scan at all, the screen says so and suggests scanning in
 the TV settings.
@@ -520,7 +518,6 @@ Debug builds additionally offer a local HTTP server; see
 | `Region` | Country-dependent scan frequency plan and HbbTV language/country |
 | `Dtv`, `TunerSettings` | Google DTV stack constants and helpers; tuner settings such as LNA |
 | `DeviceCapabilities` | Detects which features the device supports |
-| `OperatorApp` | Finds an installed operator TV app (opening the current channel, scanning, launcher shortcut) |
 | `Recorder` | Recordings through `TvRecordingClient`, recording list, free space checks |
 | `RecordingScheduler` | Scheduled recordings: alarms, warning, recording service |
 | `RecordingsActivity` | Recordings list and playback start |
@@ -556,7 +553,7 @@ Resources: English strings in `res/values` (default) and Polish in `res/values-p
 - Playback relies on the public TIF API and is stable.
 - In-app scanning, channel discovery and stream analysis rely on behaviour of the Google DTV tuner
   input. A system update of that package could change it; failures show up in Diagnostics. The
-  fallback is scanning with the system wizard or the operator app, and playback through the public
+  fallback is scanning with the system wizard, and playback through the public
   API.
 - If a tuner input marks its channels searchable, probing is not needed and channels come with
   their names directly from `TvContract`.

@@ -13,6 +13,7 @@ object SetupProgress {
     private const val KEY_EXPECTED = "expected"
     private const val KEY_STARTED = "started"
     private const val KEY_LAST_COUNT = "last_count"
+    private const val KEY_SCANNED = "scanned"
 
     /** Per-unit times in seconds – pure functions for tests. */
     data class Rates(val perFrequency: Double, val perProbe: Double, val perChannel: Double)
@@ -88,6 +89,11 @@ object SetupProgress {
     }
 
     fun inPipeline(c: Context) = prefs(c).getBoolean(KEY_PIPELINE, false)
+
+    /** A scan was started in the app (or finished earlier versions' setup) – not a first launch any more. */
+    fun markScanned(c: Context) { prefs(c).edit().putBoolean(KEY_SCANNED, true).apply() }
+
+    fun scannedBefore(c: Context) = prefs(c).getBoolean(KEY_SCANNED, false) || prefs(c).contains(KEY_LAST_COUNT)
 
     /** Channel count reported by the scan (0 – unknown). */
     fun expectedChannels(c: Context) = if (inPipeline(c)) prefs(c).getInt(KEY_EXPECTED, 0) else 0

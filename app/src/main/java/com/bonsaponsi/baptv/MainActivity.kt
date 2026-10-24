@@ -407,7 +407,7 @@ class MainActivity : Activity() {
             DebugLog.log("Player", "onStop – live pause continues, tuner kept (app screen)")
         } else {
             DebugLog.log("Player", "onStop – releasing tuner (TvView.reset)")
-            // Release the tuner so other apps (e.g. the operator launcher) can use it.
+            // Release the tuner so other apps can use it.
             tvView.reset()
             hbb.stop()
         }
@@ -490,7 +490,9 @@ class MainActivity : Activity() {
                     }
                     // No channels: first launch – the scan screen; later on dtvinput we discover them by probing
                     // (channels from an earlier scan), elsewhere – the scan screen (TV input setup wizard).
-                    val firstLaunch = !prefs.getBoolean(PREF_FIRST_SCAN_OPENED, false)
+                    // Not after a scan (setup stage 2 must follow) nor after any earlier scan in the app.
+                    val firstLaunch = !SetupProgress.inPipeline(this) && !SetupProgress.scannedBefore(this) &&
+                        !prefs.getBoolean(PREF_FIRST_SCAN_OPENED, false)
                     if (caps.channelDiscovery && !firstLaunch) startDiscovery(tuner) else if (!autoScanOpened) {
                         autoScanOpened = true
                         prefs.edit().putBoolean(PREF_FIRST_SCAN_OPENED, true).apply()
@@ -1219,7 +1221,6 @@ class MainActivity : Activity() {
                 ReportSender.offer(this, ReportSender.Reason.USER, null, automatic = false, onClose = menu::returned)
             },
             MenuPanel.Entry(getString(R.string.menu_debug_overlay), onOff(debugOverlay.visibility == View.VISIBLE), stay) { toggleOverlay() },
-            caps.operatorApp?.let { name -> MenuPanel.Entry(getString(R.string.menu_open_in_operator, name), after = leave) { OperatorApp.launch(this, current?.uri) } },
         )
         return listOf(
             MenuPanel.Section("watch", getString(R.string.menu_section_watch), R.drawable.ic_menu_watch, watch),
@@ -1839,7 +1840,7 @@ class MainActivity : Activity() {
             // At level 3 left/right arrows move focus between the "Audio" and "Subtitles" buttons.
             KeyEvent.KEYCODE_DPAD_RIGHT -> if (!panelVisible && infoLevel != 3) { if (infoLevel == 0) showInfo(1); return true }
             KeyEvent.KEYCODE_INFO -> if (!panelVisible) { showInfo(4); return true }
-            // Some operator remotes have no MENU key: the menu is on REC (the guide key opens the TV guide).
+            // Some remotes have no MENU key: the menu is on REC (the guide key opens the TV guide).
             KeyEvent.KEYCODE_MENU, KeyEvent.KEYCODE_SETTINGS, KeyEvent.KEYCODE_MEDIA_RECORD -> { hideChannelList(); showMenu(); return true }
             KeyEvent.KEYCODE_GUIDE, KeyEvent.KEYCODE_TV_DATA_SERVICE -> { openGuide(); return true }
             KeyEvent.KEYCODE_LAST_CHANNEL -> {

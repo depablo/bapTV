@@ -39,9 +39,6 @@
     <string name="no_channels">No channels. Press OK to search for channels, or MENU → Diagnostics.</string>
 
     <string name="menu_diagnostics">Diagnostics</string>
-    <string name="operator_shortcut_label">Operator TV</string>
-    <string name="operator_launch_failed">Could not start the operator TV app.</string>
-    <string name="menu_open_in_operator">Open current channel in %1$s</string>
     <string name="menu_rediscover">Detect channels again</string>
     <string name="rename_title">Name of channel %1$s</string>
     <string name="discovered_name">Channel %1$d</string>
@@ -57,7 +54,6 @@
     <string name="scan_method_service">Scan</string>
     <string name="scan_method_direct">Scan (system permission)</string>
     <string name="scan_method_setup">System wizard</string>
-    <string name="scan_method_operator">Scan in %1$s</string>
     <string name="scan_include_vhf">Include the VHF band (177.5–230 MHz)</string>
     <string name="scan_dvbt2">DVB-T2 mode (also receives DVB-T)</string>
     <string name="scan_lna">Tuner LNA amplifier</string>
@@ -69,7 +65,7 @@
     <string name="scan_close">Close</string>
     <string name="scan_waiting">Scan requested, waiting for the tuner…</string>
     <string name="scan_tuner_ready">Tuner ready, the scan should start…</string>
-    <string name="scan_no_response">No response from the tuner for %1$d s. Check Diagnostics or try scanning in the operator TV app.</string>
+    <string name="scan_no_response">No response from the tuner for %1$d s. Check Diagnostics or try the system wizard.</string>
     <string name="scan_progress">Progress: %1$d%% · channels: %2$d · state: %3$s</string>
     <string name="scan_complete">Finished. Channels found: %1$d</string>
     <string name="scan_failed">The scan failed (no channels found or tuner error).</string>
@@ -77,9 +73,6 @@
     <string name="scan_no_setup">The tuner has no setup wizard.</string>
     <string name="scan_setup_returned">Back from the wizard (result code %1$d).</string>
     <string name="scan_send_failed">Could not start the scan: %1$s</string>
-    <string name="scan_no_operator">No operator TV app is installed.</string>
-    <string name="scan_operator_open">Open %1$s</string>
-    <string name="scan_operator_instructions">Start the channel search in %1$s (usually in its settings, under antenna or DVB-T). Channels found there will also appear in this app.</string>
 
     <string name="diag_title">Diagnostics</string>
     <string name="diag_refresh">Refresh</string>
@@ -244,7 +237,6 @@
     <string name="manage_action_hide">Hide</string>
     <string name="manage_action_show">Show</string>
     <string name="manage_rename_reset">Empty name restores the broadcaster name</string>
-    <string name="scan_method_operator_generic">Operator app scan</string>
 
     <!-- Reports -->
     <string name="report_send_button">Send report</string>

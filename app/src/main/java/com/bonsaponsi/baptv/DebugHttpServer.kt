@@ -186,6 +186,20 @@ class DebugHttpServer(private val context: Context, val port: Int = DEFAULT_PORT
             val f = PlayerRemote.timeshift ?: return text("Player not running\n", "409 Conflict")
             text((onMain { f(request.query["action"].orEmpty(), request.query["arg"]) } ?: "no response") + "\n")
         }
+        "GET" to "/tvchannels" -> Response("200 OK", JSON, DebugTvTools.dump(context, request.query["input"]).toString(1))
+        "POST" to "/tvchannels/delete" -> text(DebugTvTools.delete(context, request.query["id"]?.toLongOrNull(), request.query["input"]) + "\n")
+        "POST" to "/tvchannels/update" -> {
+            val id = request.query["id"]?.toLongOrNull() ?: return text("Specify ?id=<channel id>&column=value…\n", "400 Bad Request")
+            text(DebugTvTools.update(context, id, request.query - "id" - "token") + "\n")
+        }
+        "POST" to "/dtv/install" -> {
+            val params = request.query["params"] ?: return text("Specify ?params=<JSON>\n", "400 Bad Request")
+            text(DebugTvTools.install(context, params) + "\n")
+        }
+        "POST" to "/dtv/action" -> {
+            val action = request.query["action"] ?: return text("Specify ?action=<intent action>[&params=<JSON>]\n", "400 Bad Request")
+            text(DebugTvTools.action(context, action, request.query["params"]) + "\n")
+        }
         "POST" to "/publish" -> {
             val f = PlayerRemote.publish ?: return text("Player not running\n", "409 Conflict")
             text((onMain { f() } ?: "no response") + "\n")
@@ -444,7 +458,7 @@ class DebugHttpServer(private val context: Context, val port: Int = DEFAULT_PORT
         private const val JSON = "application/json; charset=utf-8"
         private val RECORDING_FILE = Regex("/recordings/(\\d+)\\.ts")
         private val QUIET_PATHS = setOf("/status", "/log.txt", "/probe.ts", "/screenshot.png", "/hbbtv", "/signal.json")
-        private val KNOWN_PATHS = setOf("/", "/report.txt", "/log.txt", "/log", "/logcat.txt", "/status", "/install", "/launch", "/restart", "/probe", "/probe.ts", "/key", "/hbbtv", "/hbbtv/eval", "/screenshot.png", "/channels", "/epg", "/open", "/capabilities", "/recordings", "/timeshift", "/signal", "/signal.json", "/signal/cycle", "/signal/stop", "/signal/tune", "/signal/probe", "/signal/probe/stop", "/signal/lna", "/signal/rediscover", "/publish")
+        private val KNOWN_PATHS = setOf("/", "/report.txt", "/log.txt", "/log", "/logcat.txt", "/status", "/install", "/launch", "/restart", "/probe", "/probe.ts", "/key", "/hbbtv", "/hbbtv/eval", "/screenshot.png", "/channels", "/epg", "/open", "/capabilities", "/recordings", "/timeshift", "/signal", "/signal.json", "/signal/cycle", "/signal/stop", "/signal/tune", "/signal/probe", "/signal/probe/stop", "/signal/lna", "/signal/rediscover", "/publish", "/tvchannels", "/tvchannels/delete", "/tvchannels/update", "/dtv/install", "/dtv/action")
 
         /** One server per process – kept alive by [DebugServerService]. */
         @Volatile var instance: DebugHttpServer? = null

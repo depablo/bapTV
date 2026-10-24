@@ -105,8 +105,6 @@ class Diagnostics(private val context: Context) {
         line("InstallerService: ${if (installer == null) "NOT FOUND" else "exported=${installer.exported}, permission=${installer.permission}, enabled=${installer.enabled}"}")
         val setupIntent = Dtv.findTunerInput(context)?.createSetupIntent()
         line("Input setup wizard (createSetupIntent): ${setupIntent?.component ?: "none"}")
-        val operator = OperatorApp.find(context)
-        line("Operator app: ${operator?.let { "${it.label} (${it.packageName}), channel: ${it.viewActivity.className}, launcher=${it.launchIntent(context)?.component ?: "none (HOME only)"}" } ?: "none"}")
     }
 
     private fun inputs() {
