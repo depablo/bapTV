@@ -13,6 +13,12 @@ bapTV plays live TV from the device's built-in tuner through the standard Androi
 TV Input Framework (TIF: `TvView`, `TvContract`, `TvRecordingClient`). It is written in Kotlin
 with no external libraries.
 
+https://github.com/user-attachments/assets/f7460e6f-6f63-4a93-9fc8-5341508468d9
+
+<sub>The video is in Polish. Music: "Hackbeat" by Kevin MacLeod (incompetech.com), licensed under
+[Creative Commons: By Attribution 4.0](https://creativecommons.org/licenses/by/4.0/). Programme pictures
+of the HbbTV apps are blurred.</sub>
+
 ## Features
 
 - Live TV and radio from the device's tuner input, last channel remembered
