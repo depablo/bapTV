@@ -1,0 +1,1 @@
+No changes in how the app works. Release builds are now reproducible, so F-Droid can publish the developer-signed APK and updates from GitHub and F-Droid stay compatible.

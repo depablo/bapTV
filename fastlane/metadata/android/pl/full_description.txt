@@ -1,0 +1,19 @@
+<p>bapTV odtwarza telewizję naziemną z wbudowanego tunera dekodera lub telewizora z Android TV, przez standardowy mechanizm Android TV Input Framework. Jest napisana w Kotlinie bez zewnętrznych bibliotek i nie ma reklam.</p>
+
+<p><b>Funkcje</b></p>
+<ul>
+<li>Telewizja i radio na żywo, zapamiętany ostatni kanał, numeracja jak w telewizorze (LCN) albo po kolei</li>
+<li>Lista kanałów i zarządzanie nimi: kolejność, ukrywanie, zmiana nazwy, ukrycie wszystkich kanałów kodowanych naraz</li>
+<li>Program TV na około tydzień, odczytywany z sygnału – bez internetu</li>
+<li>Pauza na żywo z przewijaniem, nagrywanie (ręczne lub zaplanowane z programu TV) i lista nagrań</li>
+<li>Aplikacje HbbTV nadawców (czerwony przycisk, „oglądaj od początku”, listy kanałów, kanały internetowe)</li>
+<li>Wyszukiwanie kanałów w aplikacji na urządzeniach z tunerem Google DTV: jedno uruchomienie skanuje, wykrywa i rozpoznaje wszystkie kanały</li>
+<li>Informacje o sygnale, ekran diagnostyki i raport do zapisania lub wysłania</li>
+<li>Interfejs po polsku i po angielsku</li>
+</ul>
+
+<p><b>Wymagania</b>: Android 8.0 lub nowszy z wbudowanym tunerem DVB-T/T2 dostępnym przez TV Input Framework (dekoder lub telewizor z Android TV). Wyszukiwanie kanałów w aplikacji, rozpoznawanie kanałów, nagrywanie i HbbTV wymagają tunera Google DTV, który mają m.in. dekodery operatorów; na innych urządzeniach kanały wyszukuje się w ustawieniach TV systemu. Aplikacja powstała i jest testowana na dekoderze Kaon PLAY BOX TV 4B; wbudowane nazwy i numery kanałów dotyczą Polski.</p>
+
+<p><b>Dostęp do sieci</b>: obraz pochodzi z anteny. Internetu używają tylko aplikacje HbbTV, które są stronami internetowymi nadawców, oraz – wyłącznie po Twoim potwierdzeniu – wysyłanie raportu diagnostycznego do autora.</p>
+
+<p><b>Usługa ułatwień dostępu</b>: na niektórych dekoderach kolorowe przyciski pilota są zarezerwowane dla aplikacji operatora. bapTV ma opcjonalną usługę ułatwień dostępu, która – gdy bapTV jest na ekranie – przekazuje do niej przyciski czerwony, zielony, żółty i niebieski. Nie odczytuje zawartości ekranu i jest wyłączona, dopóki nie włączysz jej w ustawieniach systemu.</p>

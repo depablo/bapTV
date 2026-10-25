@@ -1,0 +1,1 @@
+Bez zmian w działaniu aplikacji. Kompilacje wydań są teraz powtarzalne, więc F-Droid może publikować APK podpisany przez autora, a aktualizacje z GitHuba i z F-Droid są zgodne.
