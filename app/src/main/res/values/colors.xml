@@ -6,5 +6,8 @@
     <color name="text_primary">#FFFFFFFF</color>
     <color name="text_secondary">#FFB0B8C4</color>
     <color name="item_focused">#FF2A3A55</color>
-    <color name="banner_bg">#FF0F2747</color>
+    <color name="banner_bg">#FF0B1F33</color>
+    <!-- Brand (logo): navy ground and the amber "on air" colour. -->
+    <color name="brand_navy">#FF0B1F33</color>
+    <color name="brand_amber">#FFFFB21E</color>
 </resources>

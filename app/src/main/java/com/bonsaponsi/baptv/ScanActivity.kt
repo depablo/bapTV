@@ -41,6 +41,8 @@ class ScanActivity : Activity() {
     private lateinit var t2Check: CheckBox
     private lateinit var lnaCheck: CheckBox
     private lateinit var options: View
+    private lateinit var advanced: View
+    private lateinit var advancedToggle: Button
     private lateinit var frontendText: TextView
     private lateinit var logView: TextView
     private lateinit var tunerSettings: TunerSettings
@@ -111,6 +113,9 @@ class ScanActivity : Activity() {
         t2Check = findViewById(R.id.scan_t2)
         lnaCheck = findViewById(R.id.scan_lna)
         options = findViewById(R.id.scan_options)
+        advanced = findViewById(R.id.scan_advanced)
+        advancedToggle = findViewById(R.id.scan_advanced_toggle)
+        advancedToggle.setOnClickListener { showAdvanced(advanced.visibility != View.VISIBLE) }
         frontendText = findViewById(R.id.scan_frontend)
         logView = findViewById(R.id.scan_log)
         tunerSettings = TunerSettings(this)
@@ -135,7 +140,6 @@ class ScanActivity : Activity() {
         directButton.isEnabled = hasInstallPermission
         // Without the system permission the button would always be disabled – so it is hidden.
         if (!hasInstallPermission) directButton.visibility = View.GONE
-        modeText.text = getString(if (hasInstallPermission) R.string.scan_mode_direct else R.string.scan_mode_service)
 
         findViewById<Button>(R.id.scan_service).setOnClickListener { startScan(Method.SERVICE) }
         directButton.setOnClickListener { startScan(Method.BROADCAST) }
@@ -172,6 +176,9 @@ class ScanActivity : Activity() {
             findViewById<View>(R.id.scan_service).visibility = View.GONE
             findViewById<View>(R.id.scan_direct).visibility = View.GONE
             options.visibility = View.GONE
+            // The system wizard is the only way here – shown directly instead of under "Advanced settings".
+            showAdvanced(true)
+            advancedToggle.visibility = View.GONE
             modeText.text = getString(if (caps.systemSetup) R.string.scan_mode_wizard else R.string.scan_mode_none)
             statusText.text = ""
             findViewById<Button>(if (caps.systemSetup) R.id.scan_setup else R.id.scan_close).requestFocus()
@@ -181,14 +188,18 @@ class ScanActivity : Activity() {
     /** Number of scan frequencies according to the country plan (in Poland 48 UHF and optionally 8 VHF). */
     private fun frequencyCount() = Region.plan().frequencyCount(vhfCheck.isChecked)
 
-    /** Estimated time of the whole run (scan + discovery + identification) before starting. */
+    /** One sentence with the estimated time of the whole run (scan + discovery + identification). */
     private fun showEstimate() {
         val channels = SetupProgress.lastChannelCount(this)
         val e = SetupProgress.estimate(SetupProgress.rates(this), frequencyCount(), channels)
-        statusText.text = getString(
-            R.string.setup_estimate, SetupProgress.format(e.totalSec), SetupProgress.format(e.scanSec),
-            SetupProgress.format(e.discoverySec), SetupProgress.format(e.identifySec), channels,
-        )
+        DebugLog.log("Scan", "estimate: total ${SetupProgress.format(e.totalSec)} (scan ${SetupProgress.format(e.scanSec)}, " +
+            "discovery ${SetupProgress.format(e.discoverySec)}, identification ${SetupProgress.format(e.identifySec)}, ~$channels channels)")
+        modeText.text = getString(R.string.scan_intro, SetupProgress.format(e.totalSec))
+    }
+
+    private fun showAdvanced(show: Boolean) {
+        advanced.visibility = if (show) View.VISIBLE else View.GONE
+        advancedToggle.setText(if (show) R.string.scan_advanced_hide else R.string.scan_advanced_show)
     }
 
     /** Remaining time of the whole run during the scan (stage 1/3). */
@@ -261,9 +272,10 @@ class ScanActivity : Activity() {
         startedAt = System.currentTimeMillis()
         lastEventAt = startedAt
         progressBar.progress = 0
+        progressBar.visibility = View.VISIBLE
         statusText.setText(R.string.scan_waiting)
         methods.visibility = View.GONE
-        options.visibility = View.GONE
+        advanced.visibility = View.GONE
         cancelButton.visibility = View.VISIBLE
         cancelButton.requestFocus()
         handler.removeCallbacks(frontendPoll)
@@ -308,7 +320,7 @@ class ScanActivity : Activity() {
                 ReportSender.offer(this, ReportSender.Reason.SCAN_FAILED, getString(R.string.scan_failed), automatic = true)
             }
             "cancel" in status -> finishScan(getString(R.string.scan_cancelled), null)
-            else -> statusText.text = getString(R.string.scan_progress, progress, shown, status) + "\n" +
+            else -> statusText.text = getString(R.string.scan_progress, progress, shown) + "\n" +
                 getString(R.string.setup_stage1_remaining, remainingTotal(progress, shown))
         }
     }
@@ -357,7 +369,7 @@ class ScanActivity : Activity() {
         }
         cancelButton.visibility = View.GONE
         methods.visibility = View.VISIBLE
-        options.visibility = View.VISIBLE
+        showAdvanced(false)
         findViewById<Button>(R.id.scan_close).requestFocus()
     }
 

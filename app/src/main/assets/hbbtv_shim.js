@@ -112,19 +112,33 @@
     fire(o, 'PlayStateChange', { state: s, error: err }, [s, err]);
   }
 
-  // A/V Control: playback via a <video> element inside the object.
+  // A/V Control: playback via a <video> element laid over the object. Chromium does not render an
+  // <object>'s fallback content, so the video lives in <body> with fixed positioning that follows the
+  // object's box and visibility (z-index -1 keeps it below the app's own UI).
+  function syncVideo(o, v) {
+    if (!o.isConnected) { v.pause(); v.remove(); return false; }
+    var r = o.getBoundingClientRect();
+    var cs = getComputedStyle(o);
+    var shown = r.width > 0 && r.height > 0 && cs.visibility !== 'hidden' && cs.display !== 'none';
+    v.style.display = shown ? 'block' : 'none';
+    v.style.left = r.left + 'px'; v.style.top = r.top + 'px';
+    v.style.width = r.width + 'px'; v.style.height = r.height + 'px';
+    return true;
+  }
   function video(o) {
     var s = st(o);
     if (!s.video) {
       var v = document.createElement('video');
-      v.style.cssText = 'width:100%;height:100%;background:transparent';
+      v.style.cssText = 'position:fixed;left:0;top:0;width:0;height:0;z-index:-1;background:transparent;object-fit:contain;pointer-events:none';
       v.addEventListener('playing', function () { setPlayState(o, 1); });
       v.addEventListener('pause', function () { if (!v.ended && s.playState === 1) setPlayState(o, 2); });
       v.addEventListener('waiting', function () { setPlayState(o, 4); });
       v.addEventListener('ended', function () { setPlayState(o, 5); });
       v.addEventListener('error', function () { log('A/V error ' + (v.error && v.error.code)); setPlayState(o, 6, 0); });
-      o.appendChild(v);
+      (document.body || document.documentElement).appendChild(v);
       s.video = v;
+      syncVideo(o, v);
+      var timer = setInterval(function () { if (!syncVideo(o, v)) { clearInterval(timer); s.video = null; } }, 250);
     }
     return s.video;
   }
@@ -161,7 +175,7 @@
     },
     play: function (speed) {
       var v = video(this);
-      var src = this.getAttribute('data') || this.data;
+      var src = st(this).src || this.getAttribute('data');
       if (src && v.getAttribute('src') !== src) { v.src = src; setPlayState(this, 3); }
       if (speed === 0) { v.pause(); setPlayState(this, 2); return true; }
       v.playbackRate = speed && speed > 0 ? speed : 1;
@@ -173,6 +187,46 @@
     // Capabilities
     hasCapability: function (c) { return !/\+(DRM|PVR|ITV_KEYS)/.test(String(c)); }
   };
+  // A/V objects: Chromium plays <object type="video/mp4" data=…> by itself, as an embedded media page
+  // at the clip's native size (picture too small) while our <video> plays the same file (echo).
+  // The source is therefore kept in the object's state and never left in the real data attribute;
+  // without it the object shows its fallback content – our <video>.
+  var nativeData = Object.getOwnPropertyDescriptor(HTMLObjectElement.prototype, 'data');
+  var nativeSetAttr = Element.prototype.setAttribute;
+  var nativeGetAttr = Element.prototype.getAttribute;
+  function adopt(o) {
+    if (!isAV(o) || !o.hasAttribute('data')) return;
+    st(o).src = nativeGetAttr.call(o, 'data');
+    o.removeAttribute('data');
+  }
+  Object.defineProperty(HTMLObjectElement.prototype, 'data', {
+    configurable: true,
+    get: function () { return isAV(this) ? (st(this).src || '') : nativeData.get.call(this); },
+    set: function (v) { if (isAV(this)) st(this).src = String(v); else nativeData.set.call(this, v); }
+  });
+  HTMLObjectElement.prototype.setAttribute = function (name, value) {
+    if (String(name).toLowerCase() === 'data' && isAV(this)) { st(this).src = String(value); return; }
+    nativeSetAttr.call(this, name, value);
+    if (String(name).toLowerCase() === 'type') adopt(this);
+  };
+  HTMLObjectElement.prototype.getAttribute = function (name) {
+    if (String(name).toLowerCase() === 'data' && isAV(this)) return st(this).src || null;
+    return nativeGetAttr.call(this, name);
+  };
+  // Objects from the HTML parser or innerHTML get their data attribute natively – strip it as soon as it appears.
+  new MutationObserver(function (mutations) {
+    mutations.forEach(function (m) {
+      if (m.type === 'attributes' && m.target.nodeName === 'OBJECT') adopt(m.target);
+      Array.prototype.forEach.call(m.addedNodes || [], function (n) {
+        if (n.nodeName === 'OBJECT') adopt(n);
+        else if (n.querySelectorAll) Array.prototype.forEach.call(n.querySelectorAll('object'), adopt);
+      });
+    });
+  }).observe(document.documentElement, { subtree: true, childList: true, attributes: true, attributeFilter: ['data', 'type'] });
+  document.addEventListener('DOMContentLoaded', function () {
+    Array.prototype.forEach.call(document.querySelectorAll('object'), adopt);
+  });
+
   Object.keys(methods).forEach(function (name) {
     if (HTMLObjectElement.prototype[name] === undefined) {
       Object.defineProperty(HTMLObjectElement.prototype, name, { value: methods[name], configurable: true, writable: true });
@@ -214,16 +268,31 @@
     }
   });
 
-  // HbbTV assumes a 1280x720 screen.
+  // HbbTV assumes a 1280x720 screen. Some apps (e.g. TVP's Vue app) add their own
+  // "width=device-width" meta after load, which makes the page 960 px wide on a 1080p box and the
+  // 1280x720 layout spill off the screen – so any viewport meta added or changed later is rewritten too.
+  var VIEWPORT = 'width=1280, user-scalable=no';
   function fixViewport() {
     var metas = document.querySelectorAll('meta[name=viewport]');
     if (!metas.length && document.head) {
       var m = document.createElement('meta'); m.name = 'viewport'; document.head.appendChild(m); metas = [m];
     }
-    Array.prototype.forEach.call(metas, function (m) { m.setAttribute('content', 'width=1280, user-scalable=no'); });
+    Array.prototype.forEach.call(metas, function (m) {
+      if (m.getAttribute('content') !== VIEWPORT) m.setAttribute('content', VIEWPORT);
+    });
   }
   document.addEventListener('DOMContentLoaded', fixViewport);
   if (document.head) fixViewport();
+  new MutationObserver(function (mutations) {
+    for (var i = 0; i < mutations.length; i++) {
+      var t = mutations[i].target;
+      var added = mutations[i].addedNodes || [];
+      var hit = (t.nodeName === 'META') || Array.prototype.some.call(added, function (n) {
+        return n.nodeName === 'META' || (n.querySelector && n.querySelector('meta[name=viewport]'));
+      });
+      if (hit) { fixViewport(); return; }
+    }
+  }).observe(document.documentElement, { subtree: true, childList: true, attributes: true, attributeFilter: ['content', 'name'] });
 
   // TV picture position: the video/broadcast object may be scaled down to a window.
   var lastRect = '';
@@ -245,7 +314,11 @@
     XMLHttpRequest.prototype.send = function (body) {
       var x = this;
       x.addEventListener('loadend', function () {
-        if (x.status === 0 || x.status >= 400) log('XHR ' + x.__dvbt + ' -> ' + x.status + ' request=' + cut(body) + ' response=' + cut(x.responseText));
+        if (x.status === 0 || x.status >= 400) {
+          // responseText throws for binary responses (dash.js segments are arraybuffers).
+          var text = (x.responseType === '' || x.responseType === 'text') ? x.responseText : '<' + x.responseType + '>';
+          log('XHR ' + x.__dvbt + ' -> ' + x.status + ' request=' + cut(body) + ' response=' + cut(text));
+        }
       });
       return send.apply(this, arguments);
     };
@@ -258,6 +331,56 @@
           if (r.status >= 400) r.clone().text().then(function (t) { log('FETCH ' + url + ' -> ' + r.status + ' request=' + cut(body) + ' response=' + cut(t)); });
           return r;
         }, function (e) { log('FETCH ' + url + ' error: ' + e); throw e; });
+      };
+    }
+  })();
+
+  // DASH (TVP's virtual channels, dash.js): switching from 288p up to 1080p reconfigures the Amlogic
+  // hardware decoder, which then stops delivering frames to WebView (white picture, then silence).
+  // Every DASH manifest is reduced to its single best video quality, so the player never switches.
+  (function () {
+    var textDesc = Object.getOwnPropertyDescriptor(XMLHttpRequest.prototype, 'responseText');
+    var respDesc = Object.getOwnPropertyDescriptor(XMLHttpRequest.prototype, 'response');
+    var cache = { raw: null, out: null };
+    var logged = false;
+    function isDashType(ct) { return /dash\+xml/i.test(ct || ''); }
+    function filterMpd(text) {
+      if (typeof text !== 'string' || text.indexOf('<MPD') < 0) return text;
+      if (cache.raw === text) return cache.out;
+      var out = text;
+      try {
+        var doc = new DOMParser().parseFromString(text, 'application/xml');
+        if (!doc.getElementsByTagName('parsererror').length) {
+          var removed = 0;
+          Array.prototype.forEach.call(doc.getElementsByTagName('AdaptationSet'), function (set) {
+            var reps = Array.prototype.slice.call(set.getElementsByTagName('Representation'));
+            var kind = (set.getAttribute('mimeType') || '') + (set.getAttribute('contentType') || '');
+            var video = /video/i.test(kind) || reps.some(function (r) { return /video/i.test(r.getAttribute('mimeType') || '') || r.hasAttribute('height'); });
+            if (!video || reps.length < 2) return;
+            var best = reps.reduce(function (a, r) { return (+r.getAttribute('bandwidth') || 0) > (+a.getAttribute('bandwidth') || 0) ? r : a; });
+            reps.forEach(function (r) { if (r !== best) { r.parentNode.removeChild(r); removed++; } });
+            if (!logged) { logged = true; log('DASH manifest: keeping only ' + (best.getAttribute('width') || '?') + 'x' + (best.getAttribute('height') || '?') + ' (no quality switching)'); }
+          });
+          if (removed) out = new XMLSerializer().serializeToString(doc);
+        }
+      } catch (e) { log('DASH manifest filter: ' + e); }
+      cache = { raw: text, out: out };
+      return out;
+    }
+    function isDashXhr(x) { try { return isDashType(x.getResponseHeader('content-type')); } catch (e) { return false; } }
+    Object.defineProperty(XMLHttpRequest.prototype, 'responseText', {
+      configurable: true,
+      get: function () { var t = textDesc.get.call(this); return isDashXhr(this) ? filterMpd(t) : t; }
+    });
+    Object.defineProperty(XMLHttpRequest.prototype, 'response', {
+      configurable: true,
+      get: function () { var r = respDesc.get.call(this); return typeof r === 'string' && isDashXhr(this) ? filterMpd(r) : r; }
+    });
+    if (window.Response && Response.prototype.text) {
+      var text = Response.prototype.text;
+      Response.prototype.text = function () {
+        var dash = isDashType(this.headers && this.headers.get('content-type'));
+        return text.apply(this, arguments).then(function (t) { return dash ? filterMpd(t) : t; });
       };
     }
   })();

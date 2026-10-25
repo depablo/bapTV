@@ -1,6 +1,27 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Android TV launcher banner (16:9 aspect, 320x180). -->
-<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <item><shape><solid android:color="@color/banner_bg" /><size android:width="320dp" android:height="180dp" /></shape></item>
-    <item android:width="120dp" android:height="120dp" android:gravity="center" android:drawable="@drawable/ic_tv" />
-</layer-list>
+<!-- Android TV launcher banner (320x180): the bapTV lockup – amber b with the mast, white "ap", amber "TV". -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="320dp" android:height="180dp"
+    android:viewportWidth="320" android:viewportHeight="180">
+    <path android:fillColor="@color/brand_navy" android:pathData="M0,0 H320 V180 H0 Z" />
+    <group android:translateX="43.58" android:translateY="121.04" android:scaleX="0.97" android:scaleY="0.97">
+        <!-- b: stem and round bowl -->
+        <path android:fillColor="@color/brand_amber" android:pathData="M0,-53 a5,5 0 0,1 10,0 V-5 a5,5 0 0,1 -10,0 Z" />
+        <path android:strokeColor="@color/brand_amber" android:strokeWidth="10" android:pathData="M10,-20 a15,15 0 1,0 30,0 a15,15 0 1,0 -30,0" />
+        <!-- signal above the mast -->
+        <path android:fillColor="#FFFFFFFF" android:pathData="M1,-72 a4,4 0 1,0 8,0 a4,4 0 1,0 -8,0" />
+        <path android:strokeColor="#FFFFFFFF" android:strokeWidth="3.6" android:strokeLineCap="round"
+            android:pathData="M-2.66,-78.43 A10,10 0 0,0 -2.66,-65.57 M12.66,-78.43 A10,10 0 0,1 12.66,-65.57" />
+        <path android:strokeColor="#FFFFFFFF" android:strokeAlpha="0.55" android:strokeWidth="3.6" android:strokeLineCap="round"
+            android:pathData="M-8.79,-83.57 A18,18 0 0,0 -8.79,-60.43 M18.79,-83.57 A18,18 0 0,1 18.79,-60.43" />
+        <!-- a: round bowl, straight stem -->
+        <path android:strokeColor="#FFFFFFFF" android:strokeWidth="10" android:pathData="M58,-20 a15,15 0 1,0 30,0 a15,15 0 1,0 -30,0" />
+        <path android:fillColor="#FFFFFFFF" android:pathData="M83,-35 a5,5 0 0,1 10,0 V-5 a5,5 0 0,1 -10,0 Z" />
+        <!-- p -->
+        <path android:fillColor="#FFFFFFFF" android:pathData="M101,-35 a5,5 0 0,1 10,0 V13 a5,5 0 0,1 -10,0 Z" />
+        <path android:strokeColor="#FFFFFFFF" android:strokeWidth="10" android:pathData="M111,-20 a15,15 0 1,0 30,0 a15,15 0 1,0 -30,0" />
+        <!-- TV -->
+        <path android:strokeColor="@color/brand_amber" android:strokeWidth="10" android:strokeLineCap="round" android:strokeLineJoin="round"
+            android:pathData="M159,-53 H189 M174,-53 V-5 M207,-53 L225,-5 L243,-53" />
+    </group>
+</vector>

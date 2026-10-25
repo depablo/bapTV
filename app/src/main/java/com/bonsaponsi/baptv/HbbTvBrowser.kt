@@ -41,6 +41,10 @@ class HbbTvBrowser(private val activity: Activity, private val container: ViewGr
         fun hbbStopBroadcast()
         fun hbbBindBroadcast()
         fun hbbBroadcastRect(rect: String)
+        /** The channel's app could not be loaded (e.g. no internet) – the player shows a short notice instead of an error page. */
+        fun hbbAppUnavailable(offline: Boolean)
+        /** The app put a colour key into its key set – it has functions under the colour keys. */
+        fun hbbColourKeysWanted()
     }
 
     private val main = Handler(Looper.getMainLooper())
@@ -211,6 +215,7 @@ class HbbTvBrowser(private val activity: Activity, private val container: ViewGr
             if (!trusted(n)) return
             keyset = mask
             DebugLog.log(TAG, "keyset = 0x%X".format(mask))
+            if (mask and COLOUR_KEYS != 0) main.post { host.hbbColourKeysWanted() }
         }
         @JavascriptInterface fun show(n: String) { if (trusted(n)) main.post { visible = true; webView?.visibility = View.VISIBLE } }
         @JavascriptInterface fun hide(n: String) { if (trusted(n)) main.post { visible = false; webView?.visibility = View.INVISIBLE } }
@@ -263,7 +268,15 @@ class HbbTvBrowser(private val activity: Activity, private val container: ViewGr
         }
 
         override fun onReceivedError(view: WebView, request: WebResourceRequest, error: android.webkit.WebResourceError) {
-            if (request.isForMainFrame) DebugLog.warn(TAG, "load error ${request.url}: ${error.errorCode} ${error.description}")
+            if (!request.isForMainFrame) return
+            DebugLog.warn(TAG, "load error ${request.url}: ${error.errorCode} ${error.description}")
+            // No WebView error page over the TV picture ("Webpage not available") – a short notice from the player instead.
+            view.stopLoading()
+            view.loadUrl("about:blank")
+            view.visibility = View.INVISIBLE
+            visible = false
+            val offline = error.errorCode in OFFLINE_ERRORS
+            main.post { host.hbbAppUnavailable(offline) }
         }
 
         override fun onReceivedHttpError(view: WebView, request: WebResourceRequest, response: WebResourceResponse) {
@@ -338,6 +351,11 @@ class HbbTvBrowser(private val activity: Activity, private val container: ViewGr
     }
 
     companion object {
+        /** WebViewClient errors that mean the network or the server cannot be reached. */
+        private val OFFLINE_ERRORS = setOf(
+            WebViewClient.ERROR_HOST_LOOKUP, WebViewClient.ERROR_CONNECT, WebViewClient.ERROR_TIMEOUT,
+            WebViewClient.ERROR_IO, WebViewClient.ERROR_PROXY_AUTHENTICATION,
+        )
         private const val TAG = "HbbTV"
         /** HbbTV app pages are tens to hundreds of kB; above this limit the layer is not injected. */
         private const val MAX_PAGE_BYTES = 4_000_000

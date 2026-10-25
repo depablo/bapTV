@@ -1,3 +1,10 @@
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/brand/baptv-logo-on-dark.svg">
+    <img alt="bapTV" src="docs/brand/baptv-logo-on-light.svg" width="320">
+  </picture>
+</p>
+
 # bapTV
 
 A standalone terrestrial TV (DVB-T/T2) player for Android TV.

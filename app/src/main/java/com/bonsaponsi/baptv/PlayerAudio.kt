@@ -44,6 +44,13 @@ class PlayerAudio(context: Context, private val tvView: TvView) {
         apply("start")
     }
 
+    private fun regainFocus() {
+        val req = request ?: return
+        val result = audioManager.requestAudioFocus(req)
+        if (result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED) volume = 1f
+        DebugLog.log("Audio", "audio focus requested again on tune = ${if (result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED) "GRANTED" else "denied ($result)"}")
+    }
+
     fun stop() {
         request?.let { audioManager.abandonAudioFocusRequest(it) }
         request = null
@@ -51,6 +58,9 @@ class PlayerAudio(context: Context, private val tvView: TvView) {
 
     /** Sets the tuner session volume – called after tune and after playback starts. */
     fun apply(why: String) {
+        // An HbbTV app playing internet video in the WebView takes the audio focus (permanent LOSS); a channel
+        // change is a clear request for the TV sound again, so the focus is requested anew.
+        if (why == "tune" && volume < 1f) regainFocus()
         tvView.setStreamVolume(volume)
         DebugLog.log("Audio", "TvView.setStreamVolume($volume) [$why]")
     }

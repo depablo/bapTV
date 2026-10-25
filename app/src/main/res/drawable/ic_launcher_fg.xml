@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Launcher icon foreground: the bapTV mark (amber b whose stem is a mast, signal above). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <group android:translateX="43.42" android:translateY="84.74" android:scaleX="0.72" android:scaleY="0.72">
+        <!-- b: stem and round bowl -->
+        <path android:fillColor="@color/brand_amber" android:pathData="M0,-53 a5,5 0 0,1 10,0 V-5 a5,5 0 0,1 -10,0 Z" />
+        <path android:strokeColor="@color/brand_amber" android:strokeWidth="10" android:pathData="M10,-20 a15,15 0 1,0 30,0 a15,15 0 1,0 -30,0" />
+        <!-- signal above the mast -->
+        <path android:fillColor="#FFFFFFFF" android:pathData="M1,-72 a4,4 0 1,0 8,0 a4,4 0 1,0 -8,0" />
+        <path android:strokeColor="#FFFFFFFF" android:strokeWidth="3.6" android:strokeLineCap="round"
+            android:pathData="M-2.66,-78.43 A10,10 0 0,0 -2.66,-65.57 M12.66,-78.43 A10,10 0 0,1 12.66,-65.57" />
+        <path android:strokeColor="#FFFFFFFF" android:strokeAlpha="0.55" android:strokeWidth="3.6" android:strokeLineCap="round"
+            android:pathData="M-8.79,-83.57 A18,18 0 0,0 -8.79,-60.43 M18.79,-83.57 A18,18 0 0,1 18.79,-60.43" />
+    </group>
+</vector>

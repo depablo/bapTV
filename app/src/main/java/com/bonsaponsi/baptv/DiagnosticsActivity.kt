@@ -69,8 +69,9 @@ class DiagnosticsActivity : Activity() {
 
     override fun onResume() {
         super.onResume()
-        // After returning from system settings, refresh the permission state.
-        updateServerUi()
+        // After returning from system settings, refresh the permission state (developer tools – debug builds only;
+        // release builds do not declare REQUEST_INSTALL_PACKAGES and canRequestPackageInstalls() throws there).
+        if (DebugServerService.available) updateServerUi()
     }
 
     override fun onDestroy() {
@@ -122,7 +123,7 @@ class DiagnosticsActivity : Activity() {
         val no = getString(R.string.diag_no)
         val remote = getString(
             R.string.diag_remote_status,
-            if (packageManager.canRequestPackageInstalls()) yes else no,
+            if (runCatching { packageManager.canRequestPackageInstalls() }.getOrDefault(false)) yes else no,
             if (InstallClickService.isConnected) yes else no,
         )
         serverInfo.text = serverText + "\n" + remote

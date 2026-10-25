@@ -59,6 +59,8 @@ class MainActivity : Activity() {
     private var hbbInternalTune = false
     /** The HbbTV app stopped the broadcast video (e.g. while playing video on demand). */
     private var broadcastStopped = false
+    /** Channel for which the "HbbTV unavailable" notice was shown – once per tune, not on every retry. */
+    private var hbbNoticeShownFor = -1L
     /** Full channel identification (from the menu) is running – the player switches channels by itself. */
     @Volatile private var identifying = false
     // dtvinput timeshift state (experiments via /timeshift).
@@ -304,6 +306,7 @@ class MainActivity : Activity() {
         }
         PlayerRemote.timeshiftState = { timeshift.json().put("status", tsStatus) }
         PlayerRemote.publish = { publishChannels(automatic = false) }
+        PlayerRemote.colourKey = { event -> if (!isDestroyed) dispatchKeyEvent(event) }
         TsProbe.tuneHook = { id ->
             val index = channels.indexOfFirst { it.id == id }
             if (index >= 0) tuneTo(index)
@@ -428,6 +431,7 @@ class MainActivity : Activity() {
             PlayerRemote.timeshiftState = null
             PlayerRemote.hbb = null
             PlayerRemote.publish = null
+            PlayerRemote.colourKey = null
         }
         publisher?.cancel()
 
@@ -570,6 +574,7 @@ class MainActivity : Activity() {
         tunedAt = SystemClock.elapsedRealtime()
         prefs.edit().putLong(PREF_LAST_CHANNEL, channel.id).apply()
         DebugLog.log("Player", "tune ${channel.number} \"${channel.name}\" id=${channel.id} uri=${channel.uri}")
+        hbbNoticeShownFor = -1L
         showStatus(getString(R.string.status_tuning))
         tvView.tune(tuner.id, channel.uri)
         TsProbe.currentChannelUri = channel.uri
@@ -894,6 +899,33 @@ class MainActivity : Activity() {
         }
     }
 
+    /**
+     * Shown once, the first time a channel's HbbTV app wants the colour keys while [ColourKeysService] is off:
+     * on some set-top boxes those keys go to another app, and the system lets only the user switch the service on.
+     * Not during setup, identification or with the menu or a dialog open – the next channel with such an app asks again.
+     */
+    private fun offerColourKeys() {
+        if (prefs.getBoolean(PREF_COLOUR_KEYS_OFFERED, false) || ColourKeysService.isEnabled(this)) return
+        if (!started || isFinishing || identifying || prober != null || SetupProgress.inPipeline(this)) return
+        if (menu.visible || !hasWindowFocus() || colourKeysOfferPending) return
+        val channelId = channels.getOrNull(currentIndex)?.id ?: return
+        colourKeysOfferPending = true
+        // A moment after the channel starts, so the offer does not cover the tune itself.
+        handler.postDelayed({
+            colourKeysOfferPending = false
+            if (channels.getOrNull(currentIndex)?.id != channelId || !started || menu.visible || !hasWindowFocus()) return@postDelayed
+            prefs.edit().putBoolean(PREF_COLOUR_KEYS_OFFERED, true).apply()
+            DebugLog.log("ColourKeys", "offering to switch on the colour keys service")
+            TvDialog.confirm(this, getString(R.string.colour_keys_enable_title), getString(R.string.colour_keys_offer_message),
+                getString(R.string.colour_keys_open_settings), cancelLabel = getString(R.string.colour_keys_not_now)) {
+                runCatching { startActivity(Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS)) }
+                    .onFailure { DebugLog.warn("ColourKeys", "accessibility settings not available", it) }
+            }
+        }, COLOUR_KEYS_OFFER_DELAY_MS)
+    }
+
+    private var colourKeysOfferPending = false
+
     /** Service watched before publishing – after reloading, the player returns to it under its new ID. */
     private var lastPublishedService: Pair<Int?, Int?>? = null
 
@@ -1210,6 +1242,13 @@ class MainActivity : Activity() {
                 hbbStore.enabled = !hbbStore.enabled
                 current?.let { onHbbTuned(it) }
             } else MenuPanel.Entry(getString(R.string.menu_hbbtv), getString(R.string.menu_value_unavailable), stay) {},
+            MenuPanel.Entry(getString(R.string.menu_colour_keys), onOff(ColourKeysService.isEnabled(this))) {
+                TvDialog.confirm(this, getString(R.string.colour_keys_enable_title), getString(R.string.colour_keys_enable_message),
+                    getString(R.string.colour_keys_open_settings), onClose = menu::returned) {
+                    runCatching { startActivity(Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS)) }
+                        .onFailure { DebugLog.warn("ColourKeys", "accessibility settings not available", it) }
+                }
+            }.takeIf { caps.hbbtv },
             MenuPanel.Entry(getString(R.string.menu_hbbtv_relearn), after = stay) {
                 current?.let { identifyInBackground(it, force = true) }
             }.takeIf { caps.hbbtv && current != null },
@@ -1359,6 +1398,11 @@ class MainActivity : Activity() {
     // ---- Remote control ----
 
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        // Every key press is logged here, before HbbTV or the menu take it – also keys this app has no use for,
+        // with the scan code, so remotes that send unusual codes (e.g. for colour keys) can be identified.
+        if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) {
+            DebugLog.log("Key", "${KeyEvent.keyCodeToString(event.keyCode)} scan=${event.scanCode} device=${event.device?.name ?: event.deviceId}")
+        }
         // An open info panel handles arrows, OK and BACK itself (they do not reach HbbTV).
         if (menu.onKey(event)) return true
         val infoNav = infoLevel > 0 && event.keyCode in INFO_PANEL_KEYS
@@ -1776,6 +1820,16 @@ class MainActivity : Activity() {
             DebugLog.log("HbbTV", "app stops the broadcast video")
             broadcastStopped = true
             tvView.reset()
+            // The app plays its own (internet) video now – a tuner status such as "No picture" must not stay on it.
+            showStatus(null)
+        }
+        override fun hbbColourKeysWanted() = offerColourKeys()
+        override fun hbbAppUnavailable(offline: Boolean) {
+            val channel = channels.getOrNull(currentIndex)
+            if (channel == null || hbbNoticeShownFor == channel.id) return
+            hbbNoticeShownFor = channel.id
+            // A toast, not the status line – the status line is cleared as soon as the picture appears.
+            TvDialog.toast(this@MainActivity, getString(if (offline) R.string.hbbtv_offline else R.string.hbbtv_unavailable), long = true)
         }
         override fun hbbBindBroadcast() {
             if (!broadcastStopped) return
@@ -1805,7 +1859,6 @@ class MainActivity : Activity() {
     }
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {
-        DebugLog.log("Key", KeyEvent.keyCodeToString(keyCode))
         val panelVisible = channelPanel.visibility == View.VISIBLE
         if (keyCode in KeyEvent.KEYCODE_0..KeyEvent.KEYCODE_9) {
             if (digits.length < 4) digits.append(keyCode - KeyEvent.KEYCODE_0)
@@ -1850,8 +1903,9 @@ class MainActivity : Activity() {
             }
             KeyEvent.KEYCODE_CAPTIONS -> { cycleTrack(TvTrackInfo.TYPE_SUBTITLE); return true }
             KeyEvent.KEYCODE_MEDIA_AUDIO_TRACK -> { cycleTrack(TvTrackInfo.TYPE_AUDIO); return true }
-            KeyEvent.KEYCODE_PROG_RED -> { toggleOverlay(); return true }
-            KeyEvent.KEYCODE_PROG_BLUE -> { startActivity(Intent(this, DiagnosticsActivity::class.java)); return true }
+            // Developer shortcuts – in release builds colour keys not taken by an HbbTV app do nothing.
+            KeyEvent.KEYCODE_PROG_RED -> if (BuildConfig.DEBUG) { toggleOverlay(); return true }
+            KeyEvent.KEYCODE_PROG_BLUE -> if (BuildConfig.DEBUG) { startActivity(Intent(this, DiagnosticsActivity::class.java)); return true }
             KeyEvent.KEYCODE_MEDIA_STOP -> if (playingRecording != null) { recordingAction("live", null); return true }
             KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE, KeyEvent.KEYCODE_MEDIA_PAUSE, KeyEvent.KEYCODE_MEDIA_PLAY -> if (playingRecording != null) {
                 recordingPaused = if (keyCode == KeyEvent.KEYCODE_MEDIA_PLAY) false else if (keyCode == KeyEvent.KEYCODE_MEDIA_PAUSE) true else !recordingPaused
@@ -1929,7 +1983,9 @@ class MainActivity : Activity() {
                 TvInputManager.VIDEO_UNAVAILABLE_REASON_AUDIO_ONLY -> "AUDIO_ONLY" to R.string.status_audio_only
                 VIDEO_UNAVAILABLE_REASON_NOT_CONNECTED -> "NOT_CONNECTED" to R.string.status_not_connected
                 in CAS_REASONS -> "CAS($reason)" to R.string.status_cas
-                else -> "UNKNOWN($reason)" to R.string.status_unknown
+                // dtvinput reports UNKNOWN for a moment right after a tune – that is still tuning, not "no picture".
+                else -> "UNKNOWN($reason)" to
+                    if (SystemClock.elapsedRealtime() - tunedAt < TUNE_UNKNOWN_GRACE_MS) R.string.status_tuning else R.string.status_unknown
             }
             prober?.let {
                 it.onEvent("onVideoUnavailable $label", reason = reason)
@@ -2034,6 +2090,8 @@ class MainActivity : Activity() {
         private const val REQUEST_RECORDINGS = 4
         private const val PREF_STORAGE_ASKED = "storage_asked"
         private const val PREF_FIRST_SCAN_OPENED = "first_scan_opened"
+        private const val PREF_COLOUR_KEYS_OFFERED = "colour_keys_offered"
+        private const val COLOUR_KEYS_OFFER_DELAY_MS = 3000L
         private const val STORAGE_ASK_INTERVAL_MS = 24 * 3600_000L
         private const val PREF_SAME_MUX_BUSY = "same_mux_busy"
         /** Time for playback to settle after a channel switch before recording. */
@@ -2046,6 +2104,7 @@ class MainActivity : Activity() {
         /** Time to switch the player before a scheduled recording starts. */
         private const val SWITCH_BEFORE_RECORDING_MS = 3000L
         private const val SETUP_DONE_MS = 8000L
+        private const val TUNE_UNKNOWN_GRACE_MS = 2000L
         private const val SIGNAL_REFRESH_MS = 1000L
         private const val DIGIT_TIMEOUT_MS = 1500L
 

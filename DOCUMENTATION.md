@@ -67,7 +67,7 @@ possible, and the country and scan frequency plan.
 2. Grant access to TV listings when asked. It is needed to read the channel list and guide of the
    tuner input.
 3. On first start, and whenever there are no channels, the app opens the channel search screen
-   (after any permission dialogs are answered). On devices with the Google DTV stack, **Scan** runs
+   (after any permission dialogs are answered). On devices with the Google DTV stack, **Search for channels** runs
    the whole setup in one go (see [Channel scan](#11-channel-scan)). Later starts without visible
    channels detect the channels of an earlier scan instead (for example one made by another TV app).
    On other devices, scan for channels in the system TV settings or in the tuner's own app; bapTV
@@ -361,7 +361,17 @@ How it works:
    `oipfApplicationManager` (application, key set, show/hide), `oipfConfiguration`,
    `oipfCapabilities`, the `video/broadcast` object (current channel, channel list, `setChannel`,
    stop), A/V objects (through HTML `<video>`) and the `VK_*` key constants. The page is laid out at
-   1280 px width and scaled to the screen.
+   1280 px width and scaled to the screen; a viewport set later by the application (for example
+   `width=device-width`) is rewritten to 1280 px as well, otherwise the 1280x720 layout spills off
+   a 1080p screen.
+   For A/V objects (`<object type="video/mp4" data=…>`) the source is kept out of the real `data`
+   attribute, so `WebView` does not play the clip by itself at its native size next to the
+   compatibility layer's `<video>` (picture too small, doubled sound). That `<video>` is laid over
+   the object's box and follows its position and visibility.
+   DASH manifests (`application/dash+xml`, read through XHR or `fetch`) are reduced to their single
+   best video quality. On the Amlogic decoder a quality switch during playback (e.g. 288p to 1080p)
+   leaves WebView without video frames – a white picture and then silence – so players such as
+   dash.js must not switch.
 4. Keys in the application's key set are delivered to the page as `VK_*` key events; other keys are
    handled by the player, as on a TV set with HbbTV.
 
@@ -376,25 +386,45 @@ Details:
   red returns to the player.
 - The HbbTV overlay is hidden while the menu is open.
 - HTTP images on HTTPS pages are allowed (as in TV browsers).
+- **Colour keys on some set-top boxes.** A device may declare the colour keys as system-wide global
+  keys owned by the operator's app (`global_keys.xml` in a system overlay); Android then sends them
+  to that app and never to bapTV, so HbbTV functions such as "watch from the start" (blue) do not
+  react. Menu → Settings → **Remote colour keys** explains this and opens the accessibility settings,
+  where the user switches on **bapTV – remote colour keys** (`ColourKeysService`). The service only
+  filters key events: while the player is on screen it hands the four colour keys to it, otherwise
+  they go on to the system unchanged. It reads no screen content. Every key press, with its scan code,
+  is written to the log, which helps to identify such remotes.
+- When the channel's app cannot be loaded (no internet, server down) no browser error page is shown;
+  a short notice says the channel's extra services need the internet, once per channel switch.
+- When the app stops the broadcast picture to play its own video, the tuner status line ("No
+  picture", "Buffering…") is cleared. On the next channel switch the player takes the audio focus
+  back from the app's video, so the TV sound is not left muted.
 
 ## 11. Channel scan
 
-Menu → Channels → **Search for channels**. The screen offers the methods the device supports.
+Menu → Channels → **Search for channels**. The screen is kept simple: one sentence with the
+estimated total time, **Search for channels**, **Close** and **Advanced settings**. During the scan it
+shows a progress bar, one status line (progress and channels found), the time left and **Stop**.
+The tuner state and the scan events are written only to the log and the diagnostics report.
+
+**Advanced settings** (collapsed by default) hold the scan options below, the other methods the device
+supports and a shortcut to Diagnostics. When the device can scan only with its own wizard, that part
+is shown straight away.
 
 | Method | When available | How it works |
 |---|---|---|
-| **Scan** (default) | Google DTV stack | Starts a scan through the tuner input's installer service, which accepts scan parameters from other apps. Progress arrives as broadcast events. |
+| **Search for channels** (default) | Google DTV stack | Starts a scan through the tuner input's installer service, which accepts scan parameters from other apps. Progress arrives as broadcast events. |
 | **Scan (system permission)** | only when the app holds `INSTALL_TV_CHANNELS` (installed as a privileged app or signed with the platform key) | Starts the scan with the tuner input's install broadcast. |
 | **System wizard** | the tuner input has a setup activity | Opens the input's own setup wizard (`TvInputInfo.createSetupIntent()`); come back to the app when it finishes. |
 
 If the tuner does not allow other apps to scan at all, the screen says so and suggests scanning in
 the TV settings.
 
-### Scan options (Google DTV stack)
+### Scan options (Google DTV stack, under Advanced settings)
 
 - **DVB-T2 mode** (also receives DVB-T).
 - **Include the VHF band** – VHF band III, in addition to UHF.
-- **Tuner LNA amplifier** – stored in the tuner settings and used by the next scan.
+- **Antenna amplifier in the tuner (LNA)** – stored in the tuner settings and used by the next scan.
 
 The frequency plan follows the country in the system settings:
 
@@ -404,13 +434,12 @@ The frequency plan follows the country in the system settings:
 | Australia | UHF 529.5–690.5 MHz and VHF 177.5–226.5 MHz, 7 MHz steps |
 | Colombia, Taiwan, Panama | UHF 473–695 MHz in 6 MHz steps |
 
-During the scan the screen shows the tuner (frontend) state, progress, the number of channels found
-and the scan events. If no frequency locked, it suggests checking the antenna, cable and direction
-and trying the LNA amplifier.
+If no frequency locked, the screen suggests checking the antenna connection and direction and turning
+on the amplifier in the advanced settings.
 
 ### One-pass setup
 
-On Google DTV stack devices **Scan** runs three stages without further steps:
+On Google DTV stack devices **Search for channels** runs three stages without further steps:
 
 1. the tuner input's scan,
 2. discovery of the channel IDs in the player (when the input hides its channels),
@@ -506,6 +535,7 @@ Debug builds additionally offer a local HTTP server; see
 | `TvDialog` | Dialogs in the menu style |
 | `ChannelRepository` | Loads channels (from `TvContract` or discovered), applies identification, the service catalogue, custom names, order, hiding, numbering and duplicate removal; provides programmes |
 | `ChannelStore` | Persistent channel settings keyed by multiplex and service number |
+| `ColourKeysService` | Optional accessibility service that hands the remote's colour keys to the player on devices that route them to another app |
 | `ServiceCatalog` | Built-in names and LCNs of Polish national terrestrial services by service ID |
 | `ChannelPublisher` | Publishes identified channels to `TvContract` through the tuner input's JSON install mode |
 | `EpgStore` | Guide data from EIT, stored per multiplex and merged |

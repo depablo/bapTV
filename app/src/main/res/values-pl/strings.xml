@@ -31,7 +31,7 @@
     <string name="now">Teraz: %1$s</string>
     <string name="next">Dalej: %1$s</string>
 
-    <string name="scan_title">Wyszukiwanie kanałów DVB-T/T2</string>
+    <string name="scan_title">Wyszukiwanie kanałów</string>
     <string name="scan_mode_wizard">To urządzenie wyszukuje kanały własnym kreatorem tunera. Wybierz „Kreator systemowy”, a po zakończeniu wróć do aplikacji.</string>
     <string name="scan_mode_none">Tuner tego urządzenia nie udostępnia wyszukiwania kanałów innym aplikacjom. Wyszukaj kanały w ustawieniach telewizora.</string>
     <string name="no_channels_scan">Brak kanałów – otwieram wyszukiwanie kanałów.</string>
@@ -48,26 +48,23 @@
     <string name="discovery_none">Nie wykryto kanałów. Wyszukaj kanały (OK) lub sprawdź Diagnostykę.</string>
     <string name="menu_debug_overlay">Nakładka debugowania</string>
 
-    <string name="scan_mode_service">Skanowanie przez usługę systemowego tunera („TV Channels”). Aplikacja nie ma uprawnienia do bezpośredniego skanowania, ale ta metoda go nie wymaga. Nie wyłączaj dekodera w trakcie.</string>
-    <string name="scan_mode_direct">Aplikacja ma uprawnienie systemowe – dostępne są wszystkie metody skanowania.</string>
-    <string name="scan_method_service">Skanuj</string>
+    <string name="scan_method_service">Szukaj kanałów</string>
     <string name="scan_method_direct">Skanuj (uprawnienie systemowe)</string>
     <string name="scan_method_setup">Kreator systemowy</string>
     <string name="scan_include_vhf">Uwzględnij pasmo VHF (177,5–230 MHz)</string>
     <string name="scan_dvbt2">Tryb DVB-T2 (odbiera też DVB-T)</string>
-    <string name="scan_lna">Wzmacniacz LNA tunera</string>
-    <string name="scan_lna_unknown">LNA: nieustawione (domyślne firmware)</string>
+    <string name="scan_lna">Wzmacniacz antenowy w tunerze (LNA)</string>
+    <string name="scan_lna_unknown">ustawienie domyślne</string>
     <string name="scan_frontend">Tuner: %1$s</string>
-    <string name="scan_no_lock">Tuner nie złapał sygnału na żadnej z %1$d częstotliwości. Sprawdź podłączenie anteny do gniazda RF dekodera, kabel i ustawienie anteny; spróbuj włączyć „Wzmacniacz LNA”.</string>
-    <string name="scan_events">Zdarzenia skanowania:</string>
+    <string name="scan_no_lock">Nie znaleziono sygnału na żadnej z %1$d częstotliwości. Sprawdź, czy antena jest podłączona do dekodera i dobrze ustawiona. Możesz też włączyć wzmacniacz w ustawieniach zaawansowanych.</string>
     <string name="scan_cancel">Przerwij</string>
     <string name="scan_close">Zamknij</string>
-    <string name="scan_waiting">Zlecono skanowanie, oczekiwanie na tuner…</string>
-    <string name="scan_tuner_ready">Tuner gotowy, skanowanie powinno się rozpocząć…</string>
-    <string name="scan_no_response">Brak odpowiedzi od tunera od %1$d s. Sprawdź Diagnostykę albo spróbuj kreatora systemowego.</string>
-    <string name="scan_progress">Postęp: %1$d%% · kanałów: %2$d · stan: %3$s</string>
+    <string name="scan_waiting">Uruchamiam tuner…</string>
+    <string name="scan_tuner_ready">Tuner gotowy, zaczynam szukać…</string>
+    <string name="scan_no_response">Tuner nie odpowiada od %1$d s. Spróbuj ponownie albo użyj kreatora systemowego w ustawieniach zaawansowanych.</string>
+    <string name="scan_progress">Szukam kanałów… %1$d%% · znaleziono: %2$d</string>
     <string name="scan_complete">Zakończono. Znaleziono kanałów: %1$d</string>
-    <string name="scan_failed">Skanowanie nie powiodło się (nie znaleziono kanałów lub błąd tunera).</string>
+    <string name="scan_failed">Nie znaleziono kanałów. Sprawdź antenę i spróbuj ponownie.</string>
     <string name="scan_cancelled">Skanowanie przerwane.</string>
     <string name="scan_no_setup">Tuner nie udostępnia kreatora konfiguracji.</string>
     <string name="scan_setup_returned">Powrót z kreatora (kod wyniku %1$d).</string>
@@ -121,9 +118,8 @@
     <string name="badge_hbbtv">HbbTV</string>
     <string name="virtual_channel_info">Kanał HbbTV – obraz przez internet</string>
     <string name="probe_status">Sprawdzanie częstotliwości ze strony /signal…</string>
-    <string name="setup_estimate">Szacowany czas całości: %1$s (skanowanie %2$s · wykrywanie kanałów %3$s · rozpoznawanie %4$s, przy ok. %5$d kanałach). Po skanowaniu aplikacja sama przejdzie do kolejnych etapów.</string>
-    <string name="setup_stage1_remaining">Etap 1/3 – skanowanie · do końca całości %1$s</string>
-    <string name="setup_stage1_done">Etap 1/3 zakończony: %1$d kanałów. Przechodzę do wykrywania i rozpoznawania (%2$s)…</string>
+    <string name="setup_stage1_remaining">Do końca całości %1$s</string>
+    <string name="setup_stage1_done">Znaleziono kanałów: %1$d. Teraz aplikacja je wykryje i rozpozna (%2$s)…</string>
     <string name="setup_stage2">Znaleziono %1$d z %2$d · do końca całości %3$s</string>
     <string name="setup_stage3">%1$d/%2$d – %3$s · do końca %4$s</string>
     <string name="identify_progress_eta">%1$d/%2$d – %3$s · do końca %4$s</string>
@@ -269,4 +265,17 @@
     <string name="banner_preparing">Przygotowanie…</string>
     <string name="publish_warning">Kanały zostaną przekazane do tunera i będą widoczne w systemie oraz w innych aplikacjach TV.\n\nUwaga: późniejsze skanowanie może ich nie usunąć (np. po przeprowadzce albo zmianie częstotliwości multipleksu), a bapTV nie potrafi ich samo skasować. Publikuj tylko, jeśli lista kanałów jest na pewno poprawna.</string>
     <string name="publish_confirm">Opublikuj</string>
+    <string name="scan_intro">Aplikacja wyszuka wszystkie kanały dostępne z Twojej anteny, a potem sama je rozpozna. Potrwa to %1$s. Nie wyłączaj dekodera w trakcie.</string>
+    <string name="scan_advanced_show">Ustawienia zaawansowane</string>
+    <string name="scan_advanced_hide">Ukryj ustawienia zaawansowane</string>
+    <string name="hbbtv_offline">Dodatkowe usługi kanału (HbbTV) wymagają internetu – sprawdź połączenie.</string>
+    <string name="hbbtv_unavailable">Dodatkowe usługi kanału (HbbTV) są teraz niedostępne.</string>
+    <string name="colour_keys_service">bapTV – kolorowe przyciski pilota</string>
+    <string name="colour_keys_service_description">Przekazuje przyciski czerwony, zielony, żółty i niebieski do bapTV, gdy jest na ekranie, na urządzeniach, które wysyłają je do innej aplikacji. Nie odczytuje zawartości ekranu.</string>
+    <string name="menu_colour_keys">Kolorowe przyciski pilota</string>
+    <string name="colour_keys_enable_title">Kolorowe przyciski pilota</string>
+    <string name="colour_keys_enable_message">Na tym urządzeniu kolorowe przyciski trafiają do innej aplikacji, więc funkcje HbbTV, np. „Oglądaj od początku”, nie reagują. Włącz „bapTV – kolorowe przyciski pilota” w ustawieniach dostępności, które zaraz się otworzą.</string>
+    <string name="colour_keys_open_settings">Otwórz ustawienia</string>
+    <string name="colour_keys_offer_message">Ten kanał ma funkcje pod kolorowymi przyciskami pilota. Na niektórych dekoderach te przyciski trafiają do innej aplikacji. Żeby działały w bapTV, włącz „bapTV – kolorowe przyciski pilota” w ustawieniach dostępności. Możesz to zrobić też później: Menu → Ustawienia → Kolorowe przyciski pilota.</string>
+    <string name="colour_keys_not_now">Nie teraz</string>
 </resources>

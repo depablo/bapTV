@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-14 -88 268 112" width="536" height="224">
+  <title>bapTV</title>
+  <path fill="#FFB21E" d="M0,-53 a5,5 0 0,1 10,0 V-5 a5,5 0 0,1 -10,0 Z"/>
+  <circle cx="25" cy="-20" r="15" fill="none" stroke="#FFB21E" stroke-width="10"/>
+  <circle cx="5" cy="-72" r="4" fill="#FFFFFF"/>
+  <path d="M-2.66,-78.43 A10,10 0 0,0 -2.66,-65.57 M12.66,-78.43 A10,10 0 0,1 12.66,-65.57" fill="none" stroke="#FFFFFF" stroke-width="3.6" stroke-linecap="round"/>
+  <path d="M-8.79,-83.57 A18,18 0 0,0 -8.79,-60.43 M18.79,-83.57 A18,18 0 0,1 18.79,-60.43" fill="none" stroke="#FFFFFF" stroke-opacity=".55" stroke-width="3.6" stroke-linecap="round"/>
+  <circle cx="73" cy="-20" r="15" fill="none" stroke="#FFFFFF" stroke-width="10"/>
+  <path fill="#FFFFFF" d="M83,-35 a5,5 0 0,1 10,0 V-5 a5,5 0 0,1 -10,0 Z"/>
+  <path fill="#FFFFFF" d="M101,-35 a5,5 0 0,1 10,0 V13 a5,5 0 0,1 -10,0 Z"/>
+  <circle cx="126" cy="-20" r="15" fill="none" stroke="#FFFFFF" stroke-width="10"/>
+  <path d="M159,-53 H189 M174,-53 V-5 M207,-53 L225,-5 L243,-53" fill="none" stroke="#FFB21E" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

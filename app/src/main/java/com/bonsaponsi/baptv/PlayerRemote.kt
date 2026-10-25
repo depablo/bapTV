@@ -15,4 +15,6 @@ object PlayerRemote {
     @Volatile var recording: ((String, String?) -> String)? = null
     /** Publishing identified channels to TvContract ([ChannelPublisher]); returns a status line. */
     @Volatile var publish: (() -> String)? = null
+    /** Colour key delivered by [ColourKeysService] (main thread). */
+    @Volatile var colourKey: ((android.view.KeyEvent) -> Unit)? = null
 }
