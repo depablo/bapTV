@@ -84,6 +84,19 @@ main { flex: 1; overflow: auto; padding: 14px 0 18px; }
 .item.current .t { color: var(--accent); }
 .empty { color: var(--muted); padding: 24px 4px; text-align: center; }
 
+.tools { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+.tip { color: var(--muted); font-size: 13px; margin: 0 2px 10px; }
+.org { display: grid; grid-template-columns: 40px 44px 1fr 48px; align-items: center; padding: 0 4px 0 0; border-top: 1px solid var(--surface2); background: var(--surface); }
+.org:first-child { border-top: 0; }
+.org.off .n, .org.off .t { opacity: .45; }
+.org.dragging { position: relative; z-index: 2; box-shadow: 0 4px 14px rgba(0,0,0,.35); }
+.org .handle { align-self: stretch; display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 20px; touch-action: none; cursor: grab; }
+.org .n { color: var(--muted); font-variant-numeric: tabular-nums; }
+.org .t { padding: 13px 0; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.org .t small { font-weight: 400; color: var(--muted); margin-left: 6px; }
+.org .eye { border: 0; background: none; color: var(--text); font-size: 20px; height: 44px; touch-action: manipulation; }
+.org.off .eye { color: var(--muted); }
+
 .unpaired { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 12px; padding: 24px 4px; }
 .unpaired h1 { font-size: 22px; margin: 0; }
 .unpaired p { margin: 0; color: var(--muted); }
@@ -105,6 +118,7 @@ main { flex: 1; overflow: auto; padding: 14px 0 18px; }
   <nav>
     <button class="on" data-tab="remote" data-t="tabRemote"></button>
     <button data-tab="channels" data-t="tabChannels"></button>
+    <button data-tab="organise" data-t="tabOrganise"></button>
   </nav>
   <main>
     <section id="tab-remote">
@@ -150,6 +164,14 @@ main { flex: 1; overflow: auto; padding: 14px 0 18px; }
       <input class="search" id="search" type="search" autocomplete="off">
       <div class="list" id="list"></div>
     </section>
+    <section id="tab-organise" class="hidden">
+      <div class="tools">
+        <button class="key" id="scrambledToggle"></button>
+        <button class="key" id="resetOrder" data-t="reset"></button>
+      </div>
+      <p class="tip" data-t="organiseTip"></p>
+      <div class="list" id="orgList"></div>
+    </section>
   </main>
 </div>
 
@@ -163,6 +185,10 @@ const STRINGS = {
     last: "Previous", audio: "Audio", subtitles: "Subtitles", digits: "123", search: "Search channels",
     offline: "No connection to the set-top box", notOnScreen: "bapTV is not on the TV screen", cannotTune: "Cannot switch channel now",
     noChannels: "No channels", recording: "● Recording: ", otherScreen: "bapTV",
+    tabOrganise: "Organise", reset: "Restore defaults", scrambledHidden: "Scrambled: hidden", scrambledShown: "Scrambled: shown",
+    organiseTip: "Drag ≡ to move a channel, tap its name to rename it, 👁 hides it from the list and zapping.",
+    renamePrompt: "Channel name (empty brings back the broadcaster's name):", resetConfirm: "Restore the default order and show all channels? Your channel names stay.",
+    hiddenByScrambled: "Hidden with all scrambled channels – switch “Scrambled” to shown first.", saveFailed: "Change not saved",
   },
   pl: {
     unpairedTitle: "Telefon nie jest sparowany", unpairedText: "Na telewizorze otwórz bapTV, wciśnij OK, aby otworzyć menu, i wybierz Ustawienia → Pilot w telefonie, a potem zeskanuj kod QR tym telefonem.",
@@ -171,6 +197,10 @@ const STRINGS = {
     last: "Poprzedni", audio: "Audio", subtitles: "Napisy", digits: "123", search: "Szukaj kanału",
     offline: "Brak połączenia z dekoderem", notOnScreen: "bapTV nie jest na ekranie telewizora", cannotTune: "Nie można teraz przełączyć kanału",
     noChannels: "Brak kanałów", recording: "● Nagrywanie: ", otherScreen: "bapTV",
+    tabOrganise: "Porządkuj", reset: "Przywróć domyślne", scrambledHidden: "Kodowane: ukryte", scrambledShown: "Kodowane: widoczne",
+    organiseTip: "Przeciągnij ≡, aby przenieść kanał, dotknij nazwy, aby ją zmienić, 👁 ukrywa kanał z listy i przełączania.",
+    renamePrompt: "Nazwa kanału (pusta przywraca nazwę nadawcy):", resetConfirm: "Przywrócić domyślną kolejność i pokazać wszystkie kanały? Twoje nazwy kanałów zostaną.",
+    hiddenByScrambled: "Ukryty razem ze wszystkimi kodowanymi – najpierw przełącz „Kodowane” na widoczne.", saveFailed: "Nie zapisano zmiany",
   },
 };
 const lang = (navigator.language || "en").toLowerCase().startsWith("pl") ? "pl" : "en";
@@ -346,13 +376,107 @@ async function tune(id) {
 
 $("search").addEventListener("input", renderChannels);
 
+// ---- Organise: order, names, hiding ----
+
+let organised = { hideScrambled: false, channels: [] };
+
+function renderOrganise() {
+  $("scrambledToggle").textContent = organised.hideScrambled ? T.scrambledHidden : T.scrambledShown;
+  const list = $("orgList");
+  list.textContent = "";
+  organised.channels.forEach(c => {
+    const row = document.createElement("div");
+    row.className = "org" + (c.hidden ? " off" : "");
+    row.dataset.id = c.id;
+    const handle = document.createElement("div"); handle.className = "handle"; handle.textContent = "≡";
+    const n = document.createElement("div"); n.className = "n"; n.textContent = c.number;
+    const t = document.createElement("div"); t.className = "t"; t.textContent = c.name;
+    const badges = [c.radio ? "♪" : "", c.scrambled ? "🔒" : "", c.virtual ? "HbbTV" : ""].filter(Boolean).join(" ");
+    if (badges) { const b = document.createElement("small"); b.textContent = badges; t.appendChild(b); }
+    const eye = document.createElement("button"); eye.className = "eye"; eye.textContent = c.hidden ? "◌" : "👁";
+    eye.setAttribute("aria-label", c.hidden ? "show" : "hide");
+    t.addEventListener("click", () => rename(c));
+    eye.addEventListener("click", () => toggleHidden(c));
+    startDrag(handle, row);
+    row.append(handle, n, t, eye);
+    list.appendChild(row);
+  });
+}
+
+async function loadOrganise() {
+  try {
+    organised = await api("/api/manage");
+    renderOrganise();
+  } catch (e) { explain(e); }
+}
+
+/** Sends a change; the server answers with the updated list. */
+async function change(path) {
+  try {
+    organised = await api(path, "POST");
+    renderOrganise();
+  } catch (e) {
+    if (!(e instanceof Unpaired)) notice(T.saveFailed);
+    loadOrganise();
+  }
+}
+
+function rename(c) {
+  const name = prompt(T.renamePrompt, c.name);
+  if (name === null || name.trim() === c.name) return;
+  change(`/api/manage/name?id=${c.id}&name=${encodeURIComponent(name.trim())}`);
+}
+
+function toggleHidden(c) {
+  if (c.hidden && c.scrambled && organised.hideScrambled) { notice(T.hiddenByScrambled, 5000); return; }
+  change(`/api/manage/hidden?id=${c.id}&hidden=${!c.hidden}`);
+}
+
+$("scrambledToggle").addEventListener("click", () => change(`/api/manage/hide-scrambled?on=${!organised.hideScrambled}`));
+$("resetOrder").addEventListener("click", () => { if (confirm(T.resetConfirm)) change("/api/manage/reset"); });
+
+/** Drag by the handle: the row follows the finger, the others make room; the order is sent on release. */
+function startDrag(handle, row) {
+  handle.addEventListener("pointerdown", event => {
+    event.preventDefault();
+    handle.setPointerCapture(event.pointerId);
+    const list = $("orgList");
+    let lastY = event.clientY;
+    row.classList.add("dragging");
+    if (navigator.vibrate) navigator.vibrate(12);
+    const move = e => {
+      lastY = e.clientY;
+      // Swap with the neighbour once the finger passes its middle.
+      const prev = row.previousElementSibling, next = row.nextElementSibling;
+      if (prev && lastY < prev.getBoundingClientRect().top + prev.offsetHeight / 2) list.insertBefore(row, prev);
+      else if (next && lastY > next.getBoundingClientRect().top + next.offsetHeight / 2) list.insertBefore(next, row);
+      // Near the screen edges the page scrolls along.
+      const main = document.querySelector("main"), box = main.getBoundingClientRect();
+      if (lastY < box.top + 40) main.scrollTop -= 12; else if (lastY > box.bottom - 40) main.scrollTop += 12;
+    };
+    const end = () => {
+      handle.removeEventListener("pointermove", move);
+      handle.removeEventListener("pointerup", end);
+      handle.removeEventListener("pointercancel", end);
+      row.classList.remove("dragging");
+      const ids = [...list.children].map(el => el.dataset.id);
+      if (ids.join() !== organised.channels.map(c => String(c.id)).join()) change(`/api/manage/order?ids=${ids.join(",")}`);
+    };
+    handle.addEventListener("pointermove", move);
+    handle.addEventListener("pointerup", end);
+    handle.addEventListener("pointercancel", end);
+  });
+}
+
 // ---- Tabs and polling ----
 
 document.querySelectorAll("nav button").forEach(button => button.addEventListener("click", () => {
   document.querySelectorAll("nav button").forEach(b => b.classList.toggle("on", b === button));
   $("tab-remote").classList.toggle("hidden", button.dataset.tab !== "remote");
   $("tab-channels").classList.toggle("hidden", button.dataset.tab !== "channels");
+  $("tab-organise").classList.toggle("hidden", button.dataset.tab !== "organise");
   if (button.dataset.tab === "channels") loadChannels();
+  if (button.dataset.tab === "organise") loadOrganise();
 }));
 
 if (new URLSearchParams(location.search).get("pair") === "failed") {

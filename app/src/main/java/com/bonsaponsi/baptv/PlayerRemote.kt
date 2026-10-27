@@ -21,4 +21,7 @@ object PlayerRemote {
     @Volatile var channels: (() -> List<Channel>)? = null
     @Volatile var currentChannel: (() -> Channel?)? = null
     @Volatile var tune: ((Long) -> Boolean)? = null
+    /** Channel organisation changed on the phone: the player and the Manage channels screen reload (main thread). */
+    @Volatile var channelsChanged: (() -> Unit)? = null
+    @Volatile var manageChanged: (() -> Unit)? = null
 }

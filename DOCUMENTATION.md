@@ -121,7 +121,10 @@ A phone in the same network can work as a remote: Menu → Settings → Phone re
 Scanning it opens the remote in the phone's browser; no app is installed. The page has the remote
 keys (arrows, OK, BACK, MENU, GUIDE, INFO, CH+/CH−, ⏯, colour keys, digits, audio and subtitles),
 the channel on screen with the current programme, and a searchable channel list where a tap
-switches the channel.
+switches the channel. The Organise tab does what the Manage channels screen does: drag ≡ to move a
+channel, tap a name to rename it (an empty name brings back the broadcaster's), 👁 hides or shows a
+channel, plus the "Scrambled: hidden/shown" switch and "Restore defaults". Changes reach the player
+and an open Manage channels screen at once.
 
 - Pairing: the QR code holds a one-time code that works only while the code is on the TV screen
   (at most 10 minutes). The phone then stays paired through a cookie. The same menu entry pairs

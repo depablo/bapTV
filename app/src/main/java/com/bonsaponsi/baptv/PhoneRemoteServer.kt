@@ -15,7 +15,9 @@ import kotlin.concurrent.thread
  * HTTP server of the phone remote ([PhoneRemote]). Unlike [DebugHttpServer] it runs in release builds, so it
  * exposes only what the remote page needs:
  * - `GET /` – the page (static, no data); `GET /pair?code=…` – pairing from the QR code, sets the device cookie,
- * - `GET /api/state`, `GET /api/channels`, `POST /api/key?name=…`, `POST /api/tune?id=…` – paired devices only.
+ * - `GET /api/state`, `GET /api/channels`, `POST /api/key?name=…`, `POST /api/tune?id=…` – paired devices only,
+ * - `GET /api/manage` and `POST /api/manage/{order,hidden,name,hide-scrambled,reset}` – channel organisation,
+ *   as on the Manage channels screen (paired devices only).
  * The Host and cross-site checks of [ServerAccess] apply to every request.
  */
 class PhoneRemoteServer(private val context: Context, val port: Int) {
@@ -101,8 +103,51 @@ class PhoneRemoteServer(private val context: Context, val port: Int) {
             "GET" to "/api/channels" -> json(channels())
             "POST" to "/api/key" -> key(request.query["name"]?.uppercase())
             "POST" to "/api/tune" -> tune(request.query["id"]?.toLongOrNull())
+            "GET" to "/api/manage" -> manageList()?.let { json(it) } ?: error("409 Conflict", "no tuner input")
+            "POST" to "/api/manage/order" -> manage(request) { store, channels ->
+                val ids = request.query["ids"].orEmpty().split(',').mapNotNull { it.trim().toLongOrNull() }
+                val byId = channels.associateBy { it.id }
+                // Channels the phone did not list (e.g. new after a scan) keep their place after the listed ones.
+                val ordered = ids.mapNotNull { byId[it] } + channels.filter { it.id !in ids }
+                store.setCustomOrder(ordered.map { store.settingsKey(it) })
+            }
+            "POST" to "/api/manage/hidden" -> manage(request) { store, channels ->
+                channelFor(request, channels)?.let { store.setHidden(it, request.query["hidden"] == "true") }
+            }
+            "POST" to "/api/manage/name" -> manage(request) { store, channels ->
+                // An empty name brings back the broadcaster's name.
+                channelFor(request, channels)?.let { store.setCustomName(it, request.query["name"]?.take(MAX_NAME)) }
+            }
+            "POST" to "/api/manage/hide-scrambled" -> manage(request) { store, _ -> store.hideScrambled = request.query["on"] == "true" }
+            "POST" to "/api/manage/reset" -> manage(request) { store, _ -> store.resetOrganisation() }
             else -> error("404 Not Found", "not found")
         }
+    }
+
+    /** All channels with their organisation (hidden ones too), as on the Manage channels screen. */
+    private fun manageList(): JSONObject? {
+        val input = Dtv.findTunerInput(context) ?: return null
+        val array = JSONArray()
+        ChannelRepository(context).loadChannels(input.id, includeHidden = true).forEach { c ->
+            array.put(channelJson(c).put("hidden", c.hidden).put("scrambled", c.scrambled).put("virtual", c.virtual))
+        }
+        return JSONObject().put("hideScrambled", ChannelStore(context).hideScrambled).put("channels", array)
+    }
+
+    private fun channelFor(request: HttpRequest, channels: List<Channel>) =
+        request.query["id"]?.toLongOrNull()?.let { id -> channels.firstOrNull { it.id == id } }
+
+    /** Applies a change to the channel organisation, refreshes the TV screens and returns the new list. */
+    private fun manage(request: HttpRequest, change: (ChannelStore, List<Channel>) -> Unit): Response {
+        val input = Dtv.findTunerInput(context) ?: return error("409 Conflict", "no tuner input")
+        val channels = ChannelRepository(context).loadChannels(input.id, includeHidden = true)
+        change(ChannelStore(context), channels)
+        DebugLog.log("Remote", "channel organisation changed from the phone: ${request.path}")
+        onMain {
+            PlayerRemote.channelsChanged?.invoke()
+            PlayerRemote.manageChanged?.invoke()
+        }
+        return manageList()?.let { json(it) } ?: error("409 Conflict", "no tuner input")
     }
 
     /** Pairing from the QR code: a valid code sets the device cookie; either way back to the page, which shows the result. */
@@ -191,6 +236,7 @@ class PhoneRemoteServer(private val context: Context, val port: Int) {
         private const val JSON = "application/json; charset=utf-8"
         private const val COOKIE = "baptv_remote"
         private const val COOKIE_MAX_AGE = 10 * 365 * 24 * 3600
+        private const val MAX_NAME = 60
 
         private val KEYS = HbbTvBrowser.KEY_NAMES + mapOf(
             "GUIDE" to KeyEvent.KEYCODE_GUIDE, "LAST" to KeyEvent.KEYCODE_LAST_CHANNEL,

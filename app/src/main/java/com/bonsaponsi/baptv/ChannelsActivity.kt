@@ -60,6 +60,17 @@ class ChannelsActivity : Activity() {
         DebugLog.log("Manage", "opened channel management")
     }
 
+    override fun onStart() {
+        super.onStart()
+        // Changes made on the phone remote show up here at once (unless a channel is being moved).
+        PlayerRemote.manageChanged = { if (moving < 0) reload(keepSelection = true) }
+    }
+
+    override fun onStop() {
+        PlayerRemote.manageChanged = null
+        super.onStop()
+    }
+
     override fun onDestroy() {
         io.shutdownNow()
         super.onDestroy()

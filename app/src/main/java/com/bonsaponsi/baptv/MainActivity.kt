@@ -314,6 +314,7 @@ class MainActivity : Activity() {
             // A channel picked on the phone should be visible at once: the menu and the list close.
             (index >= 0 && started).also { if (it) { menu.hide(); hideChannelList(); tuneTo(index) } }
         }
+        PlayerRemote.channelsChanged = { reloadChannels() }
         TsProbe.tuneHook = { id ->
             val index = channels.indexOfFirst { it.id == id }
             if (index >= 0) tuneTo(index)
@@ -442,6 +443,7 @@ class MainActivity : Activity() {
             PlayerRemote.channels = null
             PlayerRemote.currentChannel = null
             PlayerRemote.tune = null
+            PlayerRemote.channelsChanged = null
         }
         publisher?.cancel()
 
