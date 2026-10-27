@@ -115,6 +115,20 @@ Notes:
   arrows, OK and BACK stay with the player.
 - In the TV guide, GUIDE closes the guide and MENU/REC open the player menu.
 
+### Phone remote
+
+A phone in the same network can work as a remote: Menu → Settings → Phone remote shows a QR code.
+Scanning it opens the remote in the phone's browser; no app is installed. The page has the remote
+keys (arrows, OK, BACK, MENU, GUIDE, INFO, CH+/CH−, ⏯, colour keys, digits, audio and subtitles),
+the channel on screen with the current programme, and a searchable channel list where a tap
+switches the channel.
+
+- Pairing: the QR code holds a one-time code that works only while the code is on the TV screen
+  (at most 10 minutes). The phone then stays paired through a cookie. The same menu entry pairs
+  more phones, forgets all paired phones or turns the phone remote off.
+- The remote works while bapTV is on the TV screen. The server (port 8090) stops a minute after
+  the app leaves the screen and starts again when it comes back.
+
 ## 4. Watching TV
 
 ### Info panel
@@ -167,7 +181,7 @@ Entries that the device does not support are hidden.
 | **Watching** | Channel list · TV guide · Audio track · Subtitles · Pause live TV / Back to live TV |
 | **Recordings** | Record current programme / Stop recording · Recordings · Free space (with an estimate in hours) |
 | **Channels** | Search for channels · Manage channels · Channel numbers (broadcaster LCN / in order) · Identify channels and get the guide · Detect channels again · Publish channels to the system |
-| **Settings** | Language (system / Polish / English) · HbbTV on/off ("Not available on this device" where unsupported) · Refresh HbbTV data for channel |
+| **Settings** | Language (system / Polish / English) · Phone remote · HbbTV on/off ("Not available on this device" where unsupported) · Refresh HbbTV data for channel |
 | **Diagnostics** | Signal information · Diagnostics · Debug overlay |
 
 ## 6. Channels: list, numbering, management
@@ -560,10 +574,11 @@ Debug builds additionally offer a local HTTP server; see
 | `DebugLog` | App event log in memory and in a rotating file |
 | `StoredFile`, `BackgroundWorker` | Atomic file writes; background work that does not crash the process |
 | `DebugHttpServer`, `DebugServerService`, `ServerAccess`, `PlayerRemote` | Debug-only HTTP server, its foreground service, access control, and player hooks used by it |
+| `PhoneRemote`, `PhoneRemoteServer` | Phone remote: QR pairing, paired devices, the server lifecycle; the release-build HTTP server for the remote page |
 | `SelfUpdater`, `UpdateReceiver`, `InstallClickService` | Debug-only remote APK install, restart after update, and the accessibility service that confirms installs |
 
 Resources: English strings in `res/values` (default) and Polish in `res/values-pl`. Assets:
-`hbbtv_shim.js` (OIPF layer) and `signal.html` (debug server signal page).
+`hbbtv_shim.js` (OIPF layer), `remote.html` (phone remote page) and `signal.html` (debug server signal page).
 
 ### Permissions
 
@@ -574,7 +589,7 @@ Resources: English strings in `res/values` (default) and Polish in `res/values-p
 | `dtvprovider.permission.READ` / `WRITE` | tuner statistics; tuner settings such as LNA (Google DTV stack) |
 | `INSTALL_TV_CHANNELS` | direct scan; granted only to privileged/platform-signed apps, otherwise unused |
 | `READ_EXTERNAL_STORAGE`, `WRITE_EXTERNAL_STORAGE` | read and delete the tuner input's recordings |
-| `INTERNET` | HbbTV applications; debug server |
+| `INTERNET` | HbbTV applications; phone remote; debug server |
 | `FOREGROUND_SERVICE`, `RECEIVE_BOOT_COMPLETED` | recording service; restoring alarms and the debug server after boot |
 | `REQUEST_INSTALL_PACKAGES` | debug-only remote install |
 
@@ -818,6 +833,7 @@ the same key.
 | `DebugLogTest` | event log |
 | `EpgTest` | EIT parsing from a real recording, now/next, schedule merging, catalogue names |
 | `HttpRequestTest` | debug server request parsing |
+| `PhoneRemoteServerTest` | phone remote device names |
 | `RegionTest` | frequency plans and language codes |
 | `ServerAccessTest` | debug server host, origin and token checks |
 | `SetupProgressTest` | setup time estimates |

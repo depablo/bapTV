@@ -30,6 +30,7 @@ of the HbbTV apps are blurred.</sub>
 - Live pause (timeshift) with seeking
 - Recording: manual, or scheduled from the TV guide; recordings list and playback
 - HbbTV applications (red button) started from the channel's AIT
+- Phone remote: scan a QR code on the TV and control bapTV from the phone's browser, with a channel list
 - In-app channel scan (DVB-T/T2, UHF with optional VHF) on devices with the Google DTV stack
 - Identified channels can be published back to the system, with names and LCN numbers, for other TV apps
 - Signal information (strength, SNR, BER) where the tuner reports it

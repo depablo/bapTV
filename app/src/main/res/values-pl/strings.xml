@@ -278,4 +278,14 @@
     <string name="colour_keys_open_settings">Otwórz ustawienia</string>
     <string name="colour_keys_offer_message">Ten kanał ma funkcje pod kolorowymi przyciskami pilota. Na niektórych dekoderach te przyciski trafiają do innej aplikacji. Żeby działały w bapTV, włącz „bapTV – kolorowe przyciski pilota” w ustawieniach dostępności. Możesz to zrobić też później: Menu → Ustawienia → Kolorowe przyciski pilota.</string>
     <string name="colour_keys_not_now">Nie teraz</string>
+    <string name="menu_phone_remote">Pilot w telefonie</string>
+    <string name="phone_remote_title">Pilot w telefonie</string>
+    <string name="phone_remote_qr_message">Zeskanuj kod telefonem połączonym z tą samą siecią. Pilot otworzy się w przeglądarce telefonu – bez instalowania aplikacji.</string>
+    <string name="phone_remote_pair">Sparuj kolejny telefon</string>
+    <string name="phone_remote_forget">Zapomnij sparowane telefony</string>
+    <string name="phone_remote_turn_off">Wyłącz</string>
+    <string name="phone_remote_paired">Sparowano telefon: %1$s</string>
+    <string name="phone_remote_forgotten">Sparowane telefony zostały zapomniane</string>
+    <string name="phone_remote_no_network">Dekoder nie ma połączenia z siecią. Podłącz go do Wi-Fi lub Ethernetu i spróbuj ponownie.</string>
+    <string name="phone_remote_failed">Nie udało się uruchomić pilota w telefonie: %1$s</string>
 </resources>

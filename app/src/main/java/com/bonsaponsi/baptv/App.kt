@@ -26,8 +26,9 @@ class App : Application() {
                 if (resumed?.get() === activity) resumed = null
             }
             override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) = Unit
-            override fun onActivityStarted(activity: Activity) = Unit
-            override fun onActivityStopped(activity: Activity) = Unit
+            // The phone remote server runs while any app screen is visible.
+            override fun onActivityStarted(activity: Activity) = PhoneRemote.activityStarted(activity)
+            override fun onActivityStopped(activity: Activity) = PhoneRemote.activityStopped()
             override fun onActivitySaveInstanceState(activity: Activity, outState: Bundle) = Unit
             override fun onActivityDestroyed(activity: Activity) = Unit
         })

@@ -307,6 +307,13 @@ class MainActivity : Activity() {
         PlayerRemote.timeshiftState = { timeshift.json().put("status", tsStatus) }
         PlayerRemote.publish = { publishChannels(automatic = false) }
         PlayerRemote.colourKey = { event -> if (!isDestroyed) dispatchKeyEvent(event) }
+        PlayerRemote.channels = { channels }
+        PlayerRemote.currentChannel = { if (playingRecording == null) channels.getOrNull(currentIndex) else null }
+        PlayerRemote.tune = { id ->
+            val index = channels.indexOfFirst { it.id == id }
+            // A channel picked on the phone should be visible at once: the menu and the list close.
+            (index >= 0 && started).also { if (it) { menu.hide(); hideChannelList(); tuneTo(index) } }
+        }
         TsProbe.tuneHook = { id ->
             val index = channels.indexOfFirst { it.id == id }
             if (index >= 0) tuneTo(index)
@@ -432,6 +439,9 @@ class MainActivity : Activity() {
             PlayerRemote.hbb = null
             PlayerRemote.publish = null
             PlayerRemote.colourKey = null
+            PlayerRemote.channels = null
+            PlayerRemote.currentChannel = null
+            PlayerRemote.tune = null
         }
         publisher?.cancel()
 
@@ -1249,6 +1259,7 @@ class MainActivity : Activity() {
                         .onFailure { DebugLog.warn("ColourKeys", "accessibility settings not available", it) }
                 }
             }.takeIf { caps.hbbtv },
+            MenuPanel.Entry(getString(R.string.menu_phone_remote), onOff(PhoneRemote.isEnabled(this))) { showPhoneRemote(menu::returned) },
             MenuPanel.Entry(getString(R.string.menu_hbbtv_relearn), after = stay) {
                 current?.let { identifyInBackground(it, force = true) }
             }.takeIf { caps.hbbtv && current != null },
@@ -1274,6 +1285,50 @@ class MainActivity : Activity() {
     private fun showAbout(onClose: (() -> Unit)? = null) {
         TvDialog.qr(this, getString(R.string.about_title, BuildConfig.VERSION_NAME),
             getString(R.string.about_message, BuildConfig.CONTACT_EMAIL), BuildConfig.PROJECT_URL, onClose)
+    }
+
+    /** Phone remote: pairing by QR code; with phones already paired also forgetting them and turning it off. */
+    private fun showPhoneRemote(onClose: (() -> Unit)? = null) {
+        val paired = PhoneRemote.devices(this)
+        if (!PhoneRemote.isEnabled(this) || paired.isEmpty()) {
+            showPhoneRemoteQr(onClose)
+            return
+        }
+        val options = listOf(
+            TvDialog.Option(getString(R.string.phone_remote_pair)),
+            TvDialog.Option(getString(R.string.phone_remote_forget), paired.joinToString(", ") { it.name }),
+            TvDialog.Option(getString(R.string.phone_remote_turn_off)),
+        )
+        var next: (() -> Unit)? = null
+        TvDialog.choose(this, getString(R.string.phone_remote_title), options, onClose = { next?.invoke() ?: onClose?.invoke() }) { pick ->
+            when (pick) {
+                0 -> next = { showPhoneRemoteQr(onClose) }
+                1 -> { PhoneRemote.forgetAll(this); TvDialog.toast(this, getString(R.string.phone_remote_forgotten)) }
+                2 -> PhoneRemote.setEnabled(this, false)
+            }
+        }
+    }
+
+    private fun showPhoneRemoteQr(onClose: (() -> Unit)?) {
+        PhoneRemote.setEnabled(this, true)
+        val link = PhoneRemote.pairingLink()
+        when {
+            !PhoneRemote.isRunning ->
+                TvDialog.message(this, getString(R.string.phone_remote_title), getString(R.string.phone_remote_failed, PhoneRemote.lastError.orEmpty()), onClose)
+            link == null -> TvDialog.message(this, getString(R.string.phone_remote_title), getString(R.string.phone_remote_no_network), onClose)
+            else -> {
+                lateinit var dialog: android.app.Dialog
+                dialog = TvDialog.qr(this, getString(R.string.phone_remote_title), getString(R.string.phone_remote_qr_message), link) {
+                    PhoneRemote.cancelPairing()
+                    PhoneRemote.onPaired = null
+                    onClose?.invoke()
+                }
+                PhoneRemote.onPaired = { name ->
+                    dialog.dismiss()
+                    TvDialog.toast(this, getString(R.string.phone_remote_paired, name), long = true)
+                }
+            }
+        }
     }
 
     /** Selected track name for the menu value column (subtitles: "Off" when none). */

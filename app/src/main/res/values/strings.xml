@@ -279,4 +279,14 @@
     <string name="colour_keys_open_settings">Open settings</string>
     <string name="colour_keys_offer_message">This channel has functions under the remote\'s colour keys. On some set-top boxes these keys go to another app. To use them in bapTV, turn on “bapTV – remote colour keys” in the accessibility settings. You can also do this later: Menu → Settings → Remote colour keys.</string>
     <string name="colour_keys_not_now">Not now</string>
+    <string name="menu_phone_remote">Phone remote</string>
+    <string name="phone_remote_title">Phone remote</string>
+    <string name="phone_remote_qr_message">Scan the code with a phone connected to the same network. The remote opens in the phone\'s browser – no app to install.</string>
+    <string name="phone_remote_pair">Pair another phone</string>
+    <string name="phone_remote_forget">Forget paired phones</string>
+    <string name="phone_remote_turn_off">Turn off</string>
+    <string name="phone_remote_paired">Phone paired: %1$s</string>
+    <string name="phone_remote_forgotten">Paired phones forgotten</string>
+    <string name="phone_remote_no_network">The set-top box has no network connection. Connect it to Wi-Fi or Ethernet and try again.</string>
+    <string name="phone_remote_failed">The phone remote could not start: %1$s</string>
 </resources>

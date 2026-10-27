@@ -1,0 +1,368 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#101418">
+<title>bapTV</title>
+<style>
+:root {
+  --bg: #f3f5f7; --surface: #ffffff; --surface2: #e6eaee; --text: #111418; --muted: #5d6670;
+  --accent: #1c6fd9; --accent-text: #ffffff; --danger: #c62828; --shadow: 0 1px 2px rgba(0,0,0,.12);
+  --red: #d32f2f; --green: #2e7d32; --yellow: #f9a825; --blue: #1565c0;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #101418; --surface: #1b2127; --surface2: #262e36; --text: #e9edf1; --muted: #93a0ad;
+    --accent: #4d9bff; --accent-text: #08121e; --danger: #ef5350; --shadow: none;
+  }
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; height: 100%; }
+body {
+  background: var(--bg); color: var(--text); font: 16px/1.35 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  padding: env(safe-area-inset-top) 16px env(safe-area-inset-bottom); user-select: none; -webkit-user-select: none;
+  display: flex; flex-direction: column; max-width: 480px; margin: 0 auto;
+}
+header { padding: 14px 0 10px; min-height: 86px; }
+.channel { display: flex; gap: 10px; align-items: baseline; font-size: 20px; font-weight: 600; }
+.channel .num { color: var(--muted); font-variant-numeric: tabular-nums; }
+.now { margin-top: 2px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bar { height: 3px; background: var(--surface2); border-radius: 2px; margin-top: 8px; overflow: hidden; }
+.bar > div { height: 100%; width: 0; background: var(--accent); }
+.notice { margin-top: 6px; font-size: 14px; color: var(--danger); min-height: 1em; }
+.rec { color: var(--danger); font-size: 14px; }
+nav { display: flex; background: var(--surface2); border-radius: 10px; padding: 3px; gap: 3px; }
+nav button { flex: 1; border: 0; background: none; color: var(--muted); font: inherit; font-weight: 600; padding: 8px; border-radius: 8px; }
+nav button.on { background: var(--surface); color: var(--text); box-shadow: var(--shadow); }
+main { flex: 1; overflow: auto; padding: 14px 0 18px; }
+.hidden { display: none !important; }
+
+.row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 12px; }
+.row.four { grid-template-columns: repeat(4, 1fr); }
+.key {
+  border: 0; border-radius: 12px; background: var(--surface); color: var(--text); box-shadow: var(--shadow);
+  font: inherit; font-weight: 600; min-height: 52px; padding: 6px; touch-action: manipulation;
+}
+.key:active, .key.pressed { background: var(--surface2); transform: scale(.97); }
+.key small { display: block; font-weight: 400; color: var(--muted); font-size: 12px; }
+.colour { min-height: 34px; }
+.colour.red { background: var(--red); } .colour.green { background: var(--green); }
+.colour.yellow { background: var(--yellow); } .colour.blue { background: var(--blue); }
+
+.pad { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; margin: 4px 0 16px; --d: min(210px, calc(100vw - 32px - 150px)); }
+.dpad { position: relative; width: var(--d); height: var(--d); border-radius: 50%; background: var(--surface); box-shadow: var(--shadow); }
+.dpad button { position: absolute; border: 0; background: none; color: var(--text); font-size: 22px; touch-action: manipulation; width: 33.4%; height: 33.4%; }
+.dpad button:active { color: var(--accent); }
+.dpad .up { top: 0; left: 33.3%; }
+.dpad .down { bottom: 0; left: 33.3%; }
+.dpad .left { left: 0; top: 33.3%; }
+.dpad .right { right: 0; top: 33.3%; }
+.dpad .ok {
+  left: 29.5%; top: 29.5%; width: 41%; height: 41%; border-radius: 50%; background: var(--accent); color: var(--accent-text);
+  font-size: 18px; font-weight: 700;
+}
+.dpad .ok:active { color: var(--accent-text); filter: brightness(.9); }
+.rocker { display: flex; flex-direction: column; gap: 8px; align-items: center; }
+.rocker .key { width: 64px; min-height: 64px; font-size: 20px; }
+.rocker span { font-size: 12px; color: var(--muted); font-weight: 600; }
+
+.digits { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.digits .key { font-size: 22px; min-height: 56px; }
+
+.search {
+  width: 100%; border: 0; border-radius: 10px; padding: 12px 14px; font: inherit; background: var(--surface);
+  color: var(--text); box-shadow: var(--shadow); margin-bottom: 10px; user-select: text; -webkit-user-select: text;
+}
+.list { background: var(--surface); border-radius: 12px; box-shadow: var(--shadow); overflow: hidden; }
+.item { display: grid; grid-template-columns: 48px 1fr; gap: 4px 8px; padding: 11px 14px; border-top: 1px solid var(--surface2); }
+.item:first-child { border-top: 0; }
+.item:active { background: var(--surface2); }
+.item .n { color: var(--muted); font-variant-numeric: tabular-nums; grid-row: span 2; padding-top: 1px; }
+.item .t { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.item .p { color: var(--muted); font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-height: 1em; }
+.item.current .t { color: var(--accent); }
+.empty { color: var(--muted); padding: 24px 4px; text-align: center; }
+
+.unpaired { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 12px; padding: 24px 4px; }
+.unpaired h1 { font-size: 22px; margin: 0; }
+.unpaired p { margin: 0; color: var(--muted); }
+</style>
+</head>
+<body>
+<section id="unpaired" class="unpaired hidden">
+  <h1 data-t="unpairedTitle"></h1>
+  <p id="unpairedText"></p>
+</section>
+
+<div id="app" class="hidden" style="display:flex;flex-direction:column;flex:1;min-height:0">
+  <header>
+    <div class="channel"><span class="num" id="chNum"></span><span id="chName">bapTV</span></div>
+    <div class="now" id="now"></div>
+    <div class="bar"><div id="progress"></div></div>
+    <div class="notice" id="notice"></div>
+  </header>
+  <nav>
+    <button class="on" data-tab="remote" data-t="tabRemote"></button>
+    <button data-tab="channels" data-t="tabChannels"></button>
+  </nav>
+  <main>
+    <section id="tab-remote">
+      <div class="row">
+        <button class="key" data-key="MENU" data-t="menu"></button>
+        <button class="key" data-key="GUIDE" data-t="guide"></button>
+        <button class="key" data-key="INFO" data-t="info"></button>
+      </div>
+      <div class="pad">
+        <div class="rocker"></div>
+        <div class="dpad">
+          <button class="up" data-key="UP" data-repeat aria-label="up">▲</button>
+          <button class="left" data-key="LEFT" data-repeat aria-label="left">◀</button>
+          <button class="ok" data-key="OK">OK</button>
+          <button class="right" data-key="RIGHT" data-repeat aria-label="right">▶</button>
+          <button class="down" data-key="DOWN" data-repeat aria-label="down">▼</button>
+        </div>
+        <div class="rocker">
+          <button class="key" data-key="CHUP" data-repeat aria-label="channel up">＋</button>
+          <span>CH</span>
+          <button class="key" data-key="CHDOWN" data-repeat aria-label="channel down">－</button>
+        </div>
+      </div>
+      <div class="row">
+        <button class="key" data-key="BACK" data-t="back"></button>
+        <button class="key" data-key="PLAYPAUSE">⏯<small data-t="pause"></small></button>
+        <button class="key" data-key="LAST" data-t="last"></button>
+      </div>
+      <div class="row four">
+        <button class="key colour red" data-key="RED" aria-label="red"></button>
+        <button class="key colour green" data-key="GREEN" aria-label="green"></button>
+        <button class="key colour yellow" data-key="YELLOW" aria-label="yellow"></button>
+        <button class="key colour blue" data-key="BLUE" aria-label="blue"></button>
+      </div>
+      <div class="row">
+        <button class="key" data-key="AUDIO" data-t="audio"></button>
+        <button class="key" data-key="SUBTITLES" data-t="subtitles"></button>
+        <button class="key" id="digitsToggle" data-t="digits"></button>
+      </div>
+      <div class="digits hidden" id="digits"></div>
+    </section>
+    <section id="tab-channels" class="hidden">
+      <input class="search" id="search" type="search" autocomplete="off">
+      <div class="list" id="list"></div>
+    </section>
+  </main>
+</div>
+
+<script>
+"use strict";
+const STRINGS = {
+  en: {
+    unpairedTitle: "Phone not paired", unpairedText: "On the TV open bapTV, press OK for the menu and choose Settings → Phone remote, then scan the QR code with this phone.",
+    pairFailed: "The pairing code has expired or was already used. Show the QR code on the TV again and scan it.",
+    tabRemote: "Remote", tabChannels: "Channels", menu: "Menu", guide: "Guide", info: "Info", back: "Back", pause: "Pause",
+    last: "Previous", audio: "Audio", subtitles: "Subtitles", digits: "123", search: "Search channels",
+    offline: "No connection to the set-top box", notOnScreen: "bapTV is not on the TV screen", cannotTune: "Cannot switch channel now",
+    noChannels: "No channels", recording: "● Recording: ", otherScreen: "bapTV",
+  },
+  pl: {
+    unpairedTitle: "Telefon nie jest sparowany", unpairedText: "Na telewizorze otwórz bapTV, wciśnij OK, aby otworzyć menu, i wybierz Ustawienia → Pilot w telefonie, a potem zeskanuj kod QR tym telefonem.",
+    pairFailed: "Kod parowania wygasł albo został już użyty. Pokaż ponownie kod QR na telewizorze i zeskanuj go.",
+    tabRemote: "Pilot", tabChannels: "Kanały", menu: "Menu", guide: "Program", info: "Info", back: "Wstecz", pause: "Pauza",
+    last: "Poprzedni", audio: "Audio", subtitles: "Napisy", digits: "123", search: "Szukaj kanału",
+    offline: "Brak połączenia z dekoderem", notOnScreen: "bapTV nie jest na ekranie telewizora", cannotTune: "Nie można teraz przełączyć kanału",
+    noChannels: "Brak kanałów", recording: "● Nagrywanie: ", otherScreen: "bapTV",
+  },
+};
+const lang = (navigator.language || "en").toLowerCase().startsWith("pl") ? "pl" : "en";
+const T = STRINGS[lang];
+document.documentElement.lang = lang;
+document.querySelectorAll("[data-t]").forEach(el => {
+  const span = document.createTextNode(T[el.dataset.t]);
+  el.firstElementChild ? el.firstElementChild.textContent = T[el.dataset.t] : el.appendChild(span);
+});
+const $ = id => document.getElementById(id);
+$("search").placeholder = T.search;
+
+let paired = null;
+let channels = [];
+let currentId = null;
+let noticeTimer = 0;
+
+class Unpaired extends Error {}
+
+async function api(path, method = "GET") {
+  const response = await fetch(path, { method, cache: "no-store" });
+  if (response.status === 401) { showUnpaired(); throw new Unpaired(); }
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) { const e = new Error(body.error || response.status); e.status = response.status; throw e; }
+  return body;
+}
+
+function showUnpaired(failed) {
+  paired = false;
+  $("app").classList.add("hidden");
+  $("unpaired").classList.remove("hidden");
+  $("unpairedText").textContent = failed ? T.pairFailed : T.unpairedText;
+}
+
+function showApp() {
+  if (paired) return;
+  paired = true;
+  $("unpaired").classList.add("hidden");
+  $("app").classList.remove("hidden");
+}
+
+function notice(text, ms = 3000) {
+  $("notice").textContent = text || "";
+  clearTimeout(noticeTimer);
+  if (text && ms) noticeTimer = setTimeout(() => $("notice").textContent = "", ms);
+}
+
+function explain(error) {
+  if (error instanceof Unpaired) return;
+  if (error.status === 409) notice(error.message === "app not on screen" ? T.notOnScreen : T.cannotTune);
+  else notice(T.offline, 0);
+}
+
+// ---- State ----
+
+function formatTime(ms) {
+  return new Date(ms).toLocaleTimeString(lang, { hour: "2-digit", minute: "2-digit" });
+}
+
+function renderState(s) {
+  const ch = s.channel;
+  $("chNum").textContent = ch ? ch.number : "";
+  $("chName").textContent = ch ? ch.name : T.otherScreen;
+  currentId = ch ? ch.id : null;
+  let line = "";
+  let progress = 0;
+  if (s.now) {
+    line = `${formatTime(s.now.start)} ${s.now.title}`;
+    const span = s.now.end - s.now.start;
+    if (span > 0) progress = Math.max(0, Math.min(1, (Date.now() - s.now.start) / span));
+  }
+  if (s.next) line += `  ·  ${formatTime(s.next.start)} ${s.next.title}`;
+  $("now").textContent = line;
+  $("progress").style.width = `${progress * 100}%`;
+  if (s.recording) notice(T.recording + s.recording, 0);
+  else if ($("notice").textContent.startsWith(T.recording) || $("notice").textContent === T.offline) notice("");
+  markCurrent();
+}
+
+async function refreshState() {
+  if (document.hidden || paired === false) return;
+  try {
+    const s = await api("/api/state");
+    showApp();
+    renderState(s);
+  } catch (e) { explain(e); }
+}
+
+// ---- Keys ----
+
+async function sendKey(name) {
+  if (navigator.vibrate) navigator.vibrate(12);
+  try {
+    await api(`/api/key?name=${encodeURIComponent(name)}`, "POST");
+    setTimeout(refreshState, 400);
+  } catch (e) { explain(e); }
+}
+
+// Arrows and CH keys repeat while held, like on a real remote.
+document.querySelectorAll("[data-key]").forEach(button => {
+  let delay = 0, repeat = 0;
+  const stop = () => { clearTimeout(delay); clearInterval(repeat); button.classList.remove("pressed"); };
+  button.addEventListener("pointerdown", event => {
+    event.preventDefault();
+    button.classList.add("pressed");
+    sendKey(button.dataset.key);
+    if ("repeat" in button.dataset) delay = setTimeout(() => repeat = setInterval(() => sendKey(button.dataset.key), 220), 500);
+  });
+  ["pointerup", "pointerleave", "pointercancel"].forEach(type => button.addEventListener(type, stop));
+  button.addEventListener("contextmenu", event => event.preventDefault());
+});
+
+const digits = $("digits");
+["1", "2", "3", "4", "5", "6", "7", "8", "9", "", "0", ""].forEach(d => {
+  const b = document.createElement("button");
+  if (d) {
+    b.className = "key";
+    b.textContent = d;
+    b.addEventListener("pointerdown", event => { event.preventDefault(); sendKey(d); });
+  } else b.style.visibility = "hidden";
+  digits.appendChild(b);
+});
+$("digitsToggle").addEventListener("click", () => digits.classList.toggle("hidden"));
+
+// ---- Channels ----
+
+function markCurrent() {
+  document.querySelectorAll(".item").forEach(el => el.classList.toggle("current", Number(el.dataset.id) === currentId));
+}
+
+function renderChannels() {
+  const query = $("search").value.trim().toLowerCase();
+  const list = $("list");
+  list.textContent = "";
+  const shown = channels.filter(c => !query || c.name.toLowerCase().includes(query) || c.number.startsWith(query));
+  if (!shown.length) {
+    const empty = document.createElement("div");
+    empty.className = "empty";
+    empty.textContent = T.noChannels;
+    list.appendChild(empty);
+    return;
+  }
+  shown.forEach(c => {
+    const item = document.createElement("div");
+    item.className = "item";
+    item.dataset.id = c.id;
+    const n = document.createElement("div"); n.className = "n"; n.textContent = c.number;
+    const t = document.createElement("div"); t.className = "t"; t.textContent = (c.radio ? "♪ " : "") + c.name;
+    const p = document.createElement("div"); p.className = "p"; p.textContent = c.now || "";
+    item.append(n, t, p);
+    item.addEventListener("click", () => tune(c.id));
+    list.appendChild(item);
+  });
+  markCurrent();
+}
+
+async function loadChannels() {
+  try {
+    channels = (await api("/api/channels")).channels;
+    renderChannels();
+  } catch (e) { explain(e); }
+}
+
+async function tune(id) {
+  if (navigator.vibrate) navigator.vibrate(12);
+  try {
+    await api(`/api/tune?id=${id}`, "POST");
+    currentId = id;
+    markCurrent();
+    setTimeout(refreshState, 600);
+  } catch (e) { explain(e); }
+}
+
+$("search").addEventListener("input", renderChannels);
+
+// ---- Tabs and polling ----
+
+document.querySelectorAll("nav button").forEach(button => button.addEventListener("click", () => {
+  document.querySelectorAll("nav button").forEach(b => b.classList.toggle("on", b === button));
+  $("tab-remote").classList.toggle("hidden", button.dataset.tab !== "remote");
+  $("tab-channels").classList.toggle("hidden", button.dataset.tab !== "channels");
+  if (button.dataset.tab === "channels") loadChannels();
+}));
+
+if (new URLSearchParams(location.search).get("pair") === "failed") {
+  history.replaceState(null, "", "/");
+  showUnpaired(true);
+} else {
+  refreshState();
+}
+setInterval(refreshState, 2500);
+document.addEventListener("visibilitychange", refreshState);
+</script>
+</body>
+</html>

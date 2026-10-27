@@ -17,4 +17,8 @@ object PlayerRemote {
     @Volatile var publish: (() -> String)? = null
     /** Colour key delivered by [ColourKeysService] (main thread). */
     @Volatile var colourKey: ((android.view.KeyEvent) -> Unit)? = null
+    /** Phone remote ([PhoneRemoteServer]): the player's channel list, the channel on screen, tuning by id (main thread). */
+    @Volatile var channels: (() -> List<Channel>)? = null
+    @Volatile var currentChannel: (() -> Channel?)? = null
+    @Volatile var tune: ((Long) -> Boolean)? = null
 }
