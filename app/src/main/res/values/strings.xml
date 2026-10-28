@@ -281,7 +281,7 @@
     <string name="colour_keys_not_now">Not now</string>
     <string name="menu_phone_remote">Phone remote</string>
     <string name="phone_remote_title">Phone remote</string>
-    <string name="phone_remote_qr_message">Scan the code with a phone connected to the same network. The remote opens in the phone\'s browser – no app to install.</string>
+    <string name="phone_remote_qr_message">The phone must be connected to the same network (Wi-Fi) as this set-top box – not to mobile data. Scan the code with the phone\'s camera: the remote opens in its browser, no app to install.</string>
     <string name="phone_remote_pair">Pair another phone</string>
     <string name="phone_remote_forget">Forget paired phones</string>
     <string name="phone_remote_turn_off">Turn off</string>
@@ -298,4 +298,9 @@
     <string name="iptv_error_format">unsupported format</string>
     <string name="iptv_error_drm">DRM-protected</string>
     <string name="iptv_error_blocked">HTTP %1$d – often blocked outside its country</string>
+    <string name="badge_iptv">IPTV</string>
+    <string name="iptv_channel_info">Internet channel (IPTV)</string>
+    <string name="iptv_source">Source: %1$s</string>
+    <string name="iptv_address">Address: %1$s</string>
+    <string name="guide_no_epg_iptv">No programme data for this internet channel.</string>
 </resources>

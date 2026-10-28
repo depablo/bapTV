@@ -18,6 +18,8 @@ import kotlin.concurrent.thread
  * - `GET /api/state`, `GET /api/channels`, `POST /api/key?name=…`, `POST /api/tune?id=…` – paired devices only,
  * - `GET /api/manage` and `POST /api/manage/{order,hidden,name,hide-scrambled,reset}` – channel organisation,
  *   as on the Manage channels screen (paired devices only),
+ * - `GET /api/signal`, `POST /api/signal/{tune,cycle,stop}` – signal measurement for aiming the antenna
+ *   ([SignalMonitor]; paired devices only),
  * - `GET /api/iptv`, `POST /api/iptv/{load,probe,add,check,remove}` – internet channels ([Iptv]): reading a playlist,
  *   checking streams, adding, re-checking and removing channels (paired devices only).
  * The Host and cross-site checks of [ServerAccess] apply to every request.
@@ -148,6 +150,13 @@ class PhoneRemoteServer(private val context: Context, val port: Int) {
             }
             "POST" to "/api/manage/hide-scrambled" -> manage(request) { store, _ -> store.hideScrambled = request.query["on"] == "true" }
             "POST" to "/api/manage/reset" -> manage(request) { store, _ -> store.resetOrganisation() }
+            "GET" to "/api/signal" -> json(SignalMonitor.poll(context).apply { remove("raw"); remove("probe"); remove("lna") })
+            "POST" to "/api/signal/tune" -> {
+                val frequency = request.query["freq"]?.toDoubleOrNull() ?: return error("400 Bad Request", "missing freq")
+                json(JSONObject().put("message", SignalMonitor.tuneMultiplex(context, frequency)))
+            }
+            "POST" to "/api/signal/cycle" -> json(JSONObject().put("message", SignalMonitor.startCycle(context)))
+            "POST" to "/api/signal/stop" -> json(JSONObject().put("message", SignalMonitor.stopCycle()))
             "GET" to "/api/iptv" -> json(iptvList())
             "POST" to "/api/iptv/load" -> loadPlaylist(request.query["url"], request, input)
             "POST" to "/api/iptv/probe" -> {
@@ -257,13 +266,17 @@ class PhoneRemoteServer(private val context: Context, val port: Int) {
         val playlist = Iptv.parseM3u(text)
         if (playlist.streams.isEmpty()) return error("422 Unprocessable Entity", "no channels in the playlist")
         if (!url.isNullOrBlank()) Iptv.rememberSource(context, url)
-        val streams = JSONArray().apply { playlist.streams.forEach { put(it.toJson()) } }
+        // Kept with each channel added from it (shown in the player's info panel).
+        val source = url?.takeIf { it.isNotBlank() } ?: request.query["name"].orEmpty().take(MAX_NAME)
+        val streams = JSONArray().apply { playlist.streams.forEach { put(it.copy(source = source).toJson()) } }
         return json(JSONObject().put("streams", streams).put("epgUrl", playlist.epgUrl ?: JSONObject.NULL))
     }
 
     /** What is on screen: the player's channel with now/next, or the name of another app screen. */
     private fun state(): JSONObject {
         val state = JSONObject().put("screen", App.foregroundActivity ?: JSONObject.NULL)
+            // The Signal tab needs tuner statistics, which not every device exposes.
+            .put("signal", DeviceCapabilities.get(context).signal)
         val channel = onMain { PlayerRemote.currentChannel?.invoke() }
         if (channel != null) {
             val (now, next) = ChannelRepository(context).loadNowNext(channel)
@@ -284,7 +297,7 @@ class PhoneRemoteServer(private val context: Context, val port: Int) {
         return JSONObject().put("channels", array)
     }
 
-    private fun channelJson(c: Channel) = JSONObject().put("id", c.id).put("number", c.number).put("name", c.name).put("radio", c.isRadio)
+    private fun channelJson(c: Channel) = JSONObject().put("id", c.id).put("number", c.number).put("name", c.name).put("radio", c.isRadio).put("iptv", c.iptv)
 
     /** A key as if pressed on the remote: injected into the app's focused window (dialogs too), otherwise to the activity. */
     private fun key(name: String?): Response {

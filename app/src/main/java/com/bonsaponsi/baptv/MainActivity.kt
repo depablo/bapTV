@@ -149,6 +149,8 @@ class MainActivity : Activity() {
     private var channels: List<Channel> = emptyList()
     private var currentIndex = -1
     private var previousChannelId = -1L
+    /** Stream of the internet channel on screen (for its source and address in the info panel). */
+    private var iptvStream: Pair<Long, Iptv.Stream>? = null
     private var videoSize: Pair<Int, Int>? = null
     private var showSignal = false
     private val digits = StringBuilder()
@@ -590,6 +592,13 @@ class MainActivity : Activity() {
         showStatus(getString(R.string.status_tuning))
         // Internet channels play through the app's own input ([IptvInputService]).
         tvView.tune(channel.inputId ?: tuner.id, channel.uri)
+        if (channel.iptv && iptvStream?.first != channel.id) io.execute {
+            val stream = Iptv.stream(this, channel.id) ?: return@execute
+            handler.post {
+                iptvStream = channel.id to stream
+                if (banner.visibility == View.VISIBLE) updateDetails(null)
+            }
+        }
         TsProbe.currentChannelUri = channel.uri
         broadcastStopped = false
         onHbbTuned(channel)
@@ -1123,11 +1132,19 @@ class MainActivity : Activity() {
         val channel = channels.getOrNull(currentIndex)
         val parts = ArrayList<String>()
         if (channel?.virtual == true) parts += getString(R.string.virtual_channel_info)
+        if (channel?.iptv == true) parts += getString(R.string.iptv_channel_info)
         videoSize?.let { (w, h) -> parts += "${w}×${h}" }
         channel?.videoFormat?.let { parts += it.removePrefix("VIDEO_FORMAT_") }
         // At level 4 the signal is in the technical details – not repeated here.
-        bannerDetails.text = parts.joinToString("   ·   ")
-        bannerDetails.visibility = if (parts.isEmpty()) View.GONE else View.VISIBLE
+        var text = parts.joinToString("   ·   ")
+        // An internet channel's origin, for information: the playlist it came from and the stream address.
+        val stream = iptvStream?.takeIf { it.first == channel?.id }?.second
+        if (stream != null && infoLevel >= 2) {
+            if (stream.source.isNotBlank()) text += "\n" + getString(R.string.iptv_source, stream.source)
+            text += "\n" + getString(R.string.iptv_address, stream.url)
+        }
+        bannerDetails.text = text
+        bannerDetails.visibility = if (text.isEmpty()) View.GONE else View.VISIBLE
     }
 
     private fun formatTime(ms: Long) = DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(ms))
@@ -1170,6 +1187,7 @@ class MainActivity : Activity() {
             view.findViewById<TextView>(R.id.badge).text = when {
                 position == currentIndex -> "▶"
                 channel.virtual -> getString(R.string.badge_hbbtv)
+                channel.iptv -> getString(R.string.badge_iptv)
                 channel.scrambled -> "🔒"
                 channel.isRadio -> "♪"
                 else -> ""

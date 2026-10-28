@@ -195,7 +195,12 @@ class GuideActivity : Activity() {
         refreshScheduled()
         val now = System.currentTimeMillis()
         rows = if (programmes.isEmpty()) {
-            listOf(Row.Message(getString(if (channel.identified || !channel.discovered) R.string.guide_no_epg else R.string.guide_unidentified)))
+            listOf(Row.Message(getString(when {
+                // Internet channels have no broadcast guide; watching or identifying will not bring one.
+                channel.iptv -> R.string.guide_no_epg_iptv
+                channel.identified || !channel.discovered -> R.string.guide_no_epg
+                else -> R.string.guide_unidentified
+            })))
         } else {
             buildList {
                 var lastDay = -1L
@@ -262,6 +267,7 @@ class GuideActivity : Activity() {
             view.findViewById<TextView>(R.id.name).text = channel.name
             view.findViewById<TextView>(R.id.badge).text = when {
                 channel.virtual -> getString(R.string.badge_hbbtv)
+                channel.iptv -> getString(R.string.badge_iptv)
                 channel.scrambled -> "🔒"
                 channel.isRadio -> "♪"
                 else -> ""

@@ -202,6 +202,7 @@ class ChannelsActivity : Activity() {
             view.findViewById<TextView>(R.id.name).text = channel.name
             view.findViewById<TextView>(R.id.badge).text = listOfNotNull(
                 getString(R.string.badge_hbbtv).takeIf { channel.virtual },
+                getString(R.string.badge_iptv).takeIf { channel.iptv },
                 "🔒".takeIf { channel.scrambled },
                 "♪".takeIf { channel.isRadio },
             ).joinToString("  ")

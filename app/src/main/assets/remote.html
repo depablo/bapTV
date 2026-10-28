@@ -32,8 +32,9 @@ header { padding: 14px 0 10px; min-height: 86px; }
 .bar > div { height: 100%; width: 0; background: var(--accent); }
 .notice { margin-top: 6px; font-size: 14px; color: var(--danger); min-height: 1em; }
 .rec { color: var(--danger); font-size: 14px; }
-nav { display: flex; background: var(--surface2); border-radius: 10px; padding: 3px; gap: 3px; }
-nav button { flex: 1; border: 0; background: none; color: var(--muted); font: inherit; font-weight: 600; padding: 8px; border-radius: 8px; }
+nav { display: flex; background: var(--surface2); border-radius: 10px; padding: 3px; gap: 2px; overflow-x: auto; scrollbar-width: none; }
+nav::-webkit-scrollbar { display: none; }
+nav button { flex: 1 0 auto; border: 0; background: none; color: var(--muted); font: inherit; font-size: 15px; font-weight: 600; padding: 8px 6px; border-radius: 8px; }
 nav button.on { background: var(--surface); color: var(--text); box-shadow: var(--shadow); }
 main { flex: 1; overflow: auto; padding: 14px 0 18px; }
 .hidden { display: none !important; }
@@ -129,6 +130,24 @@ h2:first-child { margin-top: 0; }
 .addbar .key:disabled { opacity: .5; }
 .more { width: 100%; margin-top: 8px; }
 
+.meter { background: var(--surface); border-radius: 12px; box-shadow: var(--shadow); padding: 14px; margin-bottom: 10px; }
+.meter .big { font-size: 28px; font-weight: 700; }
+.meter .sub { color: var(--muted); font-size: 14px; margin-top: 2px; }
+.qbar { height: 14px; background: var(--surface2); border-radius: 7px; overflow: hidden; margin-top: 10px; }
+.qbar > div { height: 100%; width: 0; border-radius: 7px; transition: width .3s; }
+.good { background: #2e9d4f; } .mid { background: #e0a020; } .bad { background: var(--danger); }
+.metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 10px; }
+.metric { background: var(--surface); border-radius: 12px; box-shadow: var(--shadow); padding: 10px; min-width: 0; }
+.metric .name { color: var(--muted); font-size: 12px; font-weight: 600; }
+.metric .value { font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.metric canvas { width: 100%; height: 36px; display: block; margin-top: 4px; }
+.muxes { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
+.muxes .key { min-height: 44px; font-size: 14px; }
+.muxes .key.on { outline: 2px solid var(--accent); }
+table.results { width: 100%; border-collapse: collapse; font-size: 14px; background: var(--surface); border-radius: 12px; overflow: hidden; }
+table.results td { padding: 8px 10px; border-top: 1px solid var(--surface2); }
+table.results td:last-child { text-align: right; font-variant-numeric: tabular-nums; }
+
 .unpaired { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 12px; padding: 24px 4px; }
 .unpaired h1 { font-size: 22px; margin: 0; }
 .unpaired p { margin: 0; color: var(--muted); }
@@ -152,6 +171,7 @@ h2:first-child { margin-top: 0; }
     <button data-tab="channels" data-t="tabChannels"></button>
     <button data-tab="organise" data-t="tabOrganise"></button>
     <button data-tab="iptv" data-t="tabIptv"></button>
+    <button data-tab="signal" data-t="tabSignal" class="hidden" id="signalTab"></button>
   </nav>
   <main>
     <section id="tab-remote">
@@ -205,6 +225,28 @@ h2:first-child { margin-top: 0; }
       <p class="tip" data-t="organiseTip"></p>
       <div class="list" id="orgList"></div>
     </section>
+    <section id="tab-signal" class="hidden">
+      <div class="meter">
+        <div class="big" id="sigQuality">–</div>
+        <div class="sub" id="sigWhere"></div>
+        <div class="qbar"><div id="sigBar"></div></div>
+      </div>
+      <div class="metrics">
+        <div class="metric"><div class="name" data-t="rssi"></div><div class="value" id="v-rssi">–</div><canvas id="c-rssi"></canvas></div>
+        <div class="metric"><div class="name">SNR</div><div class="value" id="v-snr">–</div><canvas id="c-snr"></canvas></div>
+        <div class="metric"><div class="name">BER</div><div class="value" id="v-ber">–</div><canvas id="c-ber"></canvas></div>
+      </div>
+      <label class="check"><input type="checkbox" id="sigSound"><span data-t="sound"></span></label>
+      <p class="tip" data-t="signalTip"></p>
+      <h2 data-t="muxTitle"></h2>
+      <div class="muxes" id="muxes"></div>
+      <div class="tools">
+        <button class="key" id="cycleStart" data-t="cycleStart"></button>
+        <button class="key" id="cycleStop" data-t="cycleStop"></button>
+      </div>
+      <p class="summary" id="cycleStatus"></p>
+      <table class="results hidden" id="cycleResults"></table>
+    </section>
     <section id="tab-iptv" class="hidden">
       <h2 id="mineTitle"></h2>
       <div class="list" id="mineList"></div>
@@ -245,17 +287,23 @@ h2:first-child { margin-top: 0; }
 "use strict";
 const STRINGS = {
   en: {
-    unpairedTitle: "Phone not paired", unpairedText: "On the TV open bapTV, press OK for the menu and choose Settings → Phone remote, then scan the QR code with this phone.",
+    unpairedTitle: "Phone not paired", unpairedText: "On the TV open bapTV, press OK for the menu and choose Settings → Phone remote, then scan the QR code with this phone. The phone must be on the same Wi-Fi network as the set-top box.",
     pairFailed: "The pairing code has expired or was already used. Show the QR code on the TV again and scan it.",
     tabRemote: "Remote", tabChannels: "Channels", menu: "Menu", guide: "Guide", info: "Info", back: "Back", pause: "Pause",
     last: "Previous", audio: "Audio", subtitles: "Subtitles", digits: "123", search: "Search channels",
-    offline: "No connection to the set-top box", notOnScreen: "bapTV is not on the TV screen", cannotTune: "Cannot switch channel now",
+    offline: "No connection to the set-top box – check that the phone is on the same Wi-Fi network and that bapTV is on the TV screen", notOnScreen: "bapTV is not on the TV screen", cannotTune: "Cannot switch channel now",
     noChannels: "No channels", recording: "● Recording: ", otherScreen: "bapTV",
     tabOrganise: "Organise", reset: "Restore defaults", scrambledHidden: "Scrambled: hidden", scrambledShown: "Scrambled: shown",
     organiseTip: "Drag ≡ to move a channel, tap its name to rename it; the eye hides it from the list and zapping.",
     renamePrompt: "Channel name (empty brings back the broadcaster's name):", resetConfirm: "Restore the default order and show all channels? Your channel names stay.",
     hiddenByScrambled: "Hidden with all scrambled channels – switch “Scrambled” to shown first.", saveFailed: "Change not saved",
-    tabIptv: "Internet", mineTitle: "Internet channels", noMine: "None yet – add them from a playlist below.",
+    tabSignal: "Signal", rssi: "Strength", sound: "Sound: the better the signal, the faster the ticks",
+    signalTip: "Turn the antenna slowly and watch the quality. Values 0–100 come from the tuner; the worse of SNR and BER counts.",
+    good: "Good signal", weak: "Weak signal", veryWeak: "Very weak signal", noStats: "No signal", noLock: "no signal",
+    iptvNoSignal: "Internet channel – switch to a broadcast channel to measure the antenna signal",
+    muxTitle: "Multiplexes", cycleStart: "Measure all", cycleStop: "Stop", cycleRunning: (n, all) => `Measuring ${n} of ${all}…`,
+    cycleDone: "Average quality per multiplex:",
+    tabIptv: "IPTV", mineTitle: "Internet channels", noMine: "None yet – add them from a playlist below.",
     addTitle: "Add from an M3U playlist", load: "Load", fromFile: "Choose a playlist file…", loading: "Loading the playlist…",
     loadFailed: "Could not load the playlist: ", allGroups: "All groups", searchStreams: "Search", workingOnly: "Only working",
     probe: "Check shown", probing: "Checking… ", stop: "Stop", selectWorking: "Select working",
@@ -268,17 +316,23 @@ const STRINGS = {
     checkMine: "Check added", checkingMine: "Checking…", removeProblems: n => `Remove with problems (${n})`, removeProblemsConfirm: n => `Remove ${n} channels that had problems while watching?`,
   },
   pl: {
-    unpairedTitle: "Telefon nie jest sparowany", unpairedText: "Na telewizorze otwórz bapTV, wciśnij OK, aby otworzyć menu, i wybierz Ustawienia → Pilot w telefonie, a potem zeskanuj kod QR tym telefonem.",
+    unpairedTitle: "Telefon nie jest sparowany", unpairedText: "Na telewizorze otwórz bapTV, wciśnij OK, aby otworzyć menu, i wybierz Ustawienia → Pilot w telefonie, a potem zeskanuj kod QR tym telefonem. Telefon musi być w tej samej sieci Wi-Fi co dekoder.",
     pairFailed: "Kod parowania wygasł albo został już użyty. Pokaż ponownie kod QR na telewizorze i zeskanuj go.",
     tabRemote: "Pilot", tabChannels: "Kanały", menu: "Menu", guide: "Program", info: "Info", back: "Wstecz", pause: "Pauza",
     last: "Poprzedni", audio: "Audio", subtitles: "Napisy", digits: "123", search: "Szukaj kanału",
-    offline: "Brak połączenia z dekoderem", notOnScreen: "bapTV nie jest na ekranie telewizora", cannotTune: "Nie można teraz przełączyć kanału",
+    offline: "Brak połączenia z dekoderem – sprawdź, czy telefon jest w tej samej sieci Wi-Fi i czy bapTV jest na ekranie telewizora", notOnScreen: "bapTV nie jest na ekranie telewizora", cannotTune: "Nie można teraz przełączyć kanału",
     noChannels: "Brak kanałów", recording: "● Nagrywanie: ", otherScreen: "bapTV",
     tabOrganise: "Porządkuj", reset: "Przywróć domyślne", scrambledHidden: "Kodowane: ukryte", scrambledShown: "Kodowane: widoczne",
     organiseTip: "Przeciągnij ≡, aby przenieść kanał, dotknij nazwy, aby ją zmienić; oko ukrywa kanał z listy i przełączania.",
     renamePrompt: "Nazwa kanału (pusta przywraca nazwę nadawcy):", resetConfirm: "Przywrócić domyślną kolejność i pokazać wszystkie kanały? Twoje nazwy kanałów zostaną.",
     hiddenByScrambled: "Ukryty razem ze wszystkimi kodowanymi – najpierw przełącz „Kodowane” na widoczne.", saveFailed: "Nie zapisano zmiany",
-    tabIptv: "Internet", mineTitle: "Kanały internetowe", noMine: "Jeszcze żadnych – dodaj je z listy poniżej.",
+    tabSignal: "Sygnał", rssi: "Siła", sound: "Dźwięk: im lepszy sygnał, tym szybsze tykanie",
+    signalTip: "Obracaj antenę powoli i patrz na jakość. Wartości 0–100 podaje tuner; liczy się gorsza z SNR i BER.",
+    good: "Dobry sygnał", weak: "Słaby sygnał", veryWeak: "Bardzo słaby sygnał", noStats: "Brak sygnału", noLock: "brak sygnału",
+    iptvNoSignal: "Kanał internetowy – przełącz na kanał z anteny, aby zmierzyć sygnał",
+    muxTitle: "Multipleksy", cycleStart: "Zmierz wszystkie", cycleStop: "Zatrzymaj", cycleRunning: (n, all) => `Pomiar ${n} z ${all}…`,
+    cycleDone: "Średnia jakość na multipleksach:",
+    tabIptv: "IPTV", mineTitle: "Kanały internetowe", noMine: "Jeszcze żadnych – dodaj je z listy poniżej.",
     addTitle: "Dodaj z listy M3U", load: "Wczytaj", fromFile: "Wybierz plik z listą…", loading: "Wczytywanie listy…",
     loadFailed: "Nie udało się wczytać listy: ", allGroups: "Wszystkie grupy", searchStreams: "Szukaj", workingOnly: "Tylko działające",
     probe: "Sprawdź widoczne", probing: "Sprawdzanie… ", stop: "Zatrzymaj", selectWorking: "Zaznacz działające",
@@ -304,6 +358,7 @@ $("search").placeholder = T.search;
 let paired = null;
 let channels = [];
 let currentId = null;
+let currentChannelIptv = false;
 let noticeTimer = 0;
 
 class Unpaired extends Error {}
@@ -349,10 +404,12 @@ function formatTime(ms) {
 }
 
 function renderState(s) {
+  $("signalTab").classList.toggle("hidden", !s.signal);
   const ch = s.channel;
   $("chNum").textContent = ch ? ch.number : "";
   $("chName").textContent = ch ? ch.name : T.otherScreen;
   currentId = ch ? ch.id : null;
+  currentChannelIptv = !!(ch && ch.iptv);
   let line = "";
   let progress = 0;
   if (s.now) {
@@ -617,7 +674,7 @@ function renderMine() {
 async function loadPlaylist(url, file) {
   notice(T.loading, 0);
   try {
-    const response = await fetch(url ? `/api/iptv/load?url=${encodeURIComponent(url)}` : "/api/iptv/load",
+    const response = await fetch(url ? `/api/iptv/load?url=${encodeURIComponent(url)}` : `/api/iptv/load?name=${encodeURIComponent(file.name)}`,
       { method: "POST", body: file ? await file.text() : undefined, cache: "no-store" });
     if (response.status === 401) { showUnpaired(); return; }
     const body = await response.json().catch(() => ({}));
@@ -765,6 +822,131 @@ $("removeProblems").addEventListener("click", async () => {
   try { mine = await api(`/api/iptv/remove?ids=${ids.join(",")}`, "POST"); renderMine(); renderStreams(); } catch (e) { explain(e); }
 });
 
+// ---- Signal (antenna aiming) ----
+
+const METRICS = ["rssi", "snr", "ber"];
+const COLORS = { rssi: "#5aa9ff", snr: "#ff7a2f", ber: "#a9b3c1" };
+let signalActive = false;
+let signalTimer = 0;
+let lastSignal = null;
+let audio = null, nextBeep = 0;
+
+// Quality 0..1: the tuner reports SNR and BER as quality indicators 0–100 – the worse one counts;
+// RSSI (strength) only when they are missing. null = no data.
+function quality(s) {
+  if (!s) return null;
+  const q = [s.snr, s.ber].filter(v => typeof v === "number" && v >= 0 && v <= 100);
+  if (q.length) return Math.min(...q) / 100;
+  if (typeof s.rssi === "number" && s.rssi >= 0 && s.rssi <= 100) return s.rssi / 100;
+  return null;
+}
+
+function fmt(v) { return typeof v === "number" ? (Math.abs(v) >= 100 ? v.toFixed(0) : v.toFixed(1)) : "–"; }
+
+function draw(canvas, values, color) {
+  const dpr = window.devicePixelRatio || 1, w = canvas.clientWidth, h = canvas.clientHeight;
+  canvas.width = w * dpr; canvas.height = h * dpr;
+  const g = canvas.getContext("2d");
+  g.scale(dpr, dpr);
+  g.clearRect(0, 0, w, h);
+  const pts = values.filter(v => typeof v === "number");
+  if (pts.length < 2) return;
+  let min = Math.min(...pts), max = Math.max(...pts);
+  if (max - min < 1e-9) { min -= 1; max += 1; }
+  g.strokeStyle = color; g.lineWidth = 2; g.beginPath();
+  let started = false;
+  values.forEach((v, i) => {
+    if (typeof v !== "number") { started = false; return; }
+    const x = values.length === 1 ? w : (i / (values.length - 1)) * w, y = h - 3 - ((v - min) / (max - min)) * (h - 6);
+    if (started) g.lineTo(x, y); else { g.moveTo(x, y); started = true; }
+  });
+  g.stroke();
+}
+
+function renderSignal(d) {
+  lastSignal = d;
+  const h = (d.history || []).slice(-120), cur = h.length ? h[h.length - 1] : null;
+  const q = quality(cur);
+  const iptv = currentChannelIptv;
+  $("sigQuality").textContent = iptv ? "–" : q === null ? T.noStats : `${q >= 0.6 ? T.good : q >= 0.35 ? T.weak : T.veryWeak} · ${Math.round(q * 100)}%`;
+  $("sigWhere").textContent = iptv ? T.iptvNoSignal : d.frequency ? `${Math.round(d.frequency)} MHz` : "";
+  const bar = $("sigBar");
+  bar.style.width = `${q === null || iptv ? 0 : Math.round(q * 100)}%`;
+  bar.className = q === null ? "" : q >= 0.6 ? "good" : q >= 0.35 ? "mid" : "bad";
+  $("sigQuality").style.color = q === null && !iptv && h.length ? "var(--danger)" : "";
+  METRICS.forEach(k => {
+    $(`v-${k}`).textContent = fmt(cur ? cur[k] : null);
+    draw($(`c-${k}`), h.map(s => s[k]), COLORS[k]);
+  });
+  const cycle = d.cycle || {};
+  const muxes = $("muxes");
+  muxes.textContent = "";
+  (d.multiplexes || []).forEach(m => {
+    const b = document.createElement("button");
+    b.className = "key" + (d.frequency && Math.abs(d.frequency - m.frequency) < 0.5 && !iptv ? " on" : "");
+    b.textContent = `${Math.round(m.frequency)} MHz`;
+    b.title = m.name;
+    b.disabled = !!cycle.running;
+    b.addEventListener("click", () => signalPost(`/api/signal/tune?freq=${m.frequency}`));
+    muxes.appendChild(b);
+  });
+  const results = cycle.results || [];
+  $("cycleStart").disabled = !!cycle.running || !(d.multiplexes || []).length;
+  $("cycleStop").disabled = !cycle.running;
+  $("cycleStatus").textContent = cycle.running ? T.cycleRunning(Math.min(results.length + 1, (d.multiplexes || []).length), (d.multiplexes || []).length)
+    : results.length ? T.cycleDone : "";
+  const table = $("cycleResults");
+  table.textContent = "";
+  results.forEach(r => {
+    const avg = quality({ rssi: r.rssi && r.rssi.avg, snr: r.snr && r.snr.avg, ber: r.ber && r.ber.avg });
+    const tr = document.createElement("tr");
+    const a = document.createElement("td"); a.textContent = `${Math.round(r.frequency)} MHz · ${r.name}`;
+    // Samples without statistics: the tuner did not lock on this multiplex.
+    const b = document.createElement("td"); b.textContent = avg === null ? T.noLock : `${Math.round(avg * 100)}%`;
+    b.style.color = avg === null || avg < 0.35 ? "var(--danger)" : avg >= 0.6 ? "#2e9d4f" : "#e0a020";
+    tr.append(a, b);
+    table.appendChild(tr);
+  });
+  table.classList.toggle("hidden", !results.length);
+}
+
+/** Polls twice a second while the tab is open; the set-top box samples only while someone asks. */
+async function pollSignal() {
+  clearTimeout(signalTimer);
+  if (!signalActive || document.hidden || paired === false) return;
+  try { renderSignal(await api("/api/signal")); } catch (e) { explain(e); }
+  signalTimer = setTimeout(pollSignal, 500);
+}
+
+async function signalPost(path) {
+  try { await api(path, "POST"); } catch (e) { explain(e); }
+  pollSignal();
+}
+
+$("cycleStart").addEventListener("click", () => signalPost("/api/signal/cycle"));
+$("cycleStop").addEventListener("click", () => signalPost("/api/signal/stop"));
+
+// Sound like a Geiger counter: the better the signal, the more frequent and higher the ticks.
+$("sigSound").addEventListener("change", () => {
+  if ($("sigSound").checked && !audio) audio = new (window.AudioContext || window.webkitAudioContext)();
+  if (audio && audio.state === "suspended") audio.resume();
+});
+function beepLoop() {
+  if ($("sigSound").checked && audio && signalActive && lastSignal && !currentChannelIptv) {
+    const h = lastSignal.history || [], q = quality(h.length ? h[h.length - 1] : null), now = audio.currentTime;
+    if (q !== null && now >= nextBeep) {
+      const o = audio.createOscillator(), g = audio.createGain();
+      o.frequency.value = 300 + q * 900;
+      g.gain.setValueAtTime(0.2, now);
+      g.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+      o.connect(g); g.connect(audio.destination); o.start(now); o.stop(now + 0.09);
+      nextBeep = now + (1.2 - q);
+    }
+  }
+  requestAnimationFrame(beepLoop);
+}
+requestAnimationFrame(beepLoop);
+
 // ---- Tabs and polling ----
 
 document.querySelectorAll("nav button").forEach(button => button.addEventListener("click", () => {
@@ -773,6 +955,9 @@ document.querySelectorAll("nav button").forEach(button => button.addEventListene
   $("tab-channels").classList.toggle("hidden", button.dataset.tab !== "channels");
   $("tab-organise").classList.toggle("hidden", button.dataset.tab !== "organise");
   $("tab-iptv").classList.toggle("hidden", button.dataset.tab !== "iptv");
+  $("tab-signal").classList.toggle("hidden", button.dataset.tab !== "signal");
+  signalActive = button.dataset.tab === "signal";
+  if (signalActive) pollSignal();
   if (button.dataset.tab === "iptv") loadMine();
   if (button.dataset.tab === "channels") loadChannels();
   if (button.dataset.tab === "organise") loadOrganise();
@@ -785,7 +970,7 @@ if (new URLSearchParams(location.search).get("pair") === "failed") {
   refreshState();
 }
 setInterval(refreshState, 2500);
-document.addEventListener("visibilitychange", refreshState);
+document.addEventListener("visibilitychange", () => { refreshState(); pollSignal(); });
 </script>
 </body>
 </html>

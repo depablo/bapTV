@@ -280,7 +280,7 @@
     <string name="colour_keys_not_now">Nie teraz</string>
     <string name="menu_phone_remote">Pilot w telefonie</string>
     <string name="phone_remote_title">Pilot w telefonie</string>
-    <string name="phone_remote_qr_message">Zeskanuj kod telefonem połączonym z tą samą siecią. Pilot otworzy się w przeglądarce telefonu – bez instalowania aplikacji.</string>
+    <string name="phone_remote_qr_message">Telefon musi być połączony z tą samą siecią (Wi-Fi) co dekoder – nie z danymi komórkowymi. Zeskanuj kod aparatem telefonu: pilot otworzy się w przeglądarce, bez instalowania aplikacji.</string>
     <string name="phone_remote_pair">Sparuj kolejny telefon</string>
     <string name="phone_remote_forget">Zapomnij sparowane telefony</string>
     <string name="phone_remote_turn_off">Wyłącz</string>
@@ -297,4 +297,9 @@
     <string name="iptv_error_format">nieobsługiwany format</string>
     <string name="iptv_error_drm">zabezpieczony DRM</string>
     <string name="iptv_error_blocked">HTTP %1$d – często blokada poza krajem nadawcy</string>
+    <string name="badge_iptv">IPTV</string>
+    <string name="iptv_channel_info">Kanał internetowy (IPTV)</string>
+    <string name="iptv_source">Źródło: %1$s</string>
+    <string name="iptv_address">Adres: %1$s</string>
+    <string name="guide_no_epg_iptv">Brak programu dla tego kanału internetowego.</string>
 </resources>

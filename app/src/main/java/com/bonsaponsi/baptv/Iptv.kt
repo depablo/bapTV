@@ -30,9 +30,11 @@ object Iptv {
         val referrer: String? = null,
         /** Needs DRM keys (Kodi `inputstream` properties) – not playable here. */
         val drm: Boolean = false,
+        /** Where the channel was added from: the playlist address or file name; empty when unknown. */
+        val source: String = "",
     ) {
         fun toJson(): JSONObject = JSONObject().put("name", name).put("url", url).put("group", group).put("logo", logo)
-            .put("tvgId", tvgId).put("drm", drm).apply {
+            .put("tvgId", tvgId).put("drm", drm).put("source", source).apply {
                 userAgent?.let { put("userAgent", it) }
                 referrer?.let { put("referrer", it) }
             }
@@ -41,6 +43,7 @@ object Iptv {
             fun fromJson(o: JSONObject) = Stream(
                 o.optString("name"), o.getString("url"), o.optString("group"), o.optString("logo"), o.optString("tvgId"),
                 o.optString("userAgent").ifEmpty { null }, o.optString("referrer").ifEmpty { null }, o.optBoolean("drm"),
+                o.optString("source"),
             )
         }
     }

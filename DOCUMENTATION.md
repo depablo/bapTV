@@ -124,8 +124,14 @@ the channel on screen with the current programme, and a searchable channel list 
 switches the channel. The Organise tab does what the Manage channels screen does: drag ≡ to move a
 channel, tap a name to rename it (an empty name brings back the broadcaster's), the eye hides or
 shows a channel, plus the "Scrambled: hidden/shown" switch and "Restore defaults". Changes reach the
-player and an open Manage channels screen at once. The Internet tab adds internet channels (see
-[Internet channels](#internet-channels)).
+player and an open Manage channels screen at once. The IPTV tab adds internet channels (see
+[Internet channels](#internet-channels)). The Signal tab (on devices that report tuner statistics)
+helps aim the antenna: signal quality with strength, SNR and BER as live charts, an optional tick
+sound that speeds up as the signal improves, buttons that switch the tuner to each multiplex and
+"Measure all", which goes through the multiplexes and lists the average quality of each.
+
+The phone must be in the same network (Wi-Fi) as the set-top box; the QR code text on the TV says
+so, and the page names it when it loses the connection.
 
 - Pairing: the QR code holds a one-time code that works only while the code is on the TV screen
   (at most 10 minutes). The phone then stays paired through a cookie. The same menu entry pairs
@@ -225,7 +231,7 @@ added at the end of a custom order.
 ### Internet channels
 
 Besides broadcast channels bapTV plays internet streams (HLS, DASH, MPEG-TS over HTTP). They are
-added on the phone remote, Internet tab:
+added on the phone remote, IPTV tab:
 
 1. Enter the address of an M3U playlist and press Load, or choose a playlist file on the phone.
    Addresses used before are offered as shortcuts.
@@ -237,13 +243,14 @@ added on the phone remote, Internet tab:
    arrive, so the picture keeps stopping. Working streams with less than 2× are marked as having
    little margin. "Only working" hides the rest, "Select working" ticks them.
 3. "Add selected" adds the ticked streams as channels numbered from 1001, after the broadcast
-   ones. They can be renamed, moved and hidden like any channel, and removed on the same tab.
+   ones, marked "IPTV" in the channel list and the TV guide. The info panel (▼) shows the
+   playlist a channel came from and its stream address. They can be renamed, moved and hidden like any channel, and removed on the same tab.
 
 The app comes with no playlists; any M3U playlist with direct stream addresses works, including
 the `http-user-agent` and `http-referrer` options some streams need. A check is a snapshot; how a
 stream really plays shows while watching. bapTV remembers per channel when it keeps buffering
 (4 stalls within a minute), when its server proves too slow, or when it stops playing, and the
-Internet tab shows a warning next to such channels. Two minutes of trouble-free playback clear the
+IPTV tab shows a warning next to such channels. Two minutes of trouble-free playback clear the
 warning. "Check added" runs the check on all added channels; "Remove with problems" removes the
 marked ones at once. Short stalls are not reported on the TV, so "Buffering" does not flicker. When a stream fails, the status line says
 why, e.g. "Stream unavailable (HTTP 403)". Dropped live streams reconnect by themselves a few times.
