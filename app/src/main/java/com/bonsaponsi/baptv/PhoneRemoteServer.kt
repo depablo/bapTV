@@ -167,10 +167,12 @@ class PhoneRemoteServer(private val context: Context, val port: Int) {
             "POST" to "/api/iptv/check" -> {
                 // The added channels with the same check as before adding; what fails is marked like a problem seen while watching.
                 val own = Iptv.streams(context)
+                val problems = Iptv.problems(context)
                 IptvProbe.probeAll(own.map { it.second }).zip(own).forEach { (result, entry) ->
                     val id = entry.first.id
                     when (result.status) {
-                        IptvProbe.Status.OK -> Unit
+                        // A passed check clears what a check can tell; "keeps buffering" seen while watching stays.
+                        IptvProbe.Status.OK -> if (problems[id]?.kind != Iptv.PROBLEM_BUFFERING) Iptv.clearProblem(context, id)
                         IptvProbe.Status.SLOW -> Iptv.reportProblem(context, id, Iptv.PROBLEM_SLOW)
                         else -> Iptv.reportProblem(context, id, Iptv.PROBLEM_ERROR, result.detail)
                     }
