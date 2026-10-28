@@ -1,4 +1,4 @@
-<p>bapTV plays live terrestrial TV from the built-in tuner of an Android TV set-top box or TV, through the standard Android TV Input Framework. It is written in Kotlin with no external libraries and has no ads.</p>
+<p>bapTV plays live terrestrial TV from the built-in tuner of an Android TV set-top box or TV, through the standard Android TV Input Framework. It is written in Kotlin, uses one library (AndroidX Media3, for internet channels) and has no ads.</p>
 
 <p><b>Features</b></p>
 <ul>
@@ -7,6 +7,8 @@
 <li>TV guide (EPG) for about a week, read from the broadcast itself – no internet needed</li>
 <li>Live pause with seeking, recording (manual or scheduled from the guide) and a recordings list</li>
 <li>HbbTV applications of broadcasters (red button, "watch from the start", live channel lists, online channels)</li>
+<li>Phone remote: scan a QR code on the TV and use the phone's browser as a remote, channel list and channel organiser, and as a signal meter for aiming the antenna</li>
+<li>Internet channels (IPTV) from M3U playlists you add on the phone; streams are checked before adding, including whether the server is fast enough</li>
 <li>Channel search in the app on devices with the Google DTV tuner stack: one run scans, detects and identifies all channels</li>
 <li>Signal information, a diagnostics screen and a report you can save or send</li>
 <li>English and Polish user interface</li>
@@ -14,6 +16,6 @@
 
 <p><b>Requirements</b>: Android 8.0 or newer with a built-in DVB-T/T2 tuner exposed through the TV Input Framework (an Android TV set-top box or TV). In-app channel search, channel identification, recording and HbbTV need the Google DTV tuner stack found on many operator set-top boxes; on other devices channels are searched in the system TV settings. The app has been developed and tested on a Kaon PLAY BOX TV 4B; built-in channel names and numbers are provided for Poland.</p>
 
-<p><b>Network access</b>: the TV picture comes from the antenna. The internet is used only by HbbTV applications, which are web pages of the broadcasters, and – only after you confirm it – for sending a diagnostics report to the developer.</p>
+<p><b>Network access</b>: broadcast channels come from the antenna. The internet is used by HbbTV applications, which are web pages of the broadcasters, by internet channels and playlists you add yourself (the app comes with none), and – only after you confirm it – for sending a diagnostics report to the developer. The phone remote is a small web server in your local network that gives control and channel data only to phones paired with a QR code shown on the TV.</p>
 
 <p><b>Accessibility service</b>: on some set-top boxes the remote's colour keys are reserved for the operator's app. bapTV includes an optional accessibility service that, while bapTV is on screen, passes the red, green, yellow and blue keys to it. It reads no screen content and is off until you turn it on in the system settings.</p>
