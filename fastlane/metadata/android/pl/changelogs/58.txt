@@ -1,0 +1,1 @@
+Pilot w telefonie: zeskanuj kod QR z telewizora, a przeglądarka telefonu stanie się pilotem, listą kanałów, narzędziem do porządkowania kanałów i miernikiem sygnału przy ustawianiu anteny. Kanały internetowe (IPTV) z list M3U dodawanych w telefonie: przed dodaniem strumienie są sprawdzane, również prędkość serwera, a kanały sprawiające problemy podczas oglądania są oznaczane.

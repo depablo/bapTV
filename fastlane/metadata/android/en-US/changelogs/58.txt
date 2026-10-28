@@ -1,0 +1,1 @@
+Phone remote: scan a QR code on the TV and use the phone's browser as a remote, channel list and channel organiser, and as a signal meter for aiming the antenna. Internet channels (IPTV) from M3U playlists, added on the phone: streams are checked before adding, including whether the server is fast enough, and channels that keep failing while watching are marked.
