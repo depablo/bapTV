@@ -522,7 +522,7 @@ class MainActivity : Activity() {
                 }
                 if (identifyAfterLoad) {
                     identifyAfterLoad = false
-                    if (caps.streamAnalysis && loaded.any { !it.identified }) handler.postDelayed({ identifyAll() }, IDENTIFY_SETTLE_MS)
+                    if (caps.streamAnalysis && loaded.any { !it.identified && !it.iptv }) handler.postDelayed({ identifyAll() }, IDENTIFY_SETTLE_MS)
                     else { SetupProgress.endPipeline(this); hideSetupBanner() }
                 }
                 pendingRecordingId?.also { pendingRecordingId = null }?.let { id ->
@@ -588,7 +588,8 @@ class MainActivity : Activity() {
         DebugLog.log("Player", "tune ${channel.number} \"${channel.name}\" id=${channel.id} uri=${channel.uri}")
         hbbNoticeShownFor = -1L
         showStatus(getString(R.string.status_tuning))
-        tvView.tune(tuner.id, channel.uri)
+        // Internet channels play through the app's own input ([IptvInputService]).
+        tvView.tune(channel.inputId ?: tuner.id, channel.uri)
         TsProbe.currentChannelUri = channel.uri
         broadcastStopped = false
         onHbbTuned(channel)
@@ -1083,7 +1084,7 @@ class MainActivity : Activity() {
         infoOptRecord.visibility = if (rec != null || (DeviceCapabilities.get(this).streamAnalysis && current != null &&
                 recordable(current) && playingRecording == null)) View.VISIBLE else View.GONE
         infoOptRecord.text = getString(if (rec != null) R.string.info_record_stop else R.string.info_record)
-        infoOptPause.visibility = if (timeshift.active || (current != null && !current.virtual && playingRecording == null)) View.VISIBLE else View.GONE
+        infoOptPause.visibility = if (timeshift.active || (current != null && !current.virtual && !current.iptv && playingRecording == null)) View.VISIBLE else View.GONE
         infoOptPause.setText(if (timeshift.active) R.string.info_live else R.string.info_pause)
     }
 
@@ -1111,6 +1112,7 @@ class MainActivity : Activity() {
                 getString(if (channel.isRadio) R.string.kind_radio else R.string.kind_tv),
                 getString(R.string.kind_scrambled).takeIf { channel.scrambled },
                 getString(R.string.kind_virtual).takeIf { channel.virtual },
+                getString(R.string.kind_iptv).takeIf { channel.iptv },
             ).joinToString(", ")),
             row(R.string.diag_hbbtv, hbb.currentUrl ?: getString(R.string.diag_no_app)),
         )
@@ -1213,7 +1215,7 @@ class MainActivity : Activity() {
             if (timeshift.active) MenuPanel.Entry(getString(R.string.menu_live),
                 getString(R.string.menu_live_value, TimeShiftModel.formatDelay(timeshift.delayMs())), leave) { timeshift.goLive() }
             else MenuPanel.Entry(getString(R.string.menu_pause), after = leave) { startPause() }
-                .takeIf { current != null && !current.virtual && playingRecording == null },
+                .takeIf { current != null && !current.virtual && !current.iptv && playingRecording == null },
         )
         val recordings = if (!caps.streamAnalysis) emptyList() else listOfNotNull(
             Recorder.active.let { rec ->
@@ -1502,7 +1504,7 @@ class MainActivity : Activity() {
     }
 
     /** Scrambled channels record encrypted, and virtual HbbTV channels are just a slate on air – nothing to record. */
-    private fun recordable(channel: Channel) = !channel.scrambled && !channel.virtual
+    private fun recordable(channel: Channel) = !channel.scrambled && !channel.virtual && !channel.iptv
 
     /** Scheduled recordings while the player is on screen: a warning a minute ahead and a channel switch. */
     private val schedulerPlayer = object : RecordingScheduler.Player {
@@ -1592,7 +1594,7 @@ class MainActivity : Activity() {
     /** Pauses the watched channel: video freezes, the tuner keeps buffering (up to 30 min). */
     private fun startPause() {
         val channel = channels.getOrNull(currentIndex) ?: return
-        if (playingRecording != null || channel.virtual) return
+        if (playingRecording != null || channel.virtual || channel.iptv) return
         // Just the "⏸" badge at the top – no banner or counter (▼ shows the banner with the pause bar).
         handler.removeCallbacks(hideBanner)
         hideBanner.run()
@@ -1632,6 +1634,11 @@ class MainActivity : Activity() {
     /** After a channel change: the AUTOSTART app from the stored AIT, or background learning if there is none. */
     private fun onHbbTuned(channel: Channel) {
         if (identifying) return
+        // Internet channels have no broadcast stream: no HbbTV application, nothing to identify.
+        if (channel.iptv) {
+            hbb.start(null)
+            return
+        }
         if (hbbInternalTune) {
             hbbInternalTune = false
             return
@@ -1646,7 +1653,7 @@ class MainActivity : Activity() {
      * multiplex does not require switching the video. If the tuner does not allow it, we remember that.
      */
     private fun identifyInBackground(channel: Channel, force: Boolean) {
-        if (!DeviceCapabilities.get(this).streamAnalysis) return
+        if (!DeviceCapabilities.get(this).streamAnalysis || channel.iptv) return
         if (!TsProbe.hasStoragePermission(this)) {
             DebugLog.log("Identify", "no permission to read recordings – identification skipped")
             if (!channel.identified) showStatusBriefly(getString(R.string.identify_no_permission))
@@ -1726,7 +1733,7 @@ class MainActivity : Activity() {
             return
         }
         val originalId = channels.getOrNull(currentIndex)?.id
-        val snapshot = channels.toList()
+        val snapshot = channels.filter { !it.iptv }
         identifying = true
         identifyCancelled = false
         hbb.start(null)
@@ -1894,7 +1901,7 @@ class MainActivity : Activity() {
             val channel = channels.getOrNull(currentIndex) ?: return
             val tuner = input ?: return
             DebugLog.log("HbbTV", "app resumes the broadcast video")
-            tvView.tune(tuner.id, channel.uri)
+            tvView.tune(channel.inputId ?: tuner.id, channel.uri)
         }
         override fun hbbBroadcastRect(rect: String) {
             val params = tvView.layoutParams as android.widget.FrameLayout.LayoutParams
@@ -2041,8 +2048,11 @@ class MainActivity : Activity() {
                 VIDEO_UNAVAILABLE_REASON_NOT_CONNECTED -> "NOT_CONNECTED" to R.string.status_not_connected
                 in CAS_REASONS -> "CAS($reason)" to R.string.status_cas
                 // dtvinput reports UNKNOWN for a moment right after a tune – that is still tuning, not "no picture".
-                else -> "UNKNOWN($reason)" to
-                    if (SystemClock.elapsedRealtime() - tunedAt < TUNE_UNKNOWN_GRACE_MS) R.string.status_tuning else R.string.status_unknown
+                else -> "UNKNOWN($reason)" to when {
+                    SystemClock.elapsedRealtime() - tunedAt < TUNE_UNKNOWN_GRACE_MS && channels.getOrNull(currentIndex)?.iptv != true -> R.string.status_tuning
+                    channels.getOrNull(currentIndex)?.iptv == true -> R.string.status_stream_failed
+                    else -> R.string.status_unknown
+                }
             }
             prober?.let {
                 it.onEvent("onVideoUnavailable $label", reason = reason)
@@ -2050,7 +2060,9 @@ class MainActivity : Activity() {
             }
             videoState = "UNAVAILABLE:$label"
             onPlayerEvent("onVideoUnavailable $label")
-            showStatus(getString(text))
+            // For an internet stream the reason helps: e.g. "HTTP 403" usually means the stream is blocked outside its country.
+            val why = IptvInputService.lastError.takeIf { text == R.string.status_stream_failed }
+            showStatus(getString(text) + (why?.let { " ($it)" } ?: ""))
             if (reason == TvInputManager.VIDEO_UNAVAILABLE_REASON_AUDIO_ONLY) {
                 applyPreferredTracks()
                 audio.apply("radio")

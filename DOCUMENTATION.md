@@ -122,9 +122,10 @@ Scanning it opens the remote in the phone's browser; no app is installed. The pa
 keys (arrows, OK, BACK, MENU, GUIDE, INFO, CH+/CH−, ⏯, colour keys, digits, audio and subtitles),
 the channel on screen with the current programme, and a searchable channel list where a tap
 switches the channel. The Organise tab does what the Manage channels screen does: drag ≡ to move a
-channel, tap a name to rename it (an empty name brings back the broadcaster's), 👁 hides or shows a
-channel, plus the "Scrambled: hidden/shown" switch and "Restore defaults". Changes reach the player
-and an open Manage channels screen at once.
+channel, tap a name to rename it (an empty name brings back the broadcaster's), the eye hides or
+shows a channel, plus the "Scrambled: hidden/shown" switch and "Restore defaults". Changes reach the
+player and an open Manage channels screen at once. The Internet tab adds internet channels (see
+[Internet channels](#internet-channels)).
 
 - Pairing: the QR code holds a one-time code that works only while the code is on the TV screen
   (at most 10 minutes). The phone then stays paired through a cookie. The same menu entry pairs
@@ -220,6 +221,26 @@ Hidden channels disappear from the channel list, channel switching and the TV gu
 Channel settings (names, hiding, order) are tied to the multiplex and service number, not to
 the tuner input's internal channel ID, so they survive a rescan. Channels new after a scan are
 added at the end of a custom order.
+
+### Internet channels
+
+Besides broadcast channels bapTV plays internet streams (HLS, DASH, MPEG-TS over HTTP). They are
+added on the phone remote, Internet tab:
+
+1. Enter the address of an M3U playlist and press Load, or choose a playlist file on the phone.
+   Addresses used before are offered as shortcuts.
+2. Narrow the list by group or name and press "Check shown": the set-top box asks every shown
+   stream for its playlist and first segment and marks it as working, blocked (often a stream
+   limited to its country), dead, not answering or DRM-protected. "Only working" hides the rest,
+   "Select working" ticks them.
+3. "Add selected" adds the ticked streams as channels numbered from 1001, after the broadcast
+   ones. They can be renamed, moved and hidden like any channel, and removed on the same tab.
+
+The app comes with no playlists; any M3U playlist with direct stream addresses works, including
+the `http-user-agent` and `http-referrer` options some streams need. A check only shows that a
+stream answers; whether it plays shows when it is tuned. When a stream fails, the status line says
+why, e.g. "Stream unavailable (HTTP 403)". Dropped live streams reconnect by themselves a few times.
+Recording, live pause, HbbTV and channel identification are for broadcast channels only.
 
 ## 7. Channel names and the TV guide
 
@@ -524,7 +545,9 @@ Debug builds additionally offer a local HTTP server; see
   TvProvider / TvContract (channels, programmes)  [+ dtvprovider on the Google DTV stack]
 ```
 
-- **Playback**: `TvView.tune()` on the public API, no special permissions.
+- **Playback**: `TvView.tune()` on the public API, no special permissions. Internet channels go
+  through the app's own TV input (`IptvInputService`, Media3 ExoPlayer), registered in `TvContract`
+  like a tuner input's channels, so the player handles both kinds the same way.
 - **Channel list**: from `TvContract` for the tuner input. On the Google DTV stack the input writes
   its channels with `searchable = 0`, which `TvProvider` exposes only to the owner and to apps with a
   system permission; an ordinary app gets an empty list. bapTV then **discovers channel IDs by
@@ -578,6 +601,7 @@ Debug builds additionally offer a local HTTP server; see
 | `StoredFile`, `BackgroundWorker` | Atomic file writes; background work that does not crash the process |
 | `DebugHttpServer`, `DebugServerService`, `ServerAccess`, `PlayerRemote` | Debug-only HTTP server, its foreground service, access control, and player hooks used by it |
 | `PhoneRemote`, `PhoneRemoteServer` | Phone remote: QR pairing, paired devices, the server lifecycle; the release-build HTTP server for the remote page |
+| `Iptv`, `IptvInputService`, `IptvProbe` | Internet channels: M3U parsing and the channels stored in `TvContract`; the TV input that plays them with Media3; the stream check |
 | `SelfUpdater`, `UpdateReceiver`, `InstallClickService` | Debug-only remote APK install, restart after update, and the accessibility service that confirms installs |
 
 Resources: English strings in `res/values` (default) and Polish in `res/values-pl`. Assets:
@@ -808,7 +832,7 @@ curl -s -H "X-Tv-Token: <token>" -X POST "http://<device-ip>:8080/key?name=OK"
 - JDK 17 or newer (sources and bytecode target Java 17)
 - Android SDK with platform 34; `compileSdk 34`, `minSdk 26`, `targetSdk 29`
 - Gradle 8.11.1 (wrapper), Android Gradle Plugin 8.7.3, Kotlin 2.1.0
-- No external libraries; unit tests use JUnit 4
+- One library: AndroidX Media3 (ExoPlayer with HLS and DASH) for internet channels; unit tests use JUnit 4
 
 `targetSdk 29` is deliberate: it is the highest target for which `requestLegacyExternalStorage`
 still works on Android 11, which the app needs to read the tuner input's recordings. Lint's
@@ -835,6 +859,7 @@ the same key.
 | `ChannelRepositoryTest` | genre mapping, channel number ordering |
 | `DebugLogTest` | event log |
 | `EpgTest` | EIT parsing from a real recording, now/next, schedule merging, catalogue names |
+| `IptvTest` | M3U playlist parsing |
 | `HttpRequestTest` | debug server request parsing |
 | `PhoneRemoteServerTest` | phone remote device names |
 | `RegionTest` | frequency plans and language codes |

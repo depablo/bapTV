@@ -17,7 +17,9 @@ import kotlin.concurrent.thread
  * - `GET /` – the page (static, no data); `GET /pair?code=…` – pairing from the QR code, sets the device cookie,
  * - `GET /api/state`, `GET /api/channels`, `POST /api/key?name=…`, `POST /api/tune?id=…` – paired devices only,
  * - `GET /api/manage` and `POST /api/manage/{order,hidden,name,hide-scrambled,reset}` – channel organisation,
- *   as on the Manage channels screen (paired devices only).
+ *   as on the Manage channels screen (paired devices only),
+ * - `GET /api/iptv`, `POST /api/iptv/{load,probe,add,remove}` – internet channels ([Iptv]): reading a playlist,
+ *   checking streams, adding and removing channels (paired devices only).
  * The Host and cross-site checks of [ServerAccess] apply to every request.
  */
 class PhoneRemoteServer(private val context: Context, val port: Int) {
@@ -73,8 +75,9 @@ class PhoneRemoteServer(private val context: Context, val port: Int) {
     private fun serve(s: Socket) {
         s.soTimeout = 15_000
         val out = s.getOutputStream()
+        val input = s.getInputStream()
         val request = try {
-            HttpRequest.read(s.getInputStream()) ?: return
+            HttpRequest.read(input) ?: return
         } catch (e: HttpRequest.BadRequest) {
             send(out, Response("400 Bad Request", TEXT, e.message.orEmpty()))
             return
@@ -83,7 +86,9 @@ class PhoneRemoteServer(private val context: Context, val port: Int) {
             !ServerAccess.hostAllowed(request.headers["host"]) -> Response("403 Forbidden", TEXT, "Connect using the IP address.\n")
             ServerAccess.crossSite(request.headers) -> Response("403 Forbidden", TEXT, "Cross-site request rejected.\n")
             else -> try {
-                route(request)
+                route(request, input)
+            } catch (e: BadBody) {
+                error("400 Bad Request", e.message.orEmpty())
             } catch (e: Exception) {
                 DebugLog.error("Remote", "error handling ${request.method} ${request.path}", e)
                 error("500 Internal Server Error", e.toString())
@@ -92,7 +97,30 @@ class PhoneRemoteServer(private val context: Context, val port: Int) {
         send(out, response)
     }
 
-    private fun route(request: HttpRequest): Response {
+    private class BadBody(message: String) : Exception(message)
+
+    /** Request body as text (playlists, JSON lists of streams), up to [limit] bytes. */
+    private fun body(request: HttpRequest, input: java.io.InputStream, limit: Int = MAX_BODY): String {
+        val length = request.contentLength ?: throw BadBody("Content-Length required")
+        if (length > limit) throw BadBody("body too large")
+        val bytes = ByteArray(length.toInt())
+        var read = 0
+        while (read < bytes.size) {
+            val n = input.read(bytes, read, bytes.size - read)
+            if (n < 0) throw BadBody("incomplete body")
+            read += n
+        }
+        return String(bytes, Charsets.UTF_8)
+    }
+
+    private fun streamsFrom(text: String): List<Iptv.Stream> = try {
+        val array = JSONArray(text)
+        (0 until array.length()).map { Iptv.Stream.fromJson(array.getJSONObject(it)) }
+    } catch (e: org.json.JSONException) {
+        throw BadBody("expected a JSON list of streams")
+    }
+
+    private fun route(request: HttpRequest, input: java.io.InputStream): Response {
         when (request.method to request.path) {
             "GET" to "/" -> return Response("200 OK", HTML, context.assets.open("remote.html").use { it.readBytes() })
             "GET" to "/pair" -> return pair(request)
@@ -120,6 +148,23 @@ class PhoneRemoteServer(private val context: Context, val port: Int) {
             }
             "POST" to "/api/manage/hide-scrambled" -> manage(request) { store, _ -> store.hideScrambled = request.query["on"] == "true" }
             "POST" to "/api/manage/reset" -> manage(request) { store, _ -> store.resetOrganisation() }
+            "GET" to "/api/iptv" -> json(iptvList())
+            "POST" to "/api/iptv/load" -> loadPlaylist(request.query["url"], request, input)
+            "POST" to "/api/iptv/probe" -> {
+                val results = IptvProbe.probeAll(streamsFrom(body(request, input)).take(MAX_PROBE))
+                json(JSONArray().apply { results.forEach { put(JSONObject().put("status", it.status.name).put("detail", it.detail).put("format", it.format ?: JSONObject.NULL)) } })
+            }
+            "POST" to "/api/iptv/add" -> {
+                val added = Iptv.add(context, streamsFrom(body(request, input)))
+                channelsChanged()
+                json(iptvList().put("added", added))
+            }
+            "POST" to "/api/iptv/remove" -> {
+                val ids = request.query["ids"].orEmpty().split(',').mapNotNull { it.trim().toLongOrNull() }
+                val removed = Iptv.remove(context, ids)
+                channelsChanged()
+                json(iptvList().put("removed", removed))
+            }
             else -> error("404 Not Found", "not found")
         }
     }
@@ -143,10 +188,7 @@ class PhoneRemoteServer(private val context: Context, val port: Int) {
         val channels = ChannelRepository(context).loadChannels(input.id, includeHidden = true)
         change(ChannelStore(context), channels)
         DebugLog.log("Remote", "channel organisation changed from the phone: ${request.path}")
-        onMain {
-            PlayerRemote.channelsChanged?.invoke()
-            PlayerRemote.manageChanged?.invoke()
-        }
+        channelsChanged()
         return manageList()?.let { json(it) } ?: error("409 Conflict", "no tuner input")
     }
 
@@ -161,6 +203,40 @@ class PhoneRemoteServer(private val context: Context, val port: Int) {
 
     private fun cookie(request: HttpRequest): String? = request.headers["cookie"]?.split(';')?.map { it.trim() }
         ?.firstOrNull { it.startsWith("$COOKIE=") }?.substringAfter('=')
+
+    /** The player and an open Manage channels screen reload their lists. */
+    private fun channelsChanged() {
+        onMain {
+            PlayerRemote.channelsChanged?.invoke()
+            PlayerRemote.manageChanged?.invoke()
+        }
+    }
+
+    /** Internet channels already added and the playlists used before. */
+    private fun iptvList(): JSONObject {
+        val channels = JSONArray()
+        Iptv.streams(context).sortedBy { ChannelRepository.numberKey(it.first.number) }.forEach { (c, s) ->
+            channels.put(JSONObject().put("id", c.id).put("number", c.number).put("name", c.name).put("url", s.url).put("group", s.group))
+        }
+        return JSONObject().put("channels", channels).put("sources", JSONArray(Iptv.sources(context)))
+    }
+
+    /** A playlist from an address (fetched here – the phone's browser may not reach it across origins) or uploaded as the body. */
+    private fun loadPlaylist(url: String?, request: HttpRequest, input: java.io.InputStream): Response {
+        val text = if (url.isNullOrBlank()) body(request, input, MAX_PLAYLIST) else {
+            if (!url.startsWith("http://") && !url.startsWith("https://")) return error("400 Bad Request", "address must start with http:// or https://")
+            try {
+                Iptv.download(url, MAX_PLAYLIST)
+            } catch (e: java.io.IOException) {
+                return error("502 Bad Gateway", e.message ?: e.javaClass.simpleName)
+            }
+        }
+        val playlist = Iptv.parseM3u(text)
+        if (playlist.streams.isEmpty()) return error("422 Unprocessable Entity", "no channels in the playlist")
+        if (!url.isNullOrBlank()) Iptv.rememberSource(context, url)
+        val streams = JSONArray().apply { playlist.streams.forEach { put(it.toJson()) } }
+        return json(JSONObject().put("streams", streams).put("epgUrl", playlist.epgUrl ?: JSONObject.NULL))
+    }
 
     /** What is on screen: the player's channel with now/next, or the name of another app screen. */
     private fun state(): JSONObject {
@@ -237,6 +313,10 @@ class PhoneRemoteServer(private val context: Context, val port: Int) {
         private const val COOKIE = "baptv_remote"
         private const val COOKIE_MAX_AGE = 10 * 365 * 24 * 3600
         private const val MAX_NAME = 60
+        private const val MAX_BODY = 4 * 1024 * 1024
+        private const val MAX_PLAYLIST = 30 * 1024 * 1024
+        /** Streams checked per request – the phone asks in batches, so the page can show progress. */
+        private const val MAX_PROBE = 24
 
         private val KEYS = HbbTvBrowser.KEY_NAMES + mapOf(
             "GUIDE" to KeyEvent.KEYCODE_GUIDE, "LAST" to KeyEvent.KEYCODE_LAST_CHANNEL,

@@ -18,7 +18,7 @@
     -->
     <uses-permission android:name="com.google.android.tv.dtvinput.permission.INSTALL_TV_CHANNELS" />
 
-    <!-- Built-in Diagnostics web server (view the report from a phone/computer without adb). -->
+    <!-- Internet channels; phone remote; built-in Diagnostics web server (view the report from a phone/computer without adb). -->
     <uses-permission android:name="android.permission.INTERNET" />
     <!-- The web server runs in a foreground service so it survives the app's screens being closed. -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
@@ -104,6 +104,20 @@
         <service
             android:name=".DebugServerService"
             android:exported="false" />
+
+        <!-- Internet channels (Iptv): a TV input of its own, so they play through TvView like broadcast channels. -->
+        <service
+            android:name=".IptvInputService"
+            android:exported="true"
+            android:label="@string/iptv_input_label"
+            android:permission="android.permission.BIND_TV_INPUT">
+            <intent-filter>
+                <action android:name="android.media.tv.TvInputService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.media.tv.input"
+                android:resource="@xml/iptv_input" />
+        </service>
 
 
         <receiver

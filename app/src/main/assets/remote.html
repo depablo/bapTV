@@ -45,6 +45,7 @@ main { flex: 1; overflow: auto; padding: 14px 0 18px; }
   font: inherit; font-weight: 600; min-height: 52px; padding: 6px; touch-action: manipulation;
 }
 .key:active, .key.pressed { background: var(--surface2); transform: scale(.97); }
+.key svg { display: block; margin: 0 auto; }
 .key small { display: block; font-weight: 400; color: var(--muted); font-size: 12px; }
 .colour { min-height: 34px; }
 .colour.red { background: var(--red); } .colour.green { background: var(--green); }
@@ -94,8 +95,38 @@ main { flex: 1; overflow: auto; padding: 14px 0 18px; }
 .org .n { color: var(--muted); font-variant-numeric: tabular-nums; }
 .org .t { padding: 13px 0; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .org .t small { font-weight: 400; color: var(--muted); margin-left: 6px; }
-.org .eye { border: 0; background: none; color: var(--text); font-size: 20px; height: 44px; touch-action: manipulation; }
+.org .eye { border: 0; background: none; color: var(--text); height: 44px; display: flex; align-items: center; justify-content: center; touch-action: manipulation; }
 .org.off .eye { color: var(--muted); }
+
+h2 { font-size: 15px; margin: 18px 2px 8px; color: var(--muted); font-weight: 600; }
+h2:first-child { margin-top: 0; }
+.field { display: flex; gap: 8px; margin-bottom: 10px; }
+.field .search { margin: 0; flex: 1; min-width: 0; }
+.field .key { min-height: 0; padding: 0 14px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.chip { border: 0; border-radius: 14px; background: var(--surface2); color: var(--text); font: inherit; font-size: 13px; padding: 5px 10px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.filters { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
+.filters select, .filters .search { margin: 0; appearance: none; -webkit-appearance: none; }
+.check { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 14px; margin: 4px 2px 10px; }
+.summary { color: var(--muted); font-size: 13px; margin: 0 2px 8px; }
+.stream { display: grid; grid-template-columns: 34px 14px 1fr; gap: 0 8px; align-items: center; padding: 10px 12px; border-top: 1px solid var(--surface2); }
+.stream:first-child { border-top: 0; }
+.stream input { width: 20px; height: 20px; margin: 0; }
+.stream .t { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.stream .p { grid-column: 3; color: var(--muted); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.stream.added { opacity: .5; }
+.dot { width: 10px; height: 10px; border-radius: 50%; background: var(--surface2); }
+.dot.OK { background: #2e9d4f; } .dot.BLOCKED, .dot.TIMEOUT { background: #e0a020; }
+.dot.DEAD, .dot.DRM, .dot.ERROR { background: var(--danger); } .dot.busy { background: var(--accent); }
+.mine { display: grid; grid-template-columns: 52px 1fr 44px; align-items: center; padding: 0 4px 0 14px; border-top: 1px solid var(--surface2); }
+.mine:first-child { border-top: 0; }
+.mine .n { color: var(--muted); font-variant-numeric: tabular-nums; }
+.mine .t { padding: 12px 0; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mine button { border: 0; background: none; color: var(--muted); font-size: 18px; height: 44px; }
+.addbar { position: sticky; bottom: 0; padding: 10px 0 4px; background: linear-gradient(transparent, var(--bg) 30%); }
+.addbar .key { width: 100%; background: var(--accent); color: var(--accent-text); }
+.addbar .key:disabled { opacity: .5; }
+.more { width: 100%; margin-top: 8px; }
 
 .unpaired { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 12px; padding: 24px 4px; }
 .unpaired h1 { font-size: 22px; margin: 0; }
@@ -119,6 +150,7 @@ main { flex: 1; overflow: auto; padding: 14px 0 18px; }
     <button class="on" data-tab="remote" data-t="tabRemote"></button>
     <button data-tab="channels" data-t="tabChannels"></button>
     <button data-tab="organise" data-t="tabOrganise"></button>
+    <button data-tab="iptv" data-t="tabIptv"></button>
   </nav>
   <main>
     <section id="tab-remote">
@@ -137,14 +169,14 @@ main { flex: 1; overflow: auto; padding: 14px 0 18px; }
           <button class="down" data-key="DOWN" data-repeat aria-label="down">▼</button>
         </div>
         <div class="rocker">
-          <button class="key" data-key="CHUP" data-repeat aria-label="channel up">＋</button>
+          <button class="key" data-key="CHUP" data-repeat aria-label="channel up"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
           <span>CH</span>
-          <button class="key" data-key="CHDOWN" data-repeat aria-label="channel down">－</button>
+          <button class="key" data-key="CHDOWN" data-repeat aria-label="channel down"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/></svg></button>
         </div>
       </div>
       <div class="row">
         <button class="key" data-key="BACK" data-t="back"></button>
-        <button class="key" data-key="PLAYPAUSE">⏯<small data-t="pause"></small></button>
+        <button class="key" data-key="PLAYPAUSE"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6l7 6-7 6z" fill="currentColor" stroke="none"/><path d="M15 6v12M20 6v12"/></svg><small data-t="pause"></small></button>
         <button class="key" data-key="LAST" data-t="last"></button>
       </div>
       <div class="row four">
@@ -172,6 +204,35 @@ main { flex: 1; overflow: auto; padding: 14px 0 18px; }
       <p class="tip" data-t="organiseTip"></p>
       <div class="list" id="orgList"></div>
     </section>
+    <section id="tab-iptv" class="hidden">
+      <h2 id="mineTitle"></h2>
+      <div class="list" id="mineList"></div>
+      <h2 data-t="addTitle"></h2>
+      <div class="field">
+        <input class="search" id="playlistUrl" type="url" inputmode="url" autocomplete="off" placeholder="https://…/playlist.m3u">
+        <button class="key" id="loadUrl" data-t="load"></button>
+      </div>
+      <div class="field">
+        <button class="key" id="loadFile" data-t="fromFile" style="flex:1;min-height:44px"></button>
+        <input id="playlistFile" type="file" accept=".m3u,.m3u8,audio/x-mpegurl,application/vnd.apple.mpegurl,text/plain" hidden>
+      </div>
+      <div class="chips" id="sources"></div>
+      <div id="playlist" class="hidden">
+        <div class="filters">
+          <select class="search" id="groupFilter"></select>
+          <input class="search" id="streamSearch" type="search" autocomplete="off">
+        </div>
+        <label class="check"><input type="checkbox" id="workingOnly"><span data-t="workingOnly"></span></label>
+        <div class="tools">
+          <button class="key" id="probeShown" data-t="probe"></button>
+          <button class="key" id="selectWorking" data-t="selectWorking"></button>
+        </div>
+        <p class="summary" id="summary"></p>
+        <div class="list" id="streamList"></div>
+        <button class="key more hidden" id="showMore" data-t="showMore"></button>
+        <div class="addbar"><button class="key" id="addSelected" disabled></button></div>
+      </div>
+    </section>
   </main>
 </div>
 
@@ -186,9 +247,17 @@ const STRINGS = {
     offline: "No connection to the set-top box", notOnScreen: "bapTV is not on the TV screen", cannotTune: "Cannot switch channel now",
     noChannels: "No channels", recording: "● Recording: ", otherScreen: "bapTV",
     tabOrganise: "Organise", reset: "Restore defaults", scrambledHidden: "Scrambled: hidden", scrambledShown: "Scrambled: shown",
-    organiseTip: "Drag ≡ to move a channel, tap its name to rename it, 👁 hides it from the list and zapping.",
+    organiseTip: "Drag ≡ to move a channel, tap its name to rename it; the eye hides it from the list and zapping.",
     renamePrompt: "Channel name (empty brings back the broadcaster's name):", resetConfirm: "Restore the default order and show all channels? Your channel names stay.",
     hiddenByScrambled: "Hidden with all scrambled channels – switch “Scrambled” to shown first.", saveFailed: "Change not saved",
+    tabIptv: "Internet", mineTitle: "Internet channels", noMine: "None yet – add them from a playlist below.",
+    addTitle: "Add from an M3U playlist", load: "Load", fromFile: "Choose a playlist file…", loading: "Loading the playlist…",
+    loadFailed: "Could not load the playlist: ", allGroups: "All groups", searchStreams: "Search", workingOnly: "Only working",
+    probe: "Check shown", probing: "Checking… ", stop: "Stop", selectWorking: "Select working",
+    summary: (n, checked, ok, sel) => `${n} channels · checked ${checked} · working ${ok} · selected ${sel}`,
+    showMore: "Show more", add: n => `Add selected (${n})`, added: n => `Added ${n} channels`, alreadyAdded: "added",
+    removeConfirm: name => `Remove “${name}”?`,
+    status: { OK: "works", BLOCKED: "blocked (often outside its country)", DEAD: "dead", TIMEOUT: "no answer", DRM: "DRM – cannot play", ERROR: "error" },
   },
   pl: {
     unpairedTitle: "Telefon nie jest sparowany", unpairedText: "Na telewizorze otwórz bapTV, wciśnij OK, aby otworzyć menu, i wybierz Ustawienia → Pilot w telefonie, a potem zeskanuj kod QR tym telefonem.",
@@ -198,9 +267,17 @@ const STRINGS = {
     offline: "Brak połączenia z dekoderem", notOnScreen: "bapTV nie jest na ekranie telewizora", cannotTune: "Nie można teraz przełączyć kanału",
     noChannels: "Brak kanałów", recording: "● Nagrywanie: ", otherScreen: "bapTV",
     tabOrganise: "Porządkuj", reset: "Przywróć domyślne", scrambledHidden: "Kodowane: ukryte", scrambledShown: "Kodowane: widoczne",
-    organiseTip: "Przeciągnij ≡, aby przenieść kanał, dotknij nazwy, aby ją zmienić, 👁 ukrywa kanał z listy i przełączania.",
+    organiseTip: "Przeciągnij ≡, aby przenieść kanał, dotknij nazwy, aby ją zmienić; oko ukrywa kanał z listy i przełączania.",
     renamePrompt: "Nazwa kanału (pusta przywraca nazwę nadawcy):", resetConfirm: "Przywrócić domyślną kolejność i pokazać wszystkie kanały? Twoje nazwy kanałów zostaną.",
     hiddenByScrambled: "Ukryty razem ze wszystkimi kodowanymi – najpierw przełącz „Kodowane” na widoczne.", saveFailed: "Nie zapisano zmiany",
+    tabIptv: "Internet", mineTitle: "Kanały internetowe", noMine: "Jeszcze żadnych – dodaj je z listy poniżej.",
+    addTitle: "Dodaj z listy M3U", load: "Wczytaj", fromFile: "Wybierz plik z listą…", loading: "Wczytywanie listy…",
+    loadFailed: "Nie udało się wczytać listy: ", allGroups: "Wszystkie grupy", searchStreams: "Szukaj", workingOnly: "Tylko działające",
+    probe: "Sprawdź widoczne", probing: "Sprawdzanie… ", stop: "Zatrzymaj", selectWorking: "Zaznacz działające",
+    summary: (n, checked, ok, sel) => `${n} kanałów · sprawdzone ${checked} · działa ${ok} · zaznaczone ${sel}`,
+    showMore: "Pokaż więcej", add: n => `Dodaj zaznaczone (${n})`, added: n => `Dodano kanałów: ${n}`, alreadyAdded: "dodany",
+    removeConfirm: name => `Usunąć „${name}”?`,
+    status: { OK: "działa", BLOCKED: "zablokowany (często poza krajem nadawcy)", DEAD: "nie działa", TIMEOUT: "brak odpowiedzi", DRM: "DRM – nie do odtworzenia", ERROR: "błąd" },
   },
 };
 const lang = (navigator.language || "en").toLowerCase().startsWith("pl") ? "pl" : "en";
@@ -220,12 +297,12 @@ let noticeTimer = 0;
 
 class Unpaired extends Error {}
 
-async function api(path, method = "GET") {
-  const response = await fetch(path, { method, cache: "no-store" });
+async function api(path, method = "GET", body) {
+  const response = await fetch(path, { method, body, cache: "no-store", headers: body ? { "Content-Type": "application/json" } : {} });
   if (response.status === 401) { showUnpaired(); throw new Unpaired(); }
-  const body = await response.json().catch(() => ({}));
-  if (!response.ok) { const e = new Error(body.error || response.status); e.status = response.status; throw e; }
-  return body;
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok) { const e = new Error(result.error || response.status); e.status = response.status; throw e; }
+  return result;
 }
 
 function showUnpaired(failed) {
@@ -378,6 +455,9 @@ $("search").addEventListener("input", renderChannels);
 
 // ---- Organise: order, names, hiding ----
 
+const EYE = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>';
+const EYE_OFF = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><path d="M3 3l18 18"/></svg>';
+
 let organised = { hideScrambled: false, channels: [] };
 
 function renderOrganise() {
@@ -393,7 +473,7 @@ function renderOrganise() {
     const t = document.createElement("div"); t.className = "t"; t.textContent = c.name;
     const badges = [c.radio ? "♪" : "", c.scrambled ? "🔒" : "", c.virtual ? "HbbTV" : ""].filter(Boolean).join(" ");
     if (badges) { const b = document.createElement("small"); b.textContent = badges; t.appendChild(b); }
-    const eye = document.createElement("button"); eye.className = "eye"; eye.textContent = c.hidden ? "◌" : "👁";
+    const eye = document.createElement("button"); eye.className = "eye"; eye.innerHTML = c.hidden ? EYE_OFF : EYE;
     eye.setAttribute("aria-label", c.hidden ? "show" : "hide");
     t.addEventListener("click", () => rename(c));
     eye.addEventListener("click", () => toggleHidden(c));
@@ -468,6 +548,183 @@ function startDrag(handle, row) {
   });
 }
 
+// ---- Internet channels ----
+
+const PAGE = 150;
+let mine = { channels: [], sources: [] };
+let streams = [];          // loaded playlist entries, each with .status/.detail after a check
+let selected = new Set();  // indexes into streams
+let shownLimit = PAGE;
+let probing = false;
+
+async function loadMine() {
+  try {
+    mine = await api("/api/iptv");
+    renderMine();
+  } catch (e) { explain(e); }
+}
+
+function renderMine() {
+  $("mineTitle").textContent = `${T.mineTitle} (${mine.channels.length})`;
+  const list = $("mineList");
+  list.textContent = "";
+  if (!mine.channels.length) {
+    const empty = document.createElement("div"); empty.className = "empty"; empty.textContent = T.noMine;
+    list.appendChild(empty);
+  }
+  mine.channels.forEach(c => {
+    const row = document.createElement("div"); row.className = "mine";
+    const n = document.createElement("div"); n.className = "n"; n.textContent = c.number;
+    const t = document.createElement("div"); t.className = "t"; t.textContent = c.name;
+    const x = document.createElement("button"); x.textContent = "✕"; x.setAttribute("aria-label", "remove");
+    t.addEventListener("click", () => tune(c.id));
+    x.addEventListener("click", async () => {
+      if (!confirm(T.removeConfirm(c.name))) return;
+      try { mine = await api(`/api/iptv/remove?ids=${c.id}`, "POST"); renderMine(); renderStreams(); } catch (e) { explain(e); }
+    });
+    row.append(n, t, x);
+    list.appendChild(row);
+  });
+  const chips = $("sources");
+  chips.textContent = "";
+  mine.sources.forEach(url => {
+    const chip = document.createElement("button"); chip.className = "chip"; chip.textContent = url.replace(/^https?:\/\//, "");
+    chip.addEventListener("click", () => { $("playlistUrl").value = url; loadPlaylist(url); });
+    chips.appendChild(chip);
+  });
+}
+
+async function loadPlaylist(url, file) {
+  notice(T.loading, 0);
+  try {
+    const response = await fetch(url ? `/api/iptv/load?url=${encodeURIComponent(url)}` : "/api/iptv/load",
+      { method: "POST", body: file ? await file.text() : undefined, cache: "no-store" });
+    if (response.status === 401) { showUnpaired(); return; }
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) { notice(T.loadFailed + (body.error || response.status), 6000); return; }
+    streams = body.streams;
+    selected = new Set();
+    shownLimit = PAGE;
+    const groups = [...new Set(streams.map(s => s.group).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+    const select = $("groupFilter");
+    select.textContent = "";
+    [["", T.allGroups], ...groups.map(g => [g, g])].forEach(([value, label]) => {
+      const o = document.createElement("option"); o.value = value; o.textContent = label; select.appendChild(o);
+    });
+    $("playlist").classList.remove("hidden");
+    notice("");
+    renderStreams();
+    if (url) loadMine();
+  } catch (e) { notice(T.loadFailed + e.message, 6000); }
+}
+
+function addedUrls() { return new Set(mine.channels.map(c => c.url)); }
+
+/** Indexes of the streams that pass the filters. */
+function filtered() {
+  const group = $("groupFilter").value;
+  const query = $("streamSearch").value.trim().toLowerCase();
+  const working = $("workingOnly").checked;
+  const result = [];
+  streams.forEach((s, i) => {
+    if (group && s.group !== group) return;
+    if (query && !s.name.toLowerCase().includes(query)) return;
+    if (working && s.status !== "OK") return;
+    result.push(i);
+  });
+  return result;
+}
+
+function renderStreams() {
+  if (!streams.length) return;
+  const added = addedUrls();
+  const shown = filtered();
+  const list = $("streamList");
+  list.textContent = "";
+  shown.slice(0, shownLimit).forEach(i => {
+    const s = streams[i];
+    const isAdded = added.has(s.url);
+    const row = document.createElement("label"); row.className = "stream" + (isAdded ? " added" : "");
+    const box = document.createElement("input"); box.type = "checkbox"; box.checked = selected.has(i); box.disabled = isAdded;
+    box.addEventListener("change", () => { box.checked ? selected.add(i) : selected.delete(i); updateSummary(); });
+    const dot = document.createElement("span"); dot.className = "dot " + (s.busy ? "busy" : s.status || "");
+    const t = document.createElement("span"); t.className = "t"; t.textContent = s.name;
+    const p = document.createElement("span"); p.className = "p";
+    p.textContent = [s.group, isAdded ? T.alreadyAdded : s.status ? `${T.status[s.status]}${s.detail && s.status !== "OK" ? ` (${s.detail})` : ""}` : ""]
+      .filter(Boolean).join(" · ");
+    row.append(box, dot, t, p);
+    list.appendChild(row);
+  });
+  $("showMore").classList.toggle("hidden", shown.length <= shownLimit);
+  updateSummary();
+}
+
+function updateSummary() {
+  const checked = streams.filter(s => s.status).length;
+  const ok = streams.filter(s => s.status === "OK").length;
+  $("summary").textContent = T.summary(filtered().length, checked, ok, selected.size);
+  $("addSelected").textContent = T.add(selected.size);
+  $("addSelected").disabled = selected.size === 0;
+}
+
+function payload(s) {
+  const { status, detail, busy, ...stream } = s;
+  return stream;
+}
+
+/** Checks the shown streams that were not checked yet, in batches so the list fills in as it goes. */
+async function probeShown() {
+  if (probing) { probing = false; return; }
+  const todo = filtered().slice(0, shownLimit).filter(i => !streams[i].status);
+  if (!todo.length) return;
+  probing = true;
+  $("probeShown").textContent = T.stop;
+  try {
+    for (let k = 0; k < todo.length && probing; k += 24) {
+      const batch = todo.slice(k, k + 24);
+      batch.forEach(i => streams[i].busy = true);
+      renderStreams();
+      notice(T.probing + `${Math.min(k + batch.length, todo.length)}/${todo.length}`, 0);
+      const results = await api("/api/iptv/probe", "POST", JSON.stringify(batch.map(i => payload(streams[i]))));
+      batch.forEach((i, j) => { streams[i].busy = false; streams[i].status = results[j].status; streams[i].detail = results[j].detail; });
+      renderStreams();
+    }
+  } catch (e) { explain(e); }
+  streams.forEach(s => s.busy = false);
+  probing = false;
+  $("probeShown").textContent = T.probe;
+  notice("");
+  renderStreams();
+}
+
+async function addSelected() {
+  const chosen = [...selected].map(i => payload(streams[i]));
+  if (!chosen.length) return;
+  $("addSelected").disabled = true;
+  try {
+    mine = await api("/api/iptv/add", "POST", JSON.stringify(chosen));
+    notice(T.added(mine.added), 4000);
+    selected = new Set();
+    renderMine();
+    renderStreams();
+  } catch (e) { explain(e); updateSummary(); }
+}
+
+$("streamSearch").placeholder = T.searchStreams;
+$("loadUrl").addEventListener("click", () => { const url = $("playlistUrl").value.trim(); if (url) loadPlaylist(url); });
+$("playlistUrl").addEventListener("keydown", e => { if (e.key === "Enter") $("loadUrl").click(); });
+$("loadFile").addEventListener("click", () => $("playlistFile").click());
+$("playlistFile").addEventListener("change", () => { const f = $("playlistFile").files[0]; if (f) loadPlaylist(null, f); });
+["groupFilter", "streamSearch", "workingOnly"].forEach(id => $(id).addEventListener("input", () => { shownLimit = PAGE; renderStreams(); }));
+$("showMore").addEventListener("click", () => { shownLimit += PAGE; renderStreams(); });
+$("probeShown").addEventListener("click", probeShown);
+$("selectWorking").addEventListener("click", () => {
+  const added = addedUrls();
+  filtered().forEach(i => { if (streams[i].status === "OK" && !added.has(streams[i].url)) selected.add(i); });
+  renderStreams();
+});
+$("addSelected").addEventListener("click", addSelected);
+
 // ---- Tabs and polling ----
 
 document.querySelectorAll("nav button").forEach(button => button.addEventListener("click", () => {
@@ -475,6 +732,8 @@ document.querySelectorAll("nav button").forEach(button => button.addEventListene
   $("tab-remote").classList.toggle("hidden", button.dataset.tab !== "remote");
   $("tab-channels").classList.toggle("hidden", button.dataset.tab !== "channels");
   $("tab-organise").classList.toggle("hidden", button.dataset.tab !== "organise");
+  $("tab-iptv").classList.toggle("hidden", button.dataset.tab !== "iptv");
+  if (button.dataset.tab === "iptv") loadMine();
   if (button.dataset.tab === "channels") loadChannels();
   if (button.dataset.tab === "organise") loadOrganise();
 }));

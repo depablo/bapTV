@@ -84,6 +84,7 @@ object Dtv {
         val manager = context.getSystemService(Context.TV_INPUT_SERVICE) as? TvInputManager ?: return null
         val inputs = manager.tvInputList
         return inputs.firstOrNull { it.serviceInfo.packageName == DTV_INPUT_PACKAGE }
-            ?: inputs.firstOrNull { it.type == TvInputInfo.TYPE_TUNER && !it.isPassthroughInput }
+            // The app's own internet input ([IptvInputService]) is a TUNER-type input too – never the broadcast tuner.
+            ?: inputs.firstOrNull { it.type == TvInputInfo.TYPE_TUNER && !it.isPassthroughInput && it.serviceInfo.packageName != context.packageName }
     }
 }

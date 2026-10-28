@@ -289,4 +289,7 @@
     <string name="phone_remote_forgotten">Paired phones forgotten</string>
     <string name="phone_remote_no_network">The set-top box has no network connection. Connect it to Wi-Fi or Ethernet and try again.</string>
     <string name="phone_remote_failed">The phone remote could not start: %1$s</string>
+    <string name="iptv_input_label">bapTV internet channels</string>
+    <string name="kind_iptv">internet</string>
+    <string name="status_stream_failed">Stream unavailable</string>
 </resources>

@@ -1,0 +1,3 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Internet channels input (IptvInputService). No setup screen: channels are added from the phone remote. -->
+<tv-input xmlns:android="http://schemas.android.com/apk/res/android" />

@@ -156,7 +156,7 @@ class GuideActivity : Activity() {
      * (or "Cancel recording"); others – switch to the channel.
      */
     private fun programmeAction(channel: Channel, p: Programme?) {
-        val canRecord = p != null && p.endMs > System.currentTimeMillis() && !channel.scrambled && !channel.virtual &&
+        val canRecord = p != null && p.endMs > System.currentTimeMillis() && !channel.scrambled && !channel.virtual && !channel.iptv &&
             DeviceCapabilities.get(this).streamAnalysis
         if (!canRecord || p == null) { watch(channel); return }
         val planned = RecordingScheduler.find(this, channel.id, p)

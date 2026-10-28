@@ -288,4 +288,7 @@
     <string name="phone_remote_forgotten">Sparowane telefony zostały zapomniane</string>
     <string name="phone_remote_no_network">Dekoder nie ma połączenia z siecią. Podłącz go do Wi-Fi lub Ethernetu i spróbuj ponownie.</string>
     <string name="phone_remote_failed">Nie udało się uruchomić pilota w telefonie: %1$s</string>
+    <string name="iptv_input_label">bapTV – kanały internetowe</string>
+    <string name="kind_iptv">internetowy</string>
+    <string name="status_stream_failed">Strumień niedostępny</string>
 </resources>

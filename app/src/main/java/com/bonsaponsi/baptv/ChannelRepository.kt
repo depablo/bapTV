@@ -29,8 +29,13 @@ data class Channel(
     val virtual: Boolean = false,
     /** Hidden by the user (manually or via "hide scrambled"); visible only in channel management. */
     val hidden: Boolean = false,
+    /** TV input of an internet channel ([IptvInputService]); null – the tuner input. */
+    val inputId: String? = null,
 ) {
     val identified get() = sid != null
+
+    /** Internet channel: no tuner features (recording, live pause, HbbTV, identification, signal). */
+    val iptv get() = inputId != null
 
     val uri get() = TvContract.buildChannelUri(id)
 }
@@ -56,7 +61,8 @@ class ChannelRepository(private val context: Context) {
         // Channel settings from before a rescan (old IDs) move to DVB keys.
         services.all().forEach { e -> store.migrate(e.channelId, e.tsid, e.sid) }
         if (fromProvider.isNotEmpty()) services.carryOver(fromProvider)
-        return organise(dropDuplicates(identify(channels)), includeHidden)
+        // Internet channels follow the broadcast ones; the user's order and hiding apply to both.
+        return organise(dropDuplicates(identify(channels)) + Iptv.load(context), includeHidden)
     }
 
     /**

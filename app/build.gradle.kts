@@ -65,7 +65,7 @@ android {
         }
     }
 
-    // No Google-encrypted dependency metadata block in the APK (F-Droid rejects it; the app has no dependencies anyway).
+    // No Google-encrypted dependency metadata block in the APK (F-Droid rejects it).
     dependenciesInfo {
         includeInApk = false
         includeInBundle = false
@@ -93,5 +93,11 @@ android {
 }
 
 dependencies {
+    // Internet channels (IptvInputService): HLS, DASH and progressive streams. Media3 1.4 is the last line
+    // that builds with compileSdk 34.
+    val media3 = "1.4.1"
+    implementation("androidx.media3:media3-exoplayer:$media3")
+    implementation("androidx.media3:media3-exoplayer-hls:$media3")
+    implementation("androidx.media3:media3-exoplayer-dash:$media3")
     testImplementation("junit:junit:4.13.2")
 }

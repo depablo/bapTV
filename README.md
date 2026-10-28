@@ -11,7 +11,7 @@ A standalone terrestrial TV (DVB-T/T2) player for Android TV.
 
 bapTV plays live TV from the device's built-in tuner through the standard Android
 TV Input Framework (TIF: `TvView`, `TvContract`, `TvRecordingClient`). It is written in Kotlin
-with no external libraries.
+with one library, AndroidX Media3, used for internet channels.
 
 https://github.com/user-attachments/assets/f7460e6f-6f63-4a93-9fc8-5341508468d9
 
@@ -31,6 +31,8 @@ of the HbbTV apps are blurred.</sub>
 - Recording: manual, or scheduled from the TV guide; recordings list and playback
 - HbbTV applications (red button) started from the channel's AIT
 - Phone remote: scan a QR code on the TV and control bapTV from the phone's browser, with a channel list
+  and channel organisation
+- Internet channels (HLS, DASH) from M3U playlists, added and checked from the phone remote
 - In-app channel scan (DVB-T/T2, UHF with optional VHF) on devices with the Google DTV stack
 - Identified channels can be published back to the system, with names and LCN numbers, for other TV apps
 - Signal information (strength, SNR, BER) where the tuner reports it
