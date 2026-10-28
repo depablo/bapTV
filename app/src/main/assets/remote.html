@@ -116,12 +116,13 @@ h2:first-child { margin-top: 0; }
 .stream .p { grid-column: 3; color: var(--muted); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .stream.added { opacity: .5; }
 .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--surface2); }
-.dot.OK { background: #2e9d4f; } .dot.BLOCKED, .dot.TIMEOUT { background: #e0a020; }
+.dot.OK { background: #2e9d4f; } .dot.BLOCKED, .dot.TIMEOUT, .dot.SLOW { background: #e0a020; }
 .dot.DEAD, .dot.DRM, .dot.ERROR { background: var(--danger); } .dot.busy { background: var(--accent); }
 .mine { display: grid; grid-template-columns: 52px 1fr 44px; align-items: center; padding: 0 4px 0 14px; border-top: 1px solid var(--surface2); }
 .mine:first-child { border-top: 0; }
 .mine .n { color: var(--muted); font-variant-numeric: tabular-nums; }
 .mine .t { padding: 12px 0; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mine .t small { display: block; font-weight: 400; font-size: 13px; color: #e0a020; overflow: hidden; text-overflow: ellipsis; }
 .mine button { border: 0; background: none; color: var(--muted); font-size: 18px; height: 44px; }
 .addbar { position: sticky; bottom: 0; padding: 10px 0 4px; background: linear-gradient(transparent, var(--bg) 30%); }
 .addbar .key { width: 100%; background: var(--accent); color: var(--accent-text); }
@@ -207,6 +208,10 @@ h2:first-child { margin-top: 0; }
     <section id="tab-iptv" class="hidden">
       <h2 id="mineTitle"></h2>
       <div class="list" id="mineList"></div>
+      <div class="tools" style="margin-top:8px">
+        <button class="key" id="checkMine" data-t="checkMine"></button>
+        <button class="key" id="removeProblems" disabled></button>
+      </div>
       <h2 data-t="addTitle"></h2>
       <div class="field">
         <input class="search" id="playlistUrl" type="url" inputmode="url" autocomplete="off" placeholder="https://…/playlist.m3u">
@@ -257,7 +262,10 @@ const STRINGS = {
     summary: (n, checked, ok, sel) => `${n} channels · checked ${checked} · working ${ok} · selected ${sel}`,
     showMore: "Show more", add: n => `Add selected (${n})`, added: n => `Added ${n} channels`, alreadyAdded: "added",
     removeConfirm: name => `Remove “${name}”?`,
-    status: { OK: "works", BLOCKED: "blocked (often outside its country)", DEAD: "dead", TIMEOUT: "no answer", DRM: "DRM – cannot play", ERROR: "error" },
+    status: { OK: "works", SLOW: "server too slow", BLOCKED: "blocked (often outside its country)", DEAD: "dead", TIMEOUT: "no answer", DRM: "DRM – cannot play", ERROR: "error" },
+    slowSpeed: x => `data ${x.toFixed(1)}× playback speed, needs 1.2×`, lowMargin: x => `little margin (${x.toFixed(1)}×), may buffer`,
+    problem: { buffering: "⚠ keeps buffering", slow: "⚠ server too slow", error: "⚠ does not play" },
+    checkMine: "Check added", checkingMine: "Checking…", removeProblems: n => `Remove with problems (${n})`, removeProblemsConfirm: n => `Remove ${n} channels that had problems while watching?`,
   },
   pl: {
     unpairedTitle: "Telefon nie jest sparowany", unpairedText: "Na telewizorze otwórz bapTV, wciśnij OK, aby otworzyć menu, i wybierz Ustawienia → Pilot w telefonie, a potem zeskanuj kod QR tym telefonem.",
@@ -277,7 +285,10 @@ const STRINGS = {
     summary: (n, checked, ok, sel) => `${n} kanałów · sprawdzone ${checked} · działa ${ok} · zaznaczone ${sel}`,
     showMore: "Pokaż więcej", add: n => `Dodaj zaznaczone (${n})`, added: n => `Dodano kanałów: ${n}`, alreadyAdded: "dodany",
     removeConfirm: name => `Usunąć „${name}”?`,
-    status: { OK: "działa", BLOCKED: "zablokowany (często poza krajem nadawcy)", DEAD: "nie działa", TIMEOUT: "brak odpowiedzi", DRM: "DRM – nie do odtworzenia", ERROR: "błąd" },
+    status: { OK: "działa", SLOW: "serwer za wolny", BLOCKED: "zablokowany (często poza krajem nadawcy)", DEAD: "nie działa", TIMEOUT: "brak odpowiedzi", DRM: "DRM – nie do odtworzenia", ERROR: "błąd" },
+    slowSpeed: x => `dane w tempie ${x.toFixed(1).replace(".", ",")}× odtwarzania, potrzeba 1,2×`, lowMargin: x => `mały zapas (${x.toFixed(1).replace(".", ",")}×), może buforować`,
+    problem: { buffering: "⚠ często buforuje", slow: "⚠ serwer zbyt wolny", error: "⚠ nie odtwarza się" },
+    checkMine: "Sprawdź dodane", checkingMine: "Sprawdzanie…", removeProblems: n => `Usuń z problemami (${n})`, removeProblemsConfirm: n => `Usunąć ${n} kanałów, które sprawiały problemy podczas oglądania?`,
   },
 };
 const lang = (navigator.language || "en").toLowerCase().startsWith("pl") ? "pl" : "en";
@@ -576,6 +587,11 @@ function renderMine() {
     const row = document.createElement("div"); row.className = "mine";
     const n = document.createElement("div"); n.className = "n"; n.textContent = c.number;
     const t = document.createElement("div"); t.className = "t"; t.textContent = c.name;
+    if (c.problem) {
+      const p = document.createElement("small");
+      p.textContent = (T.problem[c.problem] || c.problem) + (c.problemDetail ? ` (${c.problemDetail})` : "");
+      t.appendChild(p);
+    }
     const x = document.createElement("button"); x.textContent = "✕"; x.setAttribute("aria-label", "remove");
     t.addEventListener("click", () => tune(c.id));
     x.addEventListener("click", async () => {
@@ -585,6 +601,10 @@ function renderMine() {
     row.append(n, t, x);
     list.appendChild(row);
   });
+  const troubled = mine.channels.filter(c => c.problem);
+  $("removeProblems").textContent = T.removeProblems(troubled.length);
+  $("removeProblems").disabled = troubled.length === 0;
+  $("checkMine").disabled = mine.channels.length === 0;
   const chips = $("sources");
   chips.textContent = "";
   mine.sources.forEach(url => {
@@ -650,13 +670,20 @@ function renderStreams() {
     const dot = document.createElement("span"); dot.className = "dot " + (s.busy ? "busy" : s.status || "");
     const t = document.createElement("span"); t.className = "t"; t.textContent = s.name;
     const p = document.createElement("span"); p.className = "p";
-    p.textContent = [s.group, isAdded ? T.alreadyAdded : s.status ? `${T.status[s.status]}${s.detail && s.status !== "OK" ? ` (${s.detail})` : ""}` : ""]
-      .filter(Boolean).join(" · ");
+    p.textContent = [s.group, isAdded ? T.alreadyAdded : describe(s)].filter(Boolean).join(" · ");
     row.append(box, dot, t, p);
     list.appendChild(row);
   });
   $("showMore").classList.toggle("hidden", shown.length <= shownLimit);
   updateSummary();
+}
+
+/** Check result for the list: status, and for HLS the speed (a small margin is worth knowing even when it works). */
+function describe(s) {
+  if (!s.status) return "";
+  if (s.status === "OK") return T.status.OK + (s.speed != null && s.speed < 2 ? ` – ${T.lowMargin(s.speed)}` : "");
+  if (s.status === "SLOW") return `${T.status.SLOW} (${T.slowSpeed(s.speed)})`;
+  return T.status[s.status] + (s.detail ? ` (${s.detail})` : "");
 }
 
 function updateSummary() {
@@ -668,7 +695,7 @@ function updateSummary() {
 }
 
 function payload(s) {
-  const { status, detail, busy, ...stream } = s;
+  const { status, detail, busy, speed, ...stream } = s;
   return stream;
 }
 
@@ -686,7 +713,7 @@ async function probeShown() {
       renderStreams();
       notice(T.probing + `${Math.min(k + batch.length, todo.length)}/${todo.length}`, 0);
       const results = await api("/api/iptv/probe", "POST", JSON.stringify(batch.map(i => payload(streams[i]))));
-      batch.forEach((i, j) => { streams[i].busy = false; streams[i].status = results[j].status; streams[i].detail = results[j].detail; });
+      batch.forEach((i, j) => Object.assign(streams[i], { busy: false, status: results[j].status, detail: results[j].detail, speed: results[j].speed }));
       renderStreams();
     }
   } catch (e) { explain(e); }
@@ -724,6 +751,19 @@ $("selectWorking").addEventListener("click", () => {
   renderStreams();
 });
 $("addSelected").addEventListener("click", addSelected);
+$("checkMine").addEventListener("click", async () => {
+  const button = $("checkMine");
+  button.disabled = true;
+  button.textContent = T.checkingMine;
+  try { mine = await api("/api/iptv/check", "POST"); renderMine(); } catch (e) { explain(e); }
+  button.textContent = T.checkMine;
+  button.disabled = false;
+});
+$("removeProblems").addEventListener("click", async () => {
+  const ids = mine.channels.filter(c => c.problem).map(c => c.id);
+  if (!ids.length || !confirm(T.removeProblemsConfirm(ids.length))) return;
+  try { mine = await api(`/api/iptv/remove?ids=${ids.join(",")}`, "POST"); renderMine(); renderStreams(); } catch (e) { explain(e); }
+});
 
 // ---- Tabs and polling ----
 

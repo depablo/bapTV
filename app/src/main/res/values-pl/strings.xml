@@ -291,4 +291,10 @@
     <string name="iptv_input_label">bapTV – kanały internetowe</string>
     <string name="kind_iptv">internetowy</string>
     <string name="status_stream_failed">Strumień niedostępny</string>
+    <string name="iptv_error_slow">serwer zbyt wolny dla tego strumienia</string>
+    <string name="iptv_error_connection">brak połączenia</string>
+    <string name="iptv_error_timeout">brak odpowiedzi</string>
+    <string name="iptv_error_format">nieobsługiwany format</string>
+    <string name="iptv_error_drm">zabezpieczony DRM</string>
+    <string name="iptv_error_blocked">HTTP %1$d – często blokada poza krajem nadawcy</string>
 </resources>

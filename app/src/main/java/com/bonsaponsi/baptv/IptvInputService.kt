@@ -8,6 +8,7 @@ import android.media.tv.TvTrackInfo
 import android.net.Uri
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import android.view.Surface
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
@@ -20,13 +21,16 @@ import androidx.media3.common.VideoSize
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.datasource.HttpDataSource
+import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 
 /**
  * TV input of internet channels ([Iptv]): plays HLS, DASH and progressive streams with Media3 into the surface
  * of the player's TvView. Live streams that drop are reconnected a few times; why a stream failed is kept in
- * [lastError] for the player's status line (same process).
+ * [lastError] for the player's status line (same process). What goes wrong while watching – frequent
+ * buffering, a server too slow for the stream, errors – is remembered per channel ([Iptv.reportProblem])
+ * so the phone remote can point at channels worth removing.
  */
 @androidx.annotation.OptIn(UnstableApi::class)
 class IptvInputService : TvInputService() {
@@ -45,6 +49,22 @@ class IptvInputService : TvInputService() {
         private var firstFrame = false
         /** Buffering after the picture appeared – READY then means the picture is back. */
         private var stalled = false
+        /** "Buffering" was reported to the player (short stalls are not – see [BUFFERING_REPORT_DELAY_MS]). */
+        private var bufferingShown = false
+        private var channelId: Long? = null
+        /** Times of recent stalls, for "keeps buffering". */
+        private val stalls = ArrayDeque<Long>()
+
+        private val showBuffering = Runnable {
+            bufferingShown = true
+            notifyVideoUnavailable(TvInputManager.VIDEO_UNAVAILABLE_REASON_BUFFERING)
+        }
+
+        /** Playing for a while without trouble – an earlier problem of this channel is forgotten. */
+        private val stableCheck = Runnable {
+            val now = SystemClock.elapsedRealtime()
+            if (stalls.none { now - it < STABLE_MS }) channelId?.let { Iptv.clearProblem(this@IptvInputService, it) }
+        }
 
         override fun onSetSurface(surface: Surface?): Boolean {
             this.surface = surface
@@ -70,8 +90,10 @@ class IptvInputService : TvInputService() {
                 return false
             }
             stream = s
+            channelId = id
             retries = 0
             asHls = false
+            stalls.clear()
             start()
             return true
         }
@@ -79,8 +101,11 @@ class IptvInputService : TvInputService() {
         private fun start() {
             val s = stream ?: return
             releasePlayer()
+            handler.removeCallbacks(showBuffering)
+            handler.removeCallbacks(stableCheck)
             firstFrame = false
             stalled = false
+            bufferingShown = false
             lastError = null
             notifyVideoUnavailable(TvInputManager.VIDEO_UNAVAILABLE_REASON_TUNING)
             val http = DefaultHttpDataSource.Factory()
@@ -93,6 +118,9 @@ class IptvInputService : TvInputService() {
             DebugLog.log("Iptv", "play \"${s.name}\" ${s.url}${mime?.let { " as $it" } ?: ""}")
             player = ExoPlayer.Builder(this@IptvInputService)
                 .setMediaSourceFactory(DefaultMediaSourceFactory(http))
+                // After a stall, wait for a real cushion instead of resuming on the first bit of data.
+                .setLoadControl(DefaultLoadControl.Builder()
+                    .setBufferDurationsMs(MIN_BUFFER_MS, MAX_BUFFER_MS, START_BUFFER_MS, REBUFFER_MS).build())
                 .build().apply {
                     setVideoSurface(surface)
                     volume = this@IptvSession.volume
@@ -130,17 +158,20 @@ class IptvInputService : TvInputService() {
         private val listener = object : Player.Listener {
             override fun onPlaybackStateChanged(state: Int) {
                 when (state) {
-                    Player.STATE_BUFFERING -> if (firstFrame) {
+                    Player.STATE_BUFFERING -> if (firstFrame && !stalled) {
                         stalled = true
-                        notifyVideoUnavailable(TvInputManager.VIDEO_UNAVAILABLE_REASON_BUFFERING)
+                        onStall()
+                        handler.postDelayed(showBuffering, BUFFERING_REPORT_DELAY_MS)
                     }
                     Player.STATE_READY -> {
                         retries = 0
                         notifyContentAllowed()
+                        handler.removeCallbacks(showBuffering)
+                        stalled = false
                         val tracks = player?.currentTracks
                         when {
                             // Before the first frame onRenderedFirstFrame reports the picture.
-                            stalled -> { stalled = false; notifyVideoAvailable() }
+                            bufferingShown -> { bufferingShown = false; notifyVideoAvailable() }
                             tracks != null && !tracks.containsType(C.TRACK_TYPE_VIDEO) && tracks.containsType(C.TRACK_TYPE_AUDIO) ->
                                 notifyVideoUnavailable(TvInputManager.VIDEO_UNAVAILABLE_REASON_AUDIO_ONLY)
                         }
@@ -153,6 +184,7 @@ class IptvInputService : TvInputService() {
             override fun onRenderedFirstFrame() {
                 firstFrame = true
                 notifyVideoAvailable()
+                handler.postDelayed(stableCheck, STABLE_MS)
             }
 
             override fun onTracksChanged(tracks: Tracks) = publishTracks(tracks)
@@ -163,8 +195,13 @@ class IptvInputService : TvInputService() {
 
             override fun onPlayerError(error: PlaybackException) {
                 val p = player ?: return
-                lastError = describe(error)
+                lastError = this@IptvInputService.describe(error)
                 DebugLog.warn("Iptv", "playback error ${error.errorCodeName}: $lastError")
+                handler.removeCallbacks(showBuffering)
+                handler.removeCallbacks(stableCheck)
+                val id = channelId
+                // Segments gone before they downloaded: the server is slower than the stream plays.
+                if (error.errorCode in SLOW_SERVER_ERRORS && id != null) Iptv.reportProblem(this@IptvInputService, id, Iptv.PROBLEM_SLOW)
                 when {
                     error.errorCode == PlaybackException.ERROR_CODE_BEHIND_LIVE_WINDOW -> {
                         p.seekToDefaultPosition()
@@ -178,14 +215,24 @@ class IptvInputService : TvInputService() {
                         notifyVideoUnavailable(TvInputManager.VIDEO_UNAVAILABLE_REASON_UNKNOWN)
                         // A refused or missing stream does not come back by retrying.
                         if (httpStatus(error) !in 400..499) retry(error.errorCodeName)
+                        else if (id != null) Iptv.reportProblem(this@IptvInputService, id, Iptv.PROBLEM_ERROR, lastError)
                     }
                 }
             }
         }
 
+        /** A stall while playing; several within a minute mark the channel as one that keeps buffering. */
+        private fun onStall() {
+            val now = SystemClock.elapsedRealtime()
+            stalls.addLast(now)
+            while (stalls.isNotEmpty() && now - stalls.first() > STALL_WINDOW_MS) stalls.removeFirst()
+            if (stalls.size >= STALLS_FOR_PROBLEM) channelId?.let { Iptv.reportProblem(this@IptvInputService, it, Iptv.PROBLEM_BUFFERING) }
+        }
+
         private fun retry(why: String) {
             if (retries >= MAX_RETRIES) {
                 DebugLog.warn("Iptv", "giving up after $retries retries ($why)")
+                channelId?.let { Iptv.reportProblem(this@IptvInputService, it, Iptv.PROBLEM_ERROR, lastError) }
                 return
             }
             retries++
@@ -241,6 +288,20 @@ class IptvInputService : TvInputService() {
         private const val READ_TIMEOUT_MS = 15_000
         private const val MAX_RETRIES = 5
         private const val RETRY_DELAY_MS = 3_000L
+        /** Shorter stalls are not reported – otherwise "Buffering" flickers on a stream that plays at the live edge. */
+        private const val BUFFERING_REPORT_DELAY_MS = 800L
+        private const val MIN_BUFFER_MS = 15_000
+        private const val MAX_BUFFER_MS = 50_000
+        private const val START_BUFFER_MS = 2_500
+        private const val REBUFFER_MS = 6_000
+        private const val STALL_WINDOW_MS = 60_000L
+        private const val STALLS_FOR_PROBLEM = 4
+        /** Trouble-free playback after which a remembered problem of the channel is forgotten. */
+        private const val STABLE_MS = 120_000L
+        private val SLOW_SERVER_ERRORS = setOf(
+            PlaybackException.ERROR_CODE_IO_READ_POSITION_OUT_OF_RANGE,
+            PlaybackException.ERROR_CODE_BEHIND_LIVE_WINDOW,
+        )
         private val PARSING_ERRORS = setOf(
             PlaybackException.ERROR_CODE_PARSING_CONTAINER_UNSUPPORTED,
             PlaybackException.ERROR_CODE_PARSING_CONTAINER_MALFORMED,
@@ -265,14 +326,17 @@ class IptvInputService : TvInputService() {
             return null
         }
 
-        private fun describe(error: PlaybackException): String = when (val status = httpStatus(error)) {
+        private fun Context.describe(error: PlaybackException): String = when (val status = httpStatus(error)) {
             null -> when (error.errorCode) {
-                PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED -> "no connection"
-                PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT -> "timeout"
-                PlaybackException.ERROR_CODE_PARSING_CONTAINER_UNSUPPORTED, PlaybackException.ERROR_CODE_PARSING_MANIFEST_UNSUPPORTED -> "unsupported format"
-                PlaybackException.ERROR_CODE_DRM_UNSPECIFIED, PlaybackException.ERROR_CODE_DRM_SCHEME_UNSUPPORTED -> "DRM"
+                in SLOW_SERVER_ERRORS -> getString(R.string.iptv_error_slow)
+                PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED -> getString(R.string.iptv_error_connection)
+                PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT -> getString(R.string.iptv_error_timeout)
+                PlaybackException.ERROR_CODE_PARSING_CONTAINER_UNSUPPORTED, PlaybackException.ERROR_CODE_PARSING_MANIFEST_UNSUPPORTED ->
+                    getString(R.string.iptv_error_format)
+                PlaybackException.ERROR_CODE_DRM_UNSPECIFIED, PlaybackException.ERROR_CODE_DRM_SCHEME_UNSUPPORTED -> getString(R.string.iptv_error_drm)
                 else -> error.errorCodeName
             }
+            401, 403, 451 -> getString(R.string.iptv_error_blocked, status)
             else -> "HTTP $status"
         }
     }

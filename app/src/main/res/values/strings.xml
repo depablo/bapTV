@@ -292,4 +292,10 @@
     <string name="iptv_input_label">bapTV internet channels</string>
     <string name="kind_iptv">internet</string>
     <string name="status_stream_failed">Stream unavailable</string>
+    <string name="iptv_error_slow">server too slow for this stream</string>
+    <string name="iptv_error_connection">no connection</string>
+    <string name="iptv_error_timeout">no answer</string>
+    <string name="iptv_error_format">unsupported format</string>
+    <string name="iptv_error_drm">DRM-protected</string>
+    <string name="iptv_error_blocked">HTTP %1$d – often blocked outside its country</string>
 </resources>

@@ -18,8 +18,8 @@ import kotlin.concurrent.thread
  * - `GET /api/state`, `GET /api/channels`, `POST /api/key?name=…`, `POST /api/tune?id=…` – paired devices only,
  * - `GET /api/manage` and `POST /api/manage/{order,hidden,name,hide-scrambled,reset}` – channel organisation,
  *   as on the Manage channels screen (paired devices only),
- * - `GET /api/iptv`, `POST /api/iptv/{load,probe,add,remove}` – internet channels ([Iptv]): reading a playlist,
- *   checking streams, adding and removing channels (paired devices only).
+ * - `GET /api/iptv`, `POST /api/iptv/{load,probe,add,check,remove}` – internet channels ([Iptv]): reading a playlist,
+ *   checking streams, adding, re-checking and removing channels (paired devices only).
  * The Host and cross-site checks of [ServerAccess] apply to every request.
  */
 class PhoneRemoteServer(private val context: Context, val port: Int) {
@@ -152,12 +152,30 @@ class PhoneRemoteServer(private val context: Context, val port: Int) {
             "POST" to "/api/iptv/load" -> loadPlaylist(request.query["url"], request, input)
             "POST" to "/api/iptv/probe" -> {
                 val results = IptvProbe.probeAll(streamsFrom(body(request, input)).take(MAX_PROBE))
-                json(JSONArray().apply { results.forEach { put(JSONObject().put("status", it.status.name).put("detail", it.detail).put("format", it.format ?: JSONObject.NULL)) } })
+                json(JSONArray().apply {
+                    results.forEach {
+                        put(JSONObject().put("status", it.status.name).put("detail", it.detail).put("format", it.format ?: JSONObject.NULL)
+                            .put("speed", it.speed ?: JSONObject.NULL))
+                    }
+                })
             }
             "POST" to "/api/iptv/add" -> {
                 val added = Iptv.add(context, streamsFrom(body(request, input)))
                 channelsChanged()
                 json(iptvList().put("added", added))
+            }
+            "POST" to "/api/iptv/check" -> {
+                // The added channels with the same check as before adding; what fails is marked like a problem seen while watching.
+                val own = Iptv.streams(context)
+                IptvProbe.probeAll(own.map { it.second }).zip(own).forEach { (result, entry) ->
+                    val id = entry.first.id
+                    when (result.status) {
+                        IptvProbe.Status.OK -> Unit
+                        IptvProbe.Status.SLOW -> Iptv.reportProblem(context, id, Iptv.PROBLEM_SLOW)
+                        else -> Iptv.reportProblem(context, id, Iptv.PROBLEM_ERROR, result.detail)
+                    }
+                }
+                json(iptvList())
             }
             "POST" to "/api/iptv/remove" -> {
                 val ids = request.query["ids"].orEmpty().split(',').mapNotNull { it.trim().toLongOrNull() }
@@ -215,8 +233,11 @@ class PhoneRemoteServer(private val context: Context, val port: Int) {
     /** Internet channels already added and the playlists used before. */
     private fun iptvList(): JSONObject {
         val channels = JSONArray()
+        val problems = Iptv.problems(context)
         Iptv.streams(context).sortedBy { ChannelRepository.numberKey(it.first.number) }.forEach { (c, s) ->
-            channels.put(JSONObject().put("id", c.id).put("number", c.number).put("name", c.name).put("url", s.url).put("group", s.group))
+            channels.put(JSONObject().put("id", c.id).put("number", c.number).put("name", c.name).put("url", s.url).put("group", s.group).apply {
+                problems[c.id]?.let { put("problem", it.kind).put("problemDetail", it.detail ?: JSONObject.NULL).put("problemAt", it.atMs) }
+            })
         }
         return JSONObject().put("channels", channels).put("sources", JSONArray(Iptv.sources(context)))
     }

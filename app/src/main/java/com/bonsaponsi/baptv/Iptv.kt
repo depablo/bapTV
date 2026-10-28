@@ -111,6 +111,7 @@ object Iptv {
     fun remove(context: Context, channelIds: Collection<Long>): Int {
         val own = query(context).map { it.first.id }.toSet()
         val removed = channelIds.filter { it in own }.sumOf { context.contentResolver.delete(TvContract.buildChannelUri(it), null, null) }
+        health(context).edit().apply { channelIds.forEach { remove(it.toString()) } }.apply()
         DebugLog.log("Iptv", "removed $removed internet channels")
         return removed
     }
@@ -162,6 +163,37 @@ object Iptv {
         val list = (listOf(url) + sources(context).filter { it != url }).take(MAX_SOURCES)
         prefs(context).edit().putString(KEY_SOURCES, org.json.JSONArray(list).toString()).apply()
     }
+
+    // ---- Problems seen while watching ([IptvInputService]) ----
+
+    const val PROBLEM_BUFFERING = "buffering"
+    const val PROBLEM_SLOW = "slow"
+    const val PROBLEM_ERROR = "error"
+
+    /** [kind] – one of the PROBLEM_ constants; [detail] – e.g. the error for [PROBLEM_ERROR]. */
+    class Problem(val kind: String, val detail: String?, val atMs: Long)
+
+    fun reportProblem(context: Context, channelId: Long, kind: String, detail: String? = null) {
+        // A slow server explains buffering – the more specific reason stays.
+        if (kind == PROBLEM_BUFFERING && problems(context)[channelId]?.kind == PROBLEM_SLOW) return
+        val json = JSONObject().put("kind", kind).put("at", System.currentTimeMillis()).apply { detail?.let { put("detail", it) } }
+        health(context).edit().putString(channelId.toString(), json.toString()).apply()
+        DebugLog.log("Iptv", "channel $channelId problem: $kind${detail?.let { " ($it)" } ?: ""}")
+    }
+
+    fun clearProblem(context: Context, channelId: Long) {
+        val prefs = health(context)
+        if (!prefs.contains(channelId.toString())) return
+        prefs.edit().remove(channelId.toString()).apply()
+        DebugLog.log("Iptv", "channel $channelId plays fine again")
+    }
+
+    fun problems(context: Context): Map<Long, Problem> = health(context).all.mapNotNull { (key, value) ->
+        val id = key.toLongOrNull() ?: return@mapNotNull null
+        runCatching { JSONObject(value as String) }.getOrNull()?.let { id to Problem(it.getString("kind"), it.optString("detail").ifEmpty { null }, it.optLong("at")) }
+    }.toMap()
+
+    private fun health(context: Context) = context.getSharedPreferences("iptv_health", Context.MODE_PRIVATE)
 
     private fun prefs(context: Context) = context.getSharedPreferences("iptv", Context.MODE_PRIVATE)
     private const val KEY_SOURCES = "sources"

@@ -230,15 +230,22 @@ added on the phone remote, Internet tab:
 1. Enter the address of an M3U playlist and press Load, or choose a playlist file on the phone.
    Addresses used before are offered as shortcuts.
 2. Narrow the list by group or name and press "Check shown": the set-top box asks every shown
-   stream for its playlist and first segment and marks it as working, blocked (often a stream
-   limited to its country), dead, not answering or DRM-protected. "Only working" hides the rest,
-   "Select working" ticks them.
+   stream for its playlist and marks it as working, blocked (often a stream limited to its
+   country), dead, not answering or DRM-protected. For HLS it also downloads part of a recent
+   segment and compares the download speed with the playback speed: a server below 1.2× is
+   marked "server too slow" – it answers, but its segments leave the live window before they
+   arrive, so the picture keeps stopping. Working streams with less than 2× are marked as having
+   little margin. "Only working" hides the rest, "Select working" ticks them.
 3. "Add selected" adds the ticked streams as channels numbered from 1001, after the broadcast
    ones. They can be renamed, moved and hidden like any channel, and removed on the same tab.
 
 The app comes with no playlists; any M3U playlist with direct stream addresses works, including
-the `http-user-agent` and `http-referrer` options some streams need. A check only shows that a
-stream answers; whether it plays shows when it is tuned. When a stream fails, the status line says
+the `http-user-agent` and `http-referrer` options some streams need. A check is a snapshot; how a
+stream really plays shows while watching. bapTV remembers per channel when it keeps buffering
+(4 stalls within a minute), when its server proves too slow, or when it stops playing, and the
+Internet tab shows a warning next to such channels. Two minutes of trouble-free playback clear the
+warning. "Check added" runs the check on all added channels; "Remove with problems" removes the
+marked ones at once. Short stalls are not reported on the TV, so "Buffering" does not flicker. When a stream fails, the status line says
 why, e.g. "Stream unavailable (HTTP 403)". Dropped live streams reconnect by themselves a few times.
 Recording, live pause, HbbTV and channel identification are for broadcast channels only.
 
