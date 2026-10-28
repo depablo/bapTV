@@ -248,6 +248,9 @@ warning. "Check added" runs the check on all added channels; "Remove with proble
 marked ones at once. Short stalls are not reported on the TV, so "Buffering" does not flicker. When a stream fails, the status line says
 why, e.g. "Stream unavailable (HTTP 403)". Dropped live streams reconnect by themselves a few times.
 Recording, live pause, HbbTV and channel identification are for broadcast channels only.
+Besides the system's trusted certificates the app trusts one more public root, Certum Trusted Root CA
+(`res/xml/network_security_config.xml`): newer Android versions trust it, but Android 11 set-top
+boxes do not, and some stream servers use certificates under it.
 
 ## 7. Channel names and the TV guide
 
