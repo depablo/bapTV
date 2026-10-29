@@ -181,12 +181,8 @@ class ChannelPublisher(private val context: Context) {
             return JSONObject()
                 .put("type", "json")
                 .put("scan-mode", "full")
-                .put("country", countryName(Region.country()))
+                .put("country", Region.countryName(Region.country()))
                 .put("services", services)
         }
-
-        /** dtvinput takes the country as an English lower-case name ("poland"); "" – unknown. */
-        private fun countryName(code: String): String =
-            if (code.isEmpty()) "" else Locale("", code).getDisplayCountry(Locale.ENGLISH).lowercase(Locale.ROOT)
     }
 }

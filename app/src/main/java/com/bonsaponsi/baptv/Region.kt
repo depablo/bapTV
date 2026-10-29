@@ -41,6 +41,10 @@ object Region {
 
     fun plan(): Plan = plan(country())
 
+    /** dtvinput takes the country as an English lower-case name ("poland"); "" – unknown. */
+    fun countryName(code: String): String =
+        if (code.isEmpty()) "" else Locale("", code).getDisplayCountry(Locale.ENGLISH).lowercase(Locale.ROOT)
+
     /** ISO 3166 alpha-3 country code (e.g. "POL") for HbbTV; "" – unknown. */
     fun countryIso3(country: String): String =
         runCatching { Locale("", country).isO3Country.uppercase(Locale.ROOT) }.getOrDefault("")

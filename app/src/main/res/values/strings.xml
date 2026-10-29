@@ -66,6 +66,7 @@
     <string name="scan_progress">Searching… %1$d%% · found: %2$d</string>
     <string name="scan_complete">Finished. Channels found: %1$d</string>
     <string name="scan_failed">No channels found. Check the antenna and try again.</string>
+    <string name="scan_rejected">The tuner rejected the search request straight away – this is not an antenna problem. Search for channels with “%1$s”; bapTV will show them afterwards.</string>
     <string name="scan_cancelled">Scan stopped.</string>
     <string name="scan_no_setup">The tuner has no setup wizard.</string>
     <string name="scan_setup_returned">Back from the wizard (result code %1$d).</string>

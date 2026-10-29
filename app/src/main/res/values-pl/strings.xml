@@ -65,6 +65,7 @@
     <string name="scan_progress">Szukam kanałów… %1$d%% · znaleziono: %2$d</string>
     <string name="scan_complete">Zakończono. Znaleziono kanałów: %1$d</string>
     <string name="scan_failed">Nie znaleziono kanałów. Sprawdź antenę i spróbuj ponownie.</string>
+    <string name="scan_rejected">Tuner od razu odrzucił żądanie wyszukiwania – to nie jest problem z anteną. Wyszukaj kanały przyciskiem „%1$s”; bapTV pokaże je potem.</string>
     <string name="scan_cancelled">Skanowanie przerwane.</string>
     <string name="scan_no_setup">Tuner nie udostępnia kreatora konfiguracji.</string>
     <string name="scan_setup_returned">Powrót z kreatora (kod wyniku %1$d).</string>

@@ -52,6 +52,8 @@ class ScanActivity : Activity() {
     private var scanning: Method? = null
     private var lastEventAt = 0L
     private var startedAt = 0L
+    /** Index in [scanParamsVariants] sent with the current request. */
+    private var paramsVariant = 0
 
     // Reception statistics collected from the streamers table during the scan.
     private var lastFrontend: String? = null
@@ -249,7 +251,9 @@ class ScanActivity : Activity() {
     }
 
     private fun startScan(method: Method) {
-        val params = scanParams(vhfCheck.isChecked, t2Check.isChecked)
+        val variants = scanParamsVariants(vhfCheck.isChecked, t2Check.isChecked)
+        paramsVariant = getSharedPreferences(PREFS, MODE_PRIVATE).getInt(PREF_PARAMS_VARIANT, 0).takeIf { it in variants.indices } ?: 0
+        val params = variants[paramsVariant]
         DebugLog.log("Scan", "start with method $method, params=$params")
         try {
             when (method) {
@@ -313,8 +317,12 @@ class ScanActivity : Activity() {
                 ChannelStore(this).clearDiscovered()
                 finishScan(getString(R.string.scan_complete, shown), 100)
                 if (shown == 0) ReportSender.offer(this, ReportSender.Reason.SCAN_FAILED, getString(R.string.scan_complete, 0), automatic = true)
-                if (shown > 0) continueInPlayer(shown)
+                if (shown > 0) {
+                    getSharedPreferences(PREFS, MODE_PRIVATE).edit().putInt(PREF_PARAMS_VARIANT, paramsVariant).apply()
+                    continueInPlayer(shown)
+                }
             }
+            "fail" in status && System.currentTimeMillis() - startedAt < REJECTED_MS && visitedFrequencies.size <= 1 -> onScanRejected()
             "fail" in status -> {
                 finishScan(getString(R.string.scan_failed), null)
                 ReportSender.offer(this, ReportSender.Reason.SCAN_FAILED, getString(R.string.scan_failed), automatic = true)
@@ -415,19 +423,50 @@ class ScanActivity : Activity() {
         intent.extras?.keySet()?.joinToString(", ", "{", "}") { "$it=${intent.extras?.get(it)}" } ?: "{}"
 
     /**
-     * Full DVB-T/T2 scan in dtvinput JSON format (frequencies in kHz) according to the country plan
-     * ([Region]): in Poland optionally VHF III with 7 MHz channels and UHF 474–850 MHz with 8 MHz channels.
+     * dtvinput failed the request within moments without tuning (seen with CBS.U14 on Android 14): the
+     * parameters were not accepted. Next request variant; when none is left – the system wizard.
      */
-    private fun scanParams(includeVhf: Boolean, dvbT2: Boolean): String {
+    private fun onScanRejected() {
+        val variants = scanParamsVariants(vhfCheck.isChecked, t2Check.isChecked)
+        if (scanning == Method.SERVICE && paramsVariant + 1 < variants.size) {
+            paramsVariant++
+            DebugLog.warn("Scan", "dtvinput rejected the request at once – trying params ${variants[paramsVariant]}")
+            startedAt = System.currentTimeMillis()
+            lastEventAt = startedAt
+            progressBar.progress = 0
+            runCatching { startInstallerService(variants[paramsVariant]) }.onFailure {
+                DebugLog.error("Scan", "failed to request the scan", it)
+                finishScan(getString(R.string.scan_send_failed, it.toString()), null)
+            }
+            return
+        }
+        val message = getString(R.string.scan_rejected, getString(R.string.scan_method_setup))
+        getSharedPreferences(PREFS, MODE_PRIVATE).edit().remove(PREF_PARAMS_VARIANT).apply()
+        finishScan(message, null)
+        if (DeviceCapabilities.get(this).systemSetup) {
+            showAdvanced(true)
+            findViewById<Button>(R.id.scan_setup).requestFocus()
+        }
+        ReportSender.offer(this, ReportSender.Reason.SCAN_FAILED, message, automatic = true)
+    }
+
+    /**
+     * Scan requests in dtvinput JSON format, tried in order when dtvinput rejects one at once:
+     *  - full DVB-T/T2 scan with frequencies (kHz) from the country plan ([Region]): in Poland optionally
+     *    VHF III with 7 MHz channels and UHF 474–850 MHz with 8 MHz channels,
+     *  - dtvinput's own frequency plan for the country,
+     *  - the same as DVB-T only.
+     */
+    private fun scanParamsVariants(includeVhf: Boolean, dvbT2: Boolean): List<String> {
+        val type = if (dvbT2) "dvb-t2" else "dvb-t"
         val slots = JSONArray()
         Region.plan().bands(includeVhf).forEach { slots.put(band(it)) }
-        return JSONObject()
-            .put("type", if (dvbT2) "dvb-t2" else "dvb-t")
-            .put("scan-mode", "full")
-            .put("country", "")
-            .put("custom-scan", false)
-            .put("slots", slots)
-            .toString()
+        val country = Region.countryName(Region.country())
+        return listOf(
+            JSONObject().put("type", type).put("scan-mode", "full").put("country", "").put("custom-scan", false).put("slots", slots),
+            JSONObject().put("type", type).put("scan-mode", "full").put("country", country),
+            JSONObject().put("type", "dvb-t").put("scan-mode", "full").put("country", country),
+        ).map { it.toString() }.distinct()
     }
 
     private fun band(b: Region.Band) = JSONObject()
@@ -441,5 +480,9 @@ class ScanActivity : Activity() {
         private const val WATCHDOG_SECONDS = 20
         private const val LOG_LINES = 14
         private const val CONTINUE_DELAY_MS = 3000L
+        /** A failure this soon after the request means rejected parameters, not an empty band. */
+        private const val REJECTED_MS = 3000L
+        private const val PREFS = "scan"
+        private const val PREF_PARAMS_VARIANT = "params_variant"
     }
 }
