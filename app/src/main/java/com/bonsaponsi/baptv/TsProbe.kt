@@ -25,6 +25,7 @@ import java.util.concurrent.TimeUnit
 object TsProbe {
     private const val TAG = "TsProbe"
     private const val MAX_COPY_BYTES = 48L * 1024 * 1024
+    private const val MAX_FAILURES = 2
     const val EXTRA_REQUEST_STORAGE = "request_storage"
 
     /** Channel being watched in the player (set by [MainActivity]). */
@@ -60,6 +61,37 @@ object TsProbe {
         private set
 
     val lastErrorWasBusy get() = lastError == "onError 2"
+
+    /**
+     * Some dtvinput versions (seen with CBS.U14 on Android 14) refuse the recording session with onError 0
+     * and drop the live session along with it, so every probe cuts the picture. After [MAX_FAILURES] failures
+     * in a row, with no recording ever read on this dtvinput version, stream analysis is switched off.
+     * The flag is kept per dtvinput version – a firmware update gives recording another chance.
+     */
+    fun unsupported(context: Context): Boolean = prefs(context).getBoolean(versionKey(context, "unsupported"), false)
+
+    private fun prefs(context: Context) = context.applicationContext.getSharedPreferences("ts_probe", Context.MODE_PRIVATE)
+
+    private fun versionKey(context: Context, name: String): String {
+        val version = runCatching { context.packageManager.getPackageInfo(Dtv.DTV_INPUT_PACKAGE, 0).versionName }.getOrNull()
+        return "${name}_$version"
+    }
+
+    private fun noteOutcome(context: Context, ok: Boolean, reason: String) {
+        val prefs = prefs(context)
+        val okKey = versionKey(context, "ok")
+        if (ok) {
+            prefs.edit().putBoolean(okKey, true).putInt("failures", 0).apply()
+            return
+        }
+        if (prefs.getBoolean(okKey, false)) return
+        val failures = prefs.getInt("failures", 0) + 1
+        prefs.edit().putInt("failures", failures).apply()
+        if (failures < MAX_FAILURES) return
+        prefs.edit().putBoolean(versionKey(context, "unsupported"), true).apply()
+        DebugLog.warn(TAG, "recording does not work with this dtvinput ($reason, $failures times) – stream analysis switched off")
+        DeviceCapabilities.refresh(context)
+    }
 
     /**
      * Learns a channel in the background without switching the player: DVB identifiers, AIT and EPG
@@ -168,17 +200,25 @@ object TsProbe {
             error?.let {
                 lastError = it
                 note("recording session error: $it" + if (it == "onError 2") " (RECORDING_ERROR_RESOURCE_BUSY – tuner busy)" else "")
+                // A busy tuner is expected (another multiplex) and says nothing about recording support.
+                if (!lastErrorWasBusy) noteOutcome(context, ok = false, reason = it)
                 return Recording(log.toString(), null)
             }
             if (file == null) {
                 note("recording file not found; directory: ${recordsDir.listFiles()?.joinToString { it.name } ?: "unreadable"}")
+                noteOutcome(context, ok = false, reason = "no recording file")
                 return Recording(log.toString(), null)
             }
             note("recording file: $file (${file.length()} B)")
             val copy = probeFile(context)
             runCatching {
                 file.inputStream().use { src -> copy.outputStream().use { dst -> copyLimited(src, dst, MAX_COPY_BYTES) } }
-            }.onFailure { note("copy failed: $it"); return Recording(log.toString(), null) }
+            }.onFailure {
+                note("copy failed: $it")
+                noteOutcome(context, ok = false, reason = "copy failed")
+                return Recording(log.toString(), null)
+            }
+            noteOutcome(context, ok = true, reason = "")
             val analyzer = TsAnalyzer()
             // Over-the-air data: a broken stream must not abort learning – whatever was read so far is kept.
             runCatching { copy.inputStream().buffered().use { analyzer.feed(it) } }

@@ -75,8 +75,9 @@ data class DeviceCapabilities(
                 tunerStats = providerResponds(app),
                 systemSetup = input?.let { hasSetup(app, it) } ?: false,
                 channelsVisible = input?.let { countChannels(app, it.id) > 0 } ?: false,
-                // Reading the recording file is verified only with dtvinput (directory Android/media/<package>/Records).
-                streamAnalysis = cbs,
+                // Reading the recording file is verified only with dtvinput (directory Android/media/<package>/Records);
+                // switched off when this dtvinput version turned out to refuse recording.
+                streamAnalysis = cbs && !TsProbe.unsupported(app),
             )
             if (caps != cached) DebugLog.log("Caps", caps.describe().joinToString("; "))
             cached = caps

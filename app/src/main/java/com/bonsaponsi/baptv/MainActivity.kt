@@ -157,6 +157,8 @@ class MainActivity : Activity() {
 
     // State for the debug overlay.
     private var tunedAt = 0L
+    /** [tunedAt] of the tune already repeated after a lost session (one retry per channel change). */
+    private var retunedAfterDisconnect = -1L
     private var videoState = "-"
     private var lastCallback = "-"
     @Volatile private var lastSignal: String? = null
@@ -2126,6 +2128,18 @@ class MainActivity : Activity() {
         override fun onDisconnected(inputId: String) {
             videoState = "DISCONNECTED"
             onPlayerEvent("onDisconnected $inputId")
+            // Some dtvinput versions drop the live session when a background recording fails –
+            // tune the same channel again once per channel change instead of leaving a black screen.
+            val channel = channels.getOrNull(currentIndex)
+            if (started && playingRecording == null && channel != null && retunedAfterDisconnect != tunedAt) {
+                retunedAfterDisconnect = tunedAt
+                DebugLog.log("Player", "session lost – tuning ${channel.number} \"${channel.name}\" again")
+                // The live pause buffer went away with the session.
+                timeshift.reset()
+                showStatus(getString(R.string.status_tuning))
+                tvView.tune(channel.inputId ?: inputId, channel.uri)
+                return
+            }
             showStatus(getString(R.string.status_input_disconnected))
         }
 
