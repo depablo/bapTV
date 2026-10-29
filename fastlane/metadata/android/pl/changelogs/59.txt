@@ -1,0 +1,1 @@
+Poprawki dla dekoderów z nowszą aplikacją tunera „TV Channels” (np. Android 14): obraz nie znika już kilka sekund po każdej zmianie kanału, a gdy tuner odrzuca wyszukiwanie kanałów z aplikacji, aplikacja próbuje innych wariantów żądania, a potem wskazuje kreator systemowy zamiast obwiniać antenę.

@@ -1,0 +1,1 @@
+Fixes for set-top boxes with a newer TV Channels tuner app (e.g. Android 14): the picture no longer drops a few seconds after every channel change, and when the tuner rejects the in-app channel search, the app tries other request variants and then points to the system wizard instead of blaming the antenna.
