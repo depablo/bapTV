@@ -308,4 +308,24 @@
     <string name="iptv_source">Source: %1$s</string>
     <string name="iptv_address">Address: %1$s</string>
     <string name="guide_no_epg_iptv">No programme data for this internet channel.</string>
+
+    <!-- Updates from GitHub releases -->
+    <string name="store_locale" translatable="false">en-US</string>
+    <string name="menu_update_check">Check for updates</string>
+    <string name="menu_update_auto">Automatic update check</string>
+    <string name="update_title">bapTV %1$s is available</string>
+    <string name="update_message">Installed version: %1$s.\n\n%2$s</string>
+    <string name="update_install">Update</string>
+    <string name="update_later">Not now</string>
+    <string name="update_checking">Checking for updates…</string>
+    <string name="update_latest">You have the latest version (%1$s).</string>
+    <string name="update_check_failed">Could not check for updates: %1$s</string>
+    <string name="update_downloading">Downloading the update…</string>
+    <string name="update_failed">The update failed: %1$s</string>
+    <string name="update_permission_title">Permission needed</string>
+    <string name="update_permission">To install updates, allow bapTV to install apps in the system settings, then choose Update again.</string>
+    <string name="update_open_settings">Open settings</string>
+    <string name="update_recording">A recording is in progress – update after it finishes.</string>
+    <string name="update_other_key">This copy of bapTV is signed with a different key than the GitHub releases (for example a test build) – install the new version manually.</string>
+    <string name="update_confirm">Confirm the installation on the screen.</string>
 </resources>

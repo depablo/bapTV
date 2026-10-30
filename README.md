@@ -64,6 +64,14 @@ The Diagnostics screen shows the detected capabilities.
 4. Start **bapTV** from the launcher. On first start it asks for access to TV listings (channel list
    and guide) and then opens the channel search screen.
 
+### Updates
+
+bapTV checks the GitHub releases once a day (menu → Settings; the automatic check can be switched off)
+and offers new versions with a short summary of the changes. The APK is checked against the published
+SHA-256 and must be signed with the same key as the installed app; Android then asks you to confirm
+the installation (once you allow bapTV to install apps). The check sends only a request to
+`api.github.com` – no data about you or the device. It is off when the app was installed from an app store.
+
 ## Building from source
 
 Requirements:

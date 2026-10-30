@@ -69,8 +69,7 @@ class DiagnosticsActivity : Activity() {
 
     override fun onResume() {
         super.onResume()
-        // After returning from system settings, refresh the permission state (developer tools – debug builds only;
-        // release builds do not declare REQUEST_INSTALL_PACKAGES and canRequestPackageInstalls() throws there).
+        // After returning from system settings, refresh the permission state (developer tools – debug builds only).
         if (DebugServerService.available) updateServerUi()
     }
 

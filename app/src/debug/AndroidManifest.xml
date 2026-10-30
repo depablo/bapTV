@@ -1,9 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Developer tools merged into debug builds only: installing new versions over the local network
-     (debug HTTP server) and an accessibility service that confirms those installs. -->
+<!-- Developer tools merged into debug builds only: an accessibility service that confirms
+     installs requested over the local network (debug HTTP server). -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-
-    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
     <application>
         <!-- Remote operation without adb: confirming updates and restarting afterwards. -->

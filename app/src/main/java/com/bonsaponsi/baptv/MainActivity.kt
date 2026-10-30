@@ -359,6 +359,8 @@ class MainActivity : Activity() {
         maybeRequestStorage(intent)
         // The previous run crashed: offer a report once the player is on screen.
         handler.postDelayed({ if (started) ReportSender.offerPendingCrash(this) }, REPORT_PROMPT_DELAY_MS)
+        // New release on GitHub: checked at most once a day, a while after the picture appears.
+        handler.postDelayed({ if (started) checkForUpdate(manual = false) }, UPDATE_CHECK_DELAY_MS)
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -1294,6 +1296,11 @@ class MainActivity : Activity() {
         )
         val settings = listOfNotNull(
             MenuPanel.Entry(getString(R.string.menu_about), BuildConfig.VERSION_NAME) { showAbout(menu::returned) },
+            MenuPanel.Entry(getString(R.string.menu_update_check), after = leave) { checkForUpdate(manual = true) }
+                .takeIf { UpdateChecker.supported(this) },
+            MenuPanel.Entry(getString(R.string.menu_update_auto), onOff(UpdateChecker.autoEnabled(this)), stay) {
+                UpdateChecker.setAutoEnabled(this, !UpdateChecker.autoEnabled(this))
+            }.takeIf { UpdateChecker.supported(this) },
             MenuPanel.Entry(getString(R.string.menu_language_label), AppLanguage.label(this, AppLanguage.get(this))) {
                 chooseLanguage(menu::returned)
             },
@@ -1332,6 +1339,66 @@ class MainActivity : Activity() {
     }
 
     /** Version, contact and project page (QR) – shown from the menu. */
+    /** Looks for a newer release on GitHub; an automatic check says nothing unless there is one. */
+    private fun checkForUpdate(manual: Boolean) {
+        if (!manual && !UpdateChecker.dueForCheck(this)) return
+        if (manual) TvDialog.toast(this, getString(R.string.update_checking))
+        io.execute {
+            val result = runCatching { UpdateChecker.check(applicationContext, getString(R.string.store_locale)) }
+            handler.post {
+                if (isDestroyed) return@post
+                result.onSuccess { release ->
+                    if (release != null) offerUpdate(release)
+                    else if (manual) TvDialog.message(this, getString(R.string.menu_update_check), getString(R.string.update_latest, BuildConfig.VERSION_NAME))
+                }.onFailure {
+                    DebugLog.warn("Update", "update check failed", it)
+                    if (manual) TvDialog.message(this, getString(R.string.menu_update_check), getString(R.string.update_check_failed, it.message ?: it.toString()))
+                }
+            }
+        }
+    }
+
+    private fun offerUpdate(release: UpdateChecker.Release) {
+        TvDialog.confirm(this, getString(R.string.update_title, release.version),
+            getString(R.string.update_message, BuildConfig.VERSION_NAME, release.notes),
+            getString(R.string.update_install), getString(R.string.update_later)) { installUpdate(release) }
+    }
+
+    /** Download, checks and installation ([SelfUpdater] verifies the signing key and version). */
+    private fun installUpdate(release: UpdateChecker.Release) {
+        val title = getString(R.string.update_title, release.version)
+        // Installation kills the process – an ongoing recording would be lost.
+        if (Recorder.active != null) { TvDialog.message(this, title, getString(R.string.update_recording)); return }
+        if (!packageManager.canRequestPackageInstalls()) {
+            TvDialog.confirm(this, getString(R.string.update_permission_title), getString(R.string.update_permission), getString(R.string.update_open_settings)) {
+                runCatching { startActivity(Intent(android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:$packageName"))) }
+                    .recoverCatching { startActivity(Intent(android.provider.Settings.ACTION_SECURITY_SETTINGS)) }
+                    .onFailure { DebugLog.warn("Update", "no settings screen for installing apps", it) }
+            }
+            return
+        }
+        TvDialog.toast(this, getString(R.string.update_downloading), long = true)
+        io.execute {
+            val outcome = runCatching {
+                val apk = UpdateChecker.download(applicationContext, release)
+                if (!SelfUpdater.sameSigner(applicationContext, apk)) return@runCatching false
+                SelfUpdater.install(applicationContext, apk)
+                true
+            }
+            handler.post {
+                if (isDestroyed) return@post
+                outcome.onSuccess { installed ->
+                    if (installed) TvDialog.toast(this, getString(R.string.update_confirm), long = true)
+                    else TvDialog.message(this, title, getString(R.string.update_other_key))
+                }
+                    .onFailure {
+                        DebugLog.warn("Update", "update to ${release.version} failed", it)
+                        TvDialog.message(this, title, getString(R.string.update_failed, it.message ?: it.toString()))
+                    }
+            }
+        }
+    }
+
     private fun showAbout(onClose: (() -> Unit)? = null) {
         TvDialog.qr(this, getString(R.string.about_title, BuildConfig.VERSION_NAME),
             getString(R.string.about_message, BuildConfig.CONTACT_EMAIL), BuildConfig.PROJECT_URL, onClose)
@@ -2197,6 +2264,7 @@ class MainActivity : Activity() {
 
     companion object {
         private const val REPORT_PROMPT_DELAY_MS = 1500L
+        private const val UPDATE_CHECK_DELAY_MS = 20_000L
         private const val REQUEST_PERMISSION = 1
         private const val PREF_LAST_CHANNEL = "last_channel_id"
         private const val PREF_AUDIO_LANG = "audio_lang"

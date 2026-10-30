@@ -307,4 +307,24 @@
     <string name="iptv_source">Źródło: %1$s</string>
     <string name="iptv_address">Adres: %1$s</string>
     <string name="guide_no_epg_iptv">Brak programu dla tego kanału internetowego.</string>
+
+    <!-- Updates from GitHub releases -->
+    <string name="store_locale" translatable="false">pl</string>
+    <string name="menu_update_check">Sprawdź aktualizacje</string>
+    <string name="menu_update_auto">Automatyczne sprawdzanie aktualizacji</string>
+    <string name="update_title">Dostępna jest wersja bapTV %1$s</string>
+    <string name="update_message">Zainstalowana wersja: %1$s.\n\n%2$s</string>
+    <string name="update_install">Aktualizuj</string>
+    <string name="update_later">Nie teraz</string>
+    <string name="update_checking">Sprawdzam aktualizacje…</string>
+    <string name="update_latest">Masz najnowszą wersję (%1$s).</string>
+    <string name="update_check_failed">Nie udało się sprawdzić aktualizacji: %1$s</string>
+    <string name="update_downloading">Pobieram aktualizację…</string>
+    <string name="update_failed">Aktualizacja nie powiodła się: %1$s</string>
+    <string name="update_permission_title">Potrzebna zgoda</string>
+    <string name="update_permission">Aby instalować aktualizacje, zezwól aplikacji bapTV na instalowanie aplikacji w ustawieniach systemu, a potem ponownie wybierz Aktualizuj.</string>
+    <string name="update_open_settings">Otwórz ustawienia</string>
+    <string name="update_recording">Trwa nagrywanie – zaktualizuj po jego zakończeniu.</string>
+    <string name="update_other_key">Ta kopia bapTV jest podpisana innym kluczem niż wydania z GitHuba (np. wersja testowa) – zainstaluj nową wersję ręcznie.</string>
+    <string name="update_confirm">Potwierdź instalację na ekranie.</string>
 </resources>

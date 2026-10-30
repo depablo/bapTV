@@ -195,7 +195,7 @@ Entries that the device does not support are hidden.
 | **Watching** | Channel list · TV guide · Audio track · Subtitles · Pause live TV / Back to live TV |
 | **Recordings** | Record current programme / Stop recording · Recordings · Free space (with an estimate in hours) |
 | **Channels** | Search for channels · Manage channels · Channel numbers (broadcaster LCN / in order) · Identify channels and get the guide · Detect channels again · Publish channels to the system |
-| **Settings** | Language (system / Polish / English) · Phone remote · HbbTV on/off ("Not available on this device" where unsupported) · Refresh HbbTV data for channel |
+| **Settings** | About bapTV · Check for updates · Automatic update check · Language (system / Polish / English) · HbbTV on/off ("Not available on this device" where unsupported) · Colour keys · Phone remote · Refresh HbbTV data for channel |
 | **Diagnostics** | Signal information · Diagnostics · Debug overlay |
 
 ## 6. Channels: list, numbering, management
@@ -594,6 +594,7 @@ Debug builds additionally offer a local HTTP server; see
 | `MainActivity` | The player: `TvView`, channel switching, info panel, channel list, menu, key handling, channel discovery by probing, identification, recording and live pause wiring |
 | `MenuPanel` | Two-column menu panel (sections and entries) |
 | `TvDialog` | Dialogs in the menu style |
+| `UpdateChecker` | Latest GitHub release: version check, store changelog, APK download with SHA-256 check (installed by `SelfUpdater`) |
 | `ChannelRepository` | Loads channels (from `TvContract` or discovered), applies identification, the service catalogue, custom names, order, hiding, numbering and duplicate removal; provides programmes |
 | `ChannelStore` | Persistent channel settings keyed by multiplex and service number |
 | `ColourKeysService` | Optional accessibility service that hands the remote's colour keys to the player on devices that route them to another app |
@@ -639,7 +640,7 @@ Resources: English strings in `res/values` (default) and Polish in `res/values-p
 | `READ_EXTERNAL_STORAGE`, `WRITE_EXTERNAL_STORAGE` | read and delete the tuner input's recordings |
 | `INTERNET` | HbbTV applications; phone remote; debug server |
 | `FOREGROUND_SERVICE`, `RECEIVE_BOOT_COMPLETED` | recording service; restoring alarms and the debug server after boot |
-| `REQUEST_INSTALL_PACKAGES` | debug-only remote install |
+| `REQUEST_INSTALL_PACKAGES` | installing updates from the GitHub releases; debug builds: remote install |
 
 ### Fragile points
 

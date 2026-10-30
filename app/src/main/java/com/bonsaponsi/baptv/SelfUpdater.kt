@@ -131,6 +131,14 @@ object SelfUpdater {
         }
     }
 
+    /** Whether [apk] is signed with the same key as the installed app (a test build has another key). */
+    fun sameSigner(context: Context, apk: File): Boolean {
+        val pm = context.packageManager
+        val archive = archiveInfo(pm, apk) ?: return false
+        val signers = signerDigests(archive)
+        return signers.isNotEmpty() && signers == signerDigests(installedInfo(pm, context.packageName))
+    }
+
     /** Installation session result (from [UpdateReceiver]). */
     fun onInstallStatus(context: Context, intent: Intent) {
         val status = intent.getIntExtra(PackageInstaller.EXTRA_STATUS, PackageInstaller.STATUS_FAILURE)
