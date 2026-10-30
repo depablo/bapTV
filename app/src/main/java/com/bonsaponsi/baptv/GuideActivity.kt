@@ -94,8 +94,7 @@ class GuideActivity : Activity() {
 
         val currentId = intent.getLongExtra(EXTRA_CHANNEL_ID, -1)
         io.execute {
-            val input = Dtv.findTunerInput(this) ?: return@execute
-            val loaded = repository.loadChannels(input.id)
+            val loaded = repository.loadChannels(Dtv.findTunerInput(this)?.id)
             handler.post {
                 channels = loaded
                 (channelList.adapter as BaseAdapter).notifyDataSetChanged()

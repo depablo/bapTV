@@ -271,8 +271,7 @@ class DebugHttpServer(private val context: Context, val port: Int = DEFAULT_PORT
         "GET" to "/channels" -> Response("200 OK", JSON, channelsJson().toString(2))
         "GET" to "/epg" -> {
             val id = request.query["channel"]?.toLongOrNull() ?: return text("Specify ?channel=<id>\n", "400 Bad Request")
-            val input = Dtv.findTunerInput(context) ?: return text("No tuner input\n", "503 Service Unavailable")
-            val channel = ChannelRepository(context).loadChannels(input.id).firstOrNull { it.id == id }
+            val channel = ChannelRepository(context).loadChannels(Dtv.findTunerInput(context)?.id).firstOrNull { it.id == id }
                 ?: return text("Unknown channel $id\n", "404 Not Found")
             val list = ChannelRepository(context).programmes(channel)
             Response("200 OK", JSON, org.json.JSONArray().apply {
@@ -289,6 +288,12 @@ class DebugHttpServer(private val context: Context, val port: Int = DEFAULT_PORT
         }
         "GET" to "/probe.ts" -> TsProbe.probeFile(context).let { f ->
             if (f.exists()) Response("200 OK", "video/mp2t", f.readBytes()) else text("No recording – run POST /probe first\n", "404 Not Found")
+        }
+        "POST" to "/debug/no-tuner" -> {
+            // Testing the internet-only mode on a device that has a tuner; takes effect after a restart.
+            val on = request.query["on"] != "0"
+            Dtv.setSimulateNoTuner(context, on)
+            text("Simulated missing tuner: $on – POST /restart to apply.\n")
         }
         "POST" to "/restart" -> {
             SelfUpdater.restart(context)
@@ -353,11 +358,11 @@ class DebugHttpServer(private val context: Context, val port: Int = DEFAULT_PORT
 
     /** Channel list with identified names, DVB identifiers and the current programme. */
     private fun channelsJson(): org.json.JSONArray {
-        val input = Dtv.findTunerInput(context) ?: return org.json.JSONArray()
+        val input = Dtv.findTunerInput(context)
         val repository = ChannelRepository(context)
         val now = System.currentTimeMillis()
         return org.json.JSONArray().apply {
-            repository.loadChannels(input.id, includeHidden = true).forEach { c ->
+            repository.loadChannels(input?.id, includeHidden = true).forEach { c ->
                 val (on, next) = repository.loadNowNext(c, now)
                 put(JSONObject().put("id", c.id).put("number", c.number).put("name", c.name)
                     .put("radio", c.isRadio).put("scrambled", c.scrambled).put("virtual", c.virtual).put("hidden", c.hidden).put("freq", c.frequencyMhz ?: JSONObject.NULL)
@@ -458,7 +463,7 @@ class DebugHttpServer(private val context: Context, val port: Int = DEFAULT_PORT
         private const val JSON = "application/json; charset=utf-8"
         private val RECORDING_FILE = Regex("/recordings/(\\d+)\\.ts")
         private val QUIET_PATHS = setOf("/status", "/log.txt", "/probe.ts", "/screenshot.png", "/hbbtv", "/signal.json")
-        private val KNOWN_PATHS = setOf("/", "/report.txt", "/log.txt", "/log", "/logcat.txt", "/status", "/install", "/launch", "/restart", "/probe", "/probe.ts", "/key", "/hbbtv", "/hbbtv/eval", "/screenshot.png", "/channels", "/epg", "/open", "/capabilities", "/recordings", "/timeshift", "/signal", "/signal.json", "/signal/cycle", "/signal/stop", "/signal/tune", "/signal/probe", "/signal/probe/stop", "/signal/lna", "/signal/rediscover", "/publish", "/tvchannels", "/tvchannels/delete", "/tvchannels/update", "/dtv/install", "/dtv/action")
+        private val KNOWN_PATHS = setOf("/", "/report.txt", "/log.txt", "/log", "/logcat.txt", "/status", "/install", "/launch", "/restart", "/probe", "/probe.ts", "/key", "/hbbtv", "/hbbtv/eval", "/screenshot.png", "/channels", "/epg", "/open", "/capabilities", "/recordings", "/timeshift", "/signal", "/signal.json", "/signal/cycle", "/signal/stop", "/signal/tune", "/signal/probe", "/signal/probe/stop", "/signal/lna", "/signal/rediscover", "/publish", "/tvchannels", "/tvchannels/delete", "/tvchannels/update", "/dtv/install", "/dtv/action", "/debug/no-tuner")
 
         /** One server per process – kept alive by [DebugServerService]. */
         @Volatile var instance: DebugHttpServer? = null

@@ -159,6 +159,8 @@ class MainActivity : Activity() {
     private var tunedAt = 0L
     /** [tunedAt] of the tune already repeated after a lost session (one retry per channel change). */
     private var retunedAfterDisconnect = -1L
+    private var broadcastHintShown = false
+    private var noTunerNoticeShown = false
     private var videoState = "-"
     private var lastCallback = "-"
     @Volatile private var lastSignal: String? = null
@@ -366,6 +368,8 @@ class MainActivity : Activity() {
 
     /** Reading dtvinput recordings (HbbTV experiment) needs storage read permission – requested on demand by [TsProbe]. */
     private fun maybeRequestStorage(intent: Intent?) {
+        // Only stream analysis reads recordings – no prompt without a tuner that supports it.
+        if (!DeviceCapabilities.get(this).streamAnalysis) return
         val write = android.Manifest.permission.WRITE_EXTERNAL_STORAGE
         // Write (deleting recordings) is in the same group as read – with read granted the system does not prompt.
         if (TsProbe.hasStoragePermission(this) && checkSelfPermission(write) != PackageManager.PERMISSION_GRANTED) {
@@ -479,22 +483,21 @@ class MainActivity : Activity() {
     private fun loadChannelsAndPlay() {
         val tuner = Dtv.findTunerInput(this)
         input = tuner
-        if (tuner == null) {
-            DebugLog.error("Player", "no tuner-type TV input found")
-            showStatus(getString(R.string.no_input))
-            ReportSender.offer(this, ReportSender.Reason.NO_TUNER, getString(R.string.no_input), automatic = true)
-            return
-        }
-        DebugLog.log("Player", "input: ${tuner.id} (${tuner.loadLabel(this)}), tuners=${tuner.tunerCount}")
+        // Without a tuner the app still plays internet channels – the same player, list and phone remote.
+        if (tuner == null) DebugLog.warn("Player", "no tuner-type TV input found – internet channels only")
+        else DebugLog.log("Player", "input: ${tuner.id} (${tuner.loadLabel(this)}), tuners=${tuner.tunerCount}")
         io.execute {
             val caps = DeviceCapabilities.refresh(this)
-            val loaded = repository.loadChannels(tuner.id)
+            val loaded = repository.loadChannels(tuner?.id)
             loaded.forEach { repository.programmes(it) } // load EPG into memory off the main thread
             DebugLog.log("Player", "loaded ${loaded.size} channels: " + loaded.take(40).joinToString { "${it.number} ${it.name}" })
             handler.post {
                 channels = loaded
                 adapter.notifyDataSetChanged()
-                if (loaded.isEmpty()) {
+                if (tuner == null) {
+                    showNoTunerNotice(loaded.isEmpty())
+                    if (loaded.isEmpty()) return@post
+                } else if (loaded.none { !it.iptv }) {
                     if (permissionDialogOpen) {
                         DebugLog.log("Player", "no channels – waiting for the permission dialog to close")
                         reloadAfterPermissions = true
@@ -513,16 +516,25 @@ class MainActivity : Activity() {
                     // Not after a scan (setup stage 2 must follow) nor after any earlier scan in the app.
                     val firstLaunch = !SetupProgress.inPipeline(this) && !SetupProgress.scannedBefore(this) &&
                         !prefs.getBoolean(PREF_FIRST_SCAN_OPENED, false)
-                    if (caps.channelDiscovery && !firstLaunch) startDiscovery(tuner) else if (!autoScanOpened) {
-                        autoScanOpened = true
-                        prefs.edit().putBoolean(PREF_FIRST_SCAN_OPENED, true).apply()
-                        DebugLog.log("Player", "no channels${if (firstLaunch) " on first launch" else ""} – opening the scan screen")
-                        showStatus(getString(R.string.no_channels_scan))
-                        startActivity(Intent(this, ScanActivity::class.java))
+                    if (loaded.isNotEmpty()) {
+                        // Internet channels play on – a hint about the antenna instead of taking over the screen.
+                        if (!broadcastHintShown) {
+                            broadcastHintShown = true
+                            DebugLog.log("Player", "no broadcast channels – playing internet channels")
+                            TvDialog.toast(this, getString(R.string.no_broadcast_iptv), long = true)
+                        }
                     } else {
-                        showStatus(getString(R.string.no_channels))
+                        if (caps.channelDiscovery && !firstLaunch) startDiscovery(tuner) else if (!autoScanOpened) {
+                            autoScanOpened = true
+                            prefs.edit().putBoolean(PREF_FIRST_SCAN_OPENED, true).apply()
+                            DebugLog.log("Player", "no channels${if (firstLaunch) " on first launch" else ""} – opening the scan screen")
+                            showStatus(getString(R.string.no_channels_scan))
+                            startActivity(Intent(this, ScanActivity::class.java))
+                        } else {
+                            showStatus(getString(R.string.no_channels))
+                        }
+                        return@post
                     }
-                    return@post
                 }
                 if (identifyAfterLoad) {
                     identifyAfterLoad = false
@@ -558,6 +570,19 @@ class MainActivity : Activity() {
         }
     }
 
+    /**
+     * No tuner input: with internet channels the player works as usual and the user learns once why there is
+     * no antenna TV; with nothing to watch – where to add internet channels (each launch, it is the only way on).
+     */
+    private fun showNoTunerNotice(empty: Boolean) {
+        if (empty) showStatus(getString(R.string.no_tuner_status))
+        if (noTunerNoticeShown || (!empty && prefs.getBoolean(PREF_NO_TUNER_NOTICE, false))) return
+        noTunerNoticeShown = true
+        prefs.edit().putBoolean(PREF_NO_TUNER_NOTICE, true).apply()
+        TvDialog.confirm(this, getString(R.string.no_tuner_title), getString(R.string.no_tuner_iptv),
+            getString(R.string.menu_phone_remote), getString(android.R.string.ok), focusCancel = !empty) { showPhoneRemote() }
+    }
+
     /** Index of the adjacent channel; with no channel selected (−1) always the first, not the last in the list. */
     private fun stepFrom(step: Int) = if (currentIndex < 0) 0 else currentIndex + step
 
@@ -566,10 +591,11 @@ class MainActivity : Activity() {
             DebugLog.log("Player", "tune skipped – player is not on screen")
             return
         }
-        val tuner = input ?: return
         if (channels.isEmpty()) return
         val target = Math.floorMod(index, channels.size)
         val channel = channels[target]
+        // Internet channels carry their own input; broadcast ones need the tuner.
+        val channelInput = channel.inputId ?: input?.id ?: return
         if (timeshift.active && channels.getOrNull(currentIndex)?.id != channel.id) {
             confirmInterruptTimeshift(channel)
             return
@@ -593,7 +619,7 @@ class MainActivity : Activity() {
         hbbNoticeShownFor = -1L
         showStatus(getString(R.string.status_tuning))
         // Internet channels play through the app's own input ([IptvInputService]).
-        tvView.tune(channel.inputId ?: tuner.id, channel.uri)
+        tvView.tune(channelInput, channel.uri)
         if (channel.iptv && iptvStream?.first != channel.id) io.execute {
             val stream = Iptv.stream(this, channel.id) ?: return@execute
             handler.post {
@@ -1254,7 +1280,7 @@ class MainActivity : Activity() {
         )
         val lcn = ChannelRepository.lcnNumbering(this)
         val channelEntries = listOfNotNull(
-            MenuPanel.Entry(getString(R.string.menu_scan)) { startActivity(Intent(this, ScanActivity::class.java)) },
+            MenuPanel.Entry(getString(R.string.menu_scan)) { startActivity(Intent(this, ScanActivity::class.java)) }.takeIf { input != null },
             MenuPanel.Entry(getString(R.string.menu_manage)) { startActivity(Intent(this, ChannelsActivity::class.java)) },
             MenuPanel.Entry(getString(R.string.menu_numbering),
                 getString(if (lcn) R.string.menu_numbering_value_lcn else R.string.menu_numbering_value_seq), stay) {
@@ -1723,10 +1749,10 @@ class MainActivity : Activity() {
 
     /** Reloads the list (names, numbers) without switching channels. */
     private fun reloadChannels() {
-        val tuner = input ?: return
+        val tunerId = input?.id
         val currentId = channels.getOrNull(currentIndex)?.id
         io.execute {
-            val loaded = repository.loadChannels(tuner.id)
+            val loaded = repository.loadChannels(tunerId)
             loaded.forEach { repository.programmes(it) } // load EPG into memory off the main thread
             handler.post {
                 channels = loaded
@@ -1835,9 +1861,9 @@ class MainActivity : Activity() {
                 } else {
                     showStatusBriefly(getString(if (identifyCancelled) R.string.identify_cancelled else R.string.identify_done, ok, total))
                 }
-                val tuner = input ?: return@post
+                val tunerId = input?.id
                 io.execute {
-                    val loaded = repository.loadChannels(tuner.id)
+                    val loaded = repository.loadChannels(tunerId)
                     loaded.forEach { repository.programmes(it) }
                     handler.post {
                         channels = loaded
@@ -1919,9 +1945,9 @@ class MainActivity : Activity() {
             if (!broadcastStopped) return
             broadcastStopped = false
             val channel = channels.getOrNull(currentIndex) ?: return
-            val tuner = input ?: return
+            val channelInput = channel.inputId ?: input?.id ?: return
             DebugLog.log("HbbTV", "app resumes the broadcast video")
-            tvView.tune(channel.inputId ?: tuner.id, channel.uri)
+            tvView.tune(channelInput, channel.uri)
         }
         override fun hbbBroadcastRect(rect: String) {
             val params = tvView.layoutParams as android.widget.FrameLayout.LayoutParams
@@ -1967,7 +1993,8 @@ class MainActivity : Activity() {
                     handler.removeCallbacks(commitDigits)
                     commitDigits.run()
                 } else if (channels.isEmpty()) {
-                    startActivity(Intent(this, ScanActivity::class.java))
+                    // Without a tuner the only source of channels is the phone (IPTV tab).
+                    if (input == null) showPhoneRemote() else startActivity(Intent(this, ScanActivity::class.java))
                 } else {
                     showMenu()
                 }
@@ -2191,6 +2218,7 @@ class MainActivity : Activity() {
         private const val REQUEST_RECORDINGS = 4
         private const val PREF_STORAGE_ASKED = "storage_asked"
         private const val PREF_FIRST_SCAN_OPENED = "first_scan_opened"
+        private const val PREF_NO_TUNER_NOTICE = "no_tuner_notice"
         private const val PREF_COLOUR_KEYS_OFFERED = "colour_keys_offered"
         private const val COLOUR_KEYS_OFFER_DELAY_MS = 3000L
         private const val STORAGE_ASK_INTERVAL_MS = 24 * 3600_000L

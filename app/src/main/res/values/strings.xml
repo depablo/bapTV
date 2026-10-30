@@ -3,7 +3,11 @@
 <resources>
     <string name="app_name">bapTV</string>
 
-    <string name="no_input">No DVB-T tuner found on this device.</string>
+    <string name="no_tuner_title">No TV tuner</string>
+    <string name="no_tuner_iptv">This device has no TV tuner, or the system does not make it available. Internet channels (IPTV) work as usual – add them on your phone: Menu → Settings → Phone remote, then the IPTV tab.</string>
+    <string name="no_tuner_status">No TV tuner – add internet channels on your phone (Menu → Settings → Phone remote).</string>
+    <string name="no_broadcast_iptv">No channels from the antenna – internet channels only for now. To search: Menu → Channels → Search for channels.</string>
+    <string name="scan_iptv_hint">Internet channels (IPTV) work without the tuner – add them on your phone: Menu → Settings → Phone remote.</string>
     <string name="need_permission">The app needs access to the TV channel list.</string>
 
     <string name="status_tuning">Tuning…</string>

@@ -41,7 +41,9 @@ of the HbbTV apps are blurred.</sub>
 
 ## Requirements and supported devices
 
-- Android TV with Android 8.0 or newer (API 26+) and a TIF tuner input (`TvInputInfo.TYPE_TUNER`).
+- Android TV with Android 8.0 or newer (API 26+). Broadcast TV needs a TIF tuner input
+  (`TvInputInfo.TYPE_TUNER`); without one, or when the tuner fails, the app works with internet
+  channels (IPTV) only – the same player, channel list, guide and phone remote.
 - **Basic features** (playback, channel list, info panel, track selection, guide from `TvContract`)
   work with any tuner input that exposes its channels to other apps.
 - **Full feature set** (in-app scan, channel discovery, recording, live pause, HbbTV, stream
@@ -112,7 +114,7 @@ building and testing).
 ## Reporting issues
 
 The easiest way is **Send report to the developer** in the menu (Diagnostics section) or **Send report**
-on the Diagnostics screen. The app also offers it after a failed channel scan, when no tuner is found,
+on the Diagnostics screen. The app also offers it after a failed channel scan
 and after a crash. Nothing is sent without your confirmation. The report goes to the bapTV report
 service (`reports.bonsaponsi.com`, source in [`server/reports`](server/reports)): a short summary
 (app version, device model, Android version, error) becomes a public GitHub issue, while the full

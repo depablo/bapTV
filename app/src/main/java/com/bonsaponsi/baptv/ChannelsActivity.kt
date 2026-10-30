@@ -82,8 +82,7 @@ class ChannelsActivity : Activity() {
         val selectedTop = list.selectedView?.top ?: 0
         updateHideScrambledButton()
         io.execute {
-            val input = Dtv.findTunerInput(this) ?: return@execute
-            val loaded = repository.loadChannels(input.id, includeHidden = true)
+            val loaded = repository.loadChannels(Dtv.findTunerInput(this)?.id, includeHidden = true)
             handler.post {
                 items = loaded.toMutableList()
                 (list.adapter as BaseAdapter).notifyDataSetChanged()

@@ -2,7 +2,11 @@
 <resources>
     <string name="app_name">bapTV</string>
 
-    <string name="no_input">Nie znaleziono tunera DVB-T w systemie.</string>
+    <string name="no_tuner_title">Brak tunera TV</string>
+    <string name="no_tuner_iptv">To urządzenie nie ma tunera telewizji naziemnej albo system go nie udostępnia. Kanały internetowe (IPTV) działają normalnie – dodasz je w telefonie: Menu → Ustawienia → Pilot w telefonie, zakładka IPTV.</string>
+    <string name="no_tuner_status">Brak tunera TV – dodaj kanały internetowe w telefonie (Menu → Ustawienia → Pilot w telefonie).</string>
+    <string name="no_broadcast_iptv">Brak kanałów z anteny – na razie tylko kanały internetowe. Wyszukiwanie: Menu → Kanały → Wyszukaj kanały.</string>
+    <string name="scan_iptv_hint">Kanały internetowe (IPTV) działają bez tunera – dodasz je w telefonie: Menu → Ustawienia → Pilot w telefonie.</string>
     <string name="need_permission">Aplikacja potrzebuje dostępu do listy kanałów TV.</string>
 
     <string name="status_tuning">Dostrajanie…</string>

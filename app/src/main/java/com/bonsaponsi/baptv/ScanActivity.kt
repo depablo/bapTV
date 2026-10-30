@@ -182,7 +182,7 @@ class ScanActivity : Activity() {
             showAdvanced(true)
             advancedToggle.visibility = View.GONE
             modeText.text = getString(if (caps.systemSetup) R.string.scan_mode_wizard else R.string.scan_mode_none)
-            statusText.text = ""
+            statusText.text = if (caps.systemSetup) "" else getString(R.string.scan_iptv_hint)
             findViewById<Button>(if (caps.systemSetup) R.id.scan_setup else R.id.scan_close).requestFocus()
         }
     }
@@ -324,7 +324,7 @@ class ScanActivity : Activity() {
             }
             "fail" in status && System.currentTimeMillis() - startedAt < REJECTED_MS && visitedFrequencies.size <= 1 -> onScanRejected()
             "fail" in status -> {
-                finishScan(getString(R.string.scan_failed), null)
+                finishScan(getString(R.string.scan_failed) + "\n" + getString(R.string.scan_iptv_hint), null)
                 ReportSender.offer(this, ReportSender.Reason.SCAN_FAILED, getString(R.string.scan_failed), automatic = true)
             }
             "cancel" in status -> finishScan(getString(R.string.scan_cancelled), null)
@@ -442,7 +442,7 @@ class ScanActivity : Activity() {
         }
         val message = getString(R.string.scan_rejected, getString(R.string.scan_method_setup))
         getSharedPreferences(PREFS, MODE_PRIVATE).edit().remove(PREF_PARAMS_VARIANT).apply()
-        finishScan(message, null)
+        finishScan(message + "\n" + getString(R.string.scan_iptv_hint), null)
         if (DeviceCapabilities.get(this).systemSetup) {
             showAdvanced(true)
             findViewById<Button>(R.id.scan_setup).requestFocus()

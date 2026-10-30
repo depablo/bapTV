@@ -50,19 +50,23 @@ class ChannelRepository(private val context: Context) {
     /**
      * Channels for playback: from TvContract, or when the input doesn't expose them (searchable=0) –
      * the list discovered by probing. User-assigned names take precedence.
+     * Without a tuner input ([inputId] null) – internet channels only.
      */
-    fun loadChannels(inputId: String, includeHidden: Boolean = false): List<Channel> {
-        val fromProvider = loadFromProvider(inputId)
-        val channels = if (fromProvider.isNotEmpty()) {
-            fromProvider
-        } else {
-            store.loadDiscovered().also { DebugLog.log("Channels", "TvContract empty – using ${it.size} discovered channels") }
+    fun loadChannels(inputId: String?, includeHidden: Boolean = false): List<Channel> {
+        val broadcast = if (inputId == null) emptyList() else {
+            val fromProvider = loadFromProvider(inputId)
+            val channels = if (fromProvider.isNotEmpty()) {
+                fromProvider
+            } else {
+                store.loadDiscovered().also { DebugLog.log("Channels", "TvContract empty – using ${it.size} discovered channels") }
+            }
+            // Channel settings from before a rescan (old IDs) move to DVB keys.
+            services.all().forEach { e -> store.migrate(e.channelId, e.tsid, e.sid) }
+            if (fromProvider.isNotEmpty()) services.carryOver(fromProvider)
+            dropDuplicates(identify(channels))
         }
-        // Channel settings from before a rescan (old IDs) move to DVB keys.
-        services.all().forEach { e -> store.migrate(e.channelId, e.tsid, e.sid) }
-        if (fromProvider.isNotEmpty()) services.carryOver(fromProvider)
         // Internet channels follow the broadcast ones; the user's order and hiding apply to both.
-        return organise(dropDuplicates(identify(channels)) + Iptv.load(context), includeHidden)
+        return organise(broadcast + Iptv.load(context), includeHidden)
     }
 
     /**

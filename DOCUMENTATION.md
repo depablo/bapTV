@@ -32,7 +32,11 @@ Contents:
 
 ## 1. Device support
 
-bapTV needs an Android TV device with Android 8.0 or newer (API 26+) and a TIF tuner input.
+bapTV needs an Android TV device with Android 8.0 or newer (API 26+). Broadcast TV needs a TIF
+tuner input; without one (or when the tuner input fails) the app runs with internet channels only –
+the same player, channel list, guide and phone remote. It then says once why there is no antenna
+TV and where to add internet channels, and hides the entries that need a tuner (channel search,
+recording, signal).
 It never talks to the tuner hardware directly: playback, channel data and recording all go through
 the public TIF APIs (`TvView`, `TvContract`, `TvRecordingClient`).
 

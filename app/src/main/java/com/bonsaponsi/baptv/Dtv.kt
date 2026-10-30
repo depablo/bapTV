@@ -81,10 +81,19 @@ object Dtv {
      * and if there is none (another manufacturer) – the first TUNER-type input.
      */
     fun findTunerInput(context: Context): TvInputInfo? {
+        if (simulateNoTuner(context)) return null
         val manager = context.getSystemService(Context.TV_INPUT_SERVICE) as? TvInputManager ?: return null
         val inputs = manager.tvInputList
         return inputs.firstOrNull { it.serviceInfo.packageName == DTV_INPUT_PACKAGE }
             // The app's own internet input ([IptvInputService]) is a TUNER-type input too – never the broadcast tuner.
             ?: inputs.firstOrNull { it.type == TvInputInfo.TYPE_TUNER && !it.isPassthroughInput && it.serviceInfo.packageName != context.packageName }
+    }
+
+    /** Debug builds only: pretend there is no tuner (POST /debug/no-tuner) to test the internet-only mode. */
+    private fun simulateNoTuner(context: Context) =
+        BuildConfig.DEBUG && context.getSharedPreferences("debug", Context.MODE_PRIVATE).getBoolean("no_tuner", false)
+
+    fun setSimulateNoTuner(context: Context, on: Boolean) {
+        context.getSharedPreferences("debug", Context.MODE_PRIVATE).edit().putBoolean("no_tuner", on).commit()
     }
 }

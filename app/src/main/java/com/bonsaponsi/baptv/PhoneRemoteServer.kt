@@ -200,9 +200,8 @@ class PhoneRemoteServer(private val context: Context, val port: Int) {
 
     /** All channels with their organisation (hidden ones too), as on the Manage channels screen. */
     private fun manageList(): JSONObject? {
-        val input = Dtv.findTunerInput(context) ?: return null
         val array = JSONArray()
-        ChannelRepository(context).loadChannels(input.id, includeHidden = true).forEach { c ->
+        ChannelRepository(context).loadChannels(Dtv.findTunerInput(context)?.id, includeHidden = true).forEach { c ->
             array.put(channelJson(c).put("hidden", c.hidden).put("scrambled", c.scrambled).put("virtual", c.virtual))
         }
         return JSONObject().put("hideScrambled", ChannelStore(context).hideScrambled).put("channels", array)
@@ -213,8 +212,7 @@ class PhoneRemoteServer(private val context: Context, val port: Int) {
 
     /** Applies a change to the channel organisation, refreshes the TV screens and returns the new list. */
     private fun manage(request: HttpRequest, change: (ChannelStore, List<Channel>) -> Unit): Response {
-        val input = Dtv.findTunerInput(context) ?: return error("409 Conflict", "no tuner input")
-        val channels = ChannelRepository(context).loadChannels(input.id, includeHidden = true)
+        val channels = ChannelRepository(context).loadChannels(Dtv.findTunerInput(context)?.id, includeHidden = true)
         change(ChannelStore(context), channels)
         DebugLog.log("Remote", "channel organisation changed from the phone: ${request.path}")
         channelsChanged()

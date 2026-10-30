@@ -72,7 +72,7 @@ data class DeviceCapabilities(
                 inputId = input?.id,
                 inputLabel = input?.let { runCatching { it.loadLabel(app).toString() }.getOrNull() },
                 cbs = cbs,
-                tunerStats = providerResponds(app),
+                tunerStats = input != null && providerResponds(app),
                 systemSetup = input?.let { hasSetup(app, it) } ?: false,
                 channelsVisible = input?.let { countChannels(app, it.id) > 0 } ?: false,
                 // Reading the recording file is verified only with dtvinput (directory Android/media/<package>/Records);
