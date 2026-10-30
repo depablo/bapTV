@@ -67,7 +67,11 @@ possible, and the country and scan frequency plan.
 
 ## 2. Getting started
 
-1. Install the APK (see [README](README.md#installing)) and start **bapTV**.
+1. Install the APK (see [README](README.md#installing)) and start **bapTV**. The first start of a
+   fresh install opens a short introduction (a few pages: controls, phone remote, internet channels,
+   pause and recording, HbbTV, help – pages for features the device lacks are left out). It can be
+   opened again from Menu → Settings → Introduction to the app. After an update the app shows once
+   what is new – major features only.
 2. Grant access to TV listings when asked. It is needed to read the channel list and guide of the
    tuner input.
 3. On first start, and whenever there are no channels, the app opens the channel search screen
@@ -195,7 +199,7 @@ Entries that the device does not support are hidden.
 | **Watching** | Channel list · TV guide · Audio track · Subtitles · Pause live TV / Back to live TV |
 | **Recordings** | Record current programme / Stop recording · Recordings · Free space (with an estimate in hours) |
 | **Channels** | Search for channels · Manage channels · Channel numbers (broadcaster LCN / in order) · Identify channels and get the guide · Detect channels again · Publish channels to the system |
-| **Settings** | About bapTV · Check for updates · Automatic update check · Language (system / Polish / English) · HbbTV on/off ("Not available on this device" where unsupported) · Colour keys · Phone remote · Refresh HbbTV data for channel |
+| **Settings** | About bapTV · Introduction to the app · Check for updates · Automatic update check · Language (system / Polish / English) · HbbTV on/off ("Not available on this device" where unsupported) · Colour keys · Phone remote · Refresh HbbTV data for channel |
 | **Diagnostics** | Signal information · Diagnostics · Debug overlay |
 
 ## 6. Channels: list, numbering, management
@@ -594,6 +598,7 @@ Debug builds additionally offer a local HTTP server; see
 | `MainActivity` | The player: `TvView`, channel switching, info panel, channel list, menu, key handling, channel discovery by probing, identification, recording and live pause wiring |
 | `MenuPanel` | Two-column menu panel (sections and entries) |
 | `TvDialog` | Dialogs in the menu style |
+| `Tour` | Introduction on the first start and "What's new" after an update (major features per versionCode) |
 | `UpdateChecker` | Latest GitHub release: version check, store changelog, APK download with SHA-256 check (installed by `SelfUpdater`) |
 | `ChannelRepository` | Loads channels (from `TvContract` or discovered), applies identification, the service catalogue, custom names, order, hiding, numbering and duplicate removal; provides programmes |
 | `ChannelStore` | Persistent channel settings keyed by multiplex and service number |

@@ -328,4 +328,28 @@
     <string name="update_recording">A recording is in progress – update after it finishes.</string>
     <string name="update_other_key">This copy of bapTV is signed with a different key than the GitHub releases (for example a test build) – install the new version manually.</string>
     <string name="update_confirm">Confirm the installation on the screen.</string>
+
+    <!-- Introduction and what's new -->
+    <string name="menu_tour">Introduction to the app</string>
+    <string name="tour_next">Next</string>
+    <string name="tour_skip">Skip</string>
+    <string name="tour_start">Let\'s start</string>
+    <string name="tour_open">Introduction</string>
+    <string name="tour_welcome_title">Welcome to bapTV</string>
+    <string name="tour_welcome_text">Antenna and internet TV in one player. Change channels with P+/P− or the number keys, OK opens the menu and the down arrow shows what is on.</string>
+    <string name="tour_remote_title">Phone remote</string>
+    <string name="tour_remote_text">Menu → Settings → Phone remote shows a QR code. Scan it with a phone on the same Wi-Fi and its browser becomes a remote with the channel list and channel organisation – no app to install.</string>
+    <string name="tour_remote_signal">Its Signal tab helps you aim the antenna.</string>
+    <string name="tour_iptv_title">Internet channels</string>
+    <string name="tour_iptv_text">Add M3U playlists on the phone, in the remote\'s IPTV tab. Internet channels are numbered from 1001 and work even without a TV tuner.</string>
+    <string name="tour_record_title">Pause and recording</string>
+    <string name="tour_record_text">⏯ pauses live TV and resumes it with a delay. The menu records the current programme and lists your recordings.</string>
+    <string name="tour_hbbtv_title">HbbTV</string>
+    <string name="tour_hbbtv_text">On channels with HbbTV services (for example TVP) press the red button to open the broadcaster\'s app.</string>
+    <string name="tour_help_title">Help</string>
+    <string name="tour_help_text">If something does not work: Menu → Diagnostics → Send report to the developer. This introduction is in Menu → Settings.</string>
+    <string name="whats_new_title">What\'s new in bapTV %1$s</string>
+    <string name="whats_new_iptv_without_tuner">Internet channels work without a TV tuner and when the tuner fails – the same player, list and phone remote.</string>
+    <string name="whats_new_updates">Updates: the app checks GitHub for new versions and installs them (Menu → Settings).</string>
+    <string name="whats_new_tour">An introduction to the app\'s features: Menu → Settings → Introduction to the app.</string>
 </resources>

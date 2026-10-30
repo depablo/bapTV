@@ -161,6 +161,7 @@ class MainActivity : Activity() {
     private var retunedAfterDisconnect = -1L
     private var broadcastHintShown = false
     private var noTunerNoticeShown = false
+    private var tourChecked = false
     private var videoState = "-"
     private var lastCallback = "-"
     @Volatile private var lastSignal: String? = null
@@ -357,6 +358,7 @@ class MainActivity : Activity() {
         }
         loadChannelsAndPlay()
         maybeRequestStorage(intent)
+        handler.postDelayed({ if (started) Tour.showWhatsNew(this) }, WHATS_NEW_DELAY_MS)
         // The previous run crashed: offer a report once the player is on screen.
         handler.postDelayed({ if (started) ReportSender.offerPendingCrash(this) }, REPORT_PROMPT_DELAY_MS)
         // New release on GitHub: checked at most once a day, a while after the picture appears.
@@ -483,6 +485,11 @@ class MainActivity : Activity() {
     }
 
     private fun loadChannelsAndPlay() {
+        // First start of a fresh install: the introduction comes before the channel search.
+        if (!tourChecked) {
+            tourChecked = true
+            if (Tour.showIfFirstStart(this) { if (started) loadChannelsAndPlay() }) return
+        }
         val tuner = Dtv.findTunerInput(this)
         input = tuner
         // Without a tuner the app still plays internet channels – the same player, list and phone remote.
@@ -1296,6 +1303,7 @@ class MainActivity : Activity() {
         )
         val settings = listOfNotNull(
             MenuPanel.Entry(getString(R.string.menu_about), BuildConfig.VERSION_NAME) { showAbout(menu::returned) },
+            MenuPanel.Entry(getString(R.string.menu_tour)) { Tour.show(this, menu::returned) },
             MenuPanel.Entry(getString(R.string.menu_update_check), after = leave) { checkForUpdate(manual = true) }
                 .takeIf { UpdateChecker.supported(this) },
             MenuPanel.Entry(getString(R.string.menu_update_auto), onOff(UpdateChecker.autoEnabled(this)), stay) {
@@ -2265,6 +2273,7 @@ class MainActivity : Activity() {
     companion object {
         private const val REPORT_PROMPT_DELAY_MS = 1500L
         private const val UPDATE_CHECK_DELAY_MS = 20_000L
+        private const val WHATS_NEW_DELAY_MS = 3000L
         private const val REQUEST_PERMISSION = 1
         private const val PREF_LAST_CHANNEL = "last_channel_id"
         private const val PREF_AUDIO_LANG = "audio_lang"
