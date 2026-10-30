@@ -1,0 +1,1 @@
+Kanały internetowe (IPTV) działają teraz bez tunera TV i gdy tuner zawodzi – ten sam odtwarzacz, lista kanałów i pilot w telefonie. Aplikacja sama sprawdza nowe wersje na GitHubie i je instaluje (Menu → Ustawienia). Krótki przewodnik przy pierwszym uruchomieniu i informacja „Co nowego” po aktualizacji.

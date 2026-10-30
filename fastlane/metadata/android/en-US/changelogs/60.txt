@@ -1,0 +1,1 @@
+Internet channels (IPTV) now work without a TV tuner and when the tuner fails – the same player, channel list and phone remote. The app checks GitHub for new versions and installs them (Menu → Settings). A short introduction on the first start, and a "What's new" note after updates.

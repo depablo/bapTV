@@ -28,8 +28,8 @@ android {
         // The target device runs Android TV 11 (API 30). targetSdk 29: on Android 11 only then does
         // requestLegacyExternalStorage work, which is needed to read dtvinput recordings (HbbTV experiment).
         targetSdk = 29
-        versionCode = 59
-        versionName = "1.4.1"
+        versionCode = 60
+        versionName = "1.5.0"
         // Build time in /status (debug server): the deploy script uses it to check that the set-top box runs the
         // version just sent. Release builds keep 0 so that the same source always gives the same APK
         // (reproducible builds, F-Droid).
