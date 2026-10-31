@@ -128,10 +128,13 @@ Notes:
 A phone in the same network can work as a remote: Menu → Settings → Phone remote shows a QR code.
 Scanning it opens the remote in the phone's browser; no app is installed. The page has the remote
 keys (arrows, OK, BACK, MENU, GUIDE, INFO, CH+/CH−, ⏯, colour keys, digits, audio and subtitles),
-the channel on screen with the current programme, and a searchable channel list with category chips where a
-tap switches the channel. The Organise tab does what the Manage channels screen does: drag ≡ to move a
-channel, tap a name to rename it (an empty name brings back the broadcaster's), pick its category
-("Auto" keeps the app's guess), the eye hides or shows a channel, plus the "Scrambled: hidden/shown" switch and "Restore defaults". Changes reach the
+the channel on screen with the current programme, and the Channels tab: a searchable channel list with
+category chips where a tap switches the channel. Holding a channel lifts it: drag it up or down to move it,
+and after letting go ✎ renames it (an empty name brings back the broadcaster's) and the crossed-out eye
+hides it. The floating **Edit list** button opens the full organising view, which does what the Manage
+channels screen does: all channels including hidden ones, drag ≡ to move, tap a name to rename, pick a
+category ("Auto" keeps the app's guess), the eye hides or shows a channel, plus the "Scrambled:
+hidden/shown" switch and "Restore defaults"; **Done** goes back to the list. Changes reach the
 player and an open Manage channels screen at once. The IPTV tab adds internet channels (see
 [Internet channels](#internet-channels)). The Signal tab (on devices that report tuner statistics)
 helps aim the antenna: signal quality with strength, SNR and BER as live charts, an optional tick
@@ -218,7 +221,7 @@ children, music, education, arts, leisure, society) and **Radio** / **Internet (
 are only part of the list; ◀ on "All channels" closes the list. Channel switching (CH+/CH−,
 digits) always uses all channels.
 
-A channel's category is, in this order: the one chosen in the phone remote (Organise tab); for an
+A channel's category is, in this order: the one chosen in the phone remote (Channels tab → Edit list); for an
 internet channel the playlist group (`group-title`); a table of Polish terrestrial channels; keywords
 in the name ("sport", "news", "kids", "music", "film"… in several languages); the genre filling at
 least half of the channel's TV guide (from the broadcast EIT); radio stations default to music. The

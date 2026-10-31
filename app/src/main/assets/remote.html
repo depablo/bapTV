@@ -84,6 +84,15 @@ main { flex: 1; overflow: auto; padding: 14px 0 18px; }
 .item .t { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .item .p { color: var(--muted); font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-height: 1em; }
 .item.current .t { color: var(--accent); }
+.item { position: relative; touch-action: pan-y; }
+.item.picked { grid-template-columns: 28px 48px 1fr; padding-right: 104px; background: var(--surface); }
+.item.picked::before { content: "≡"; grid-row: span 2; color: var(--muted); font-size: 20px; align-self: center; }
+.item.dragging { z-index: 2; box-shadow: 0 4px 14px rgba(0,0,0,.35); }
+.item .acts { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); display: flex; gap: 2px; background: var(--surface); }
+.item .acts button { border: 0; background: none; color: var(--text); width: 44px; height: 44px; font-size: 19px; display: flex; align-items: center; justify-content: center; }
+.fab { position: fixed; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom)); z-index: 5; border: 0; border-radius: 28px;
+  background: var(--accent); color: var(--accent-text); font: inherit; font-weight: 600; padding: 14px 20px; box-shadow: 0 3px 10px rgba(0,0,0,.3); }
+#tab-channels, #tab-organise { padding-bottom: 76px; }
 .empty { color: var(--muted); padding: 24px 4px; text-align: center; }
 
 .tools { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
@@ -172,7 +181,6 @@ table.results td:last-child { text-align: right; font-variant-numeric: tabular-n
   <nav>
     <button class="on" data-tab="remote" data-t="tabRemote"></button>
     <button data-tab="channels" data-t="tabChannels"></button>
-    <button data-tab="organise" data-t="tabOrganise"></button>
     <button data-tab="iptv" data-t="tabIptv"></button>
     <button data-tab="signal" data-t="tabSignal" class="hidden" id="signalTab"></button>
   </nav>
@@ -219,6 +227,7 @@ table.results td:last-child { text-align: right; font-variant-numeric: tabular-n
     <section id="tab-channels" class="hidden">
       <input class="search" id="search" type="search" autocomplete="off">
       <div class="chips hidden" id="catChips"></div>
+      <p class="tip hidden" id="holdTip" data-t="holdTip"></p>
       <div class="list" id="list"></div>
     </section>
     <section id="tab-organise" class="hidden">
@@ -229,6 +238,7 @@ table.results td:last-child { text-align: right; font-variant-numeric: tabular-n
       <p class="tip" data-t="organiseTip"></p>
       <div class="list" id="orgList"></div>
     </section>
+    <button class="fab hidden" id="editFab"></button>
     <section id="tab-signal" class="hidden">
       <div class="meter">
         <div class="big" id="sigQuality">–</div>
@@ -305,7 +315,9 @@ const STRINGS = {
     last: "Previous", audio: "Audio", subtitles: "Subtitles", digits: "123", search: "Search channels",
     offline: "No connection to the set-top box – check that the phone is on the same Wi-Fi network and that bapTV is on the TV screen", notOnScreen: "bapTV is not on the TV screen", cannotTune: "Cannot switch channel now",
     noChannels: "No channels", recording: "● Recording: ", otherScreen: "bapTV",
-    tabOrganise: "Organise", reset: "Restore defaults", scrambledHidden: "Scrambled: hidden", scrambledShown: "Scrambled: shown",
+    editList: "✎ Edit list", done: "✓ Done", reset: "Restore defaults",
+    holdTip: "Hold a channel to move it, rename or hide it. “Edit list” shows all channels, hidden ones too, and their categories.",
+    hiddenNotice: name => `${name} hidden – “Edit list” shows it again`, renameLabel: "rename", hideLabel: "hide", scrambledHidden: "Scrambled: hidden", scrambledShown: "Scrambled: shown",
     organiseTip: "Drag ≡ to move a channel, tap its name to rename it; the eye hides it from the list and zapping. Pick a category to group channels on the TV (◀ ▶ on the channel list).",
     categories: ["No category", "Film", "News", "Entertainment", "Sport", "Children", "Music", "Arts", "Society", "Education", "Leisure"],
     allCategories: "All", radioFilter: "Radio", iptvFilter: "IPTV", categoryAuto: name => `Auto: ${name}`,
@@ -340,7 +352,9 @@ const STRINGS = {
     last: "Poprzedni", audio: "Audio", subtitles: "Napisy", digits: "123", search: "Szukaj kanału",
     offline: "Brak połączenia z dekoderem – sprawdź, czy telefon jest w tej samej sieci Wi-Fi i czy bapTV jest na ekranie telewizora", notOnScreen: "bapTV nie jest na ekranie telewizora", cannotTune: "Nie można teraz przełączyć kanału",
     noChannels: "Brak kanałów", recording: "● Nagrywanie: ", otherScreen: "bapTV",
-    tabOrganise: "Porządkuj", reset: "Przywróć domyślne", scrambledHidden: "Kodowane: ukryte", scrambledShown: "Kodowane: widoczne",
+    editList: "✎ Edytuj listę", done: "✓ Gotowe", reset: "Przywróć domyślne",
+    holdTip: "Przytrzymaj kanał, aby go przenieść, zmienić nazwę albo ukryć. „Edytuj listę” pokazuje wszystkie kanały, także ukryte, i ich kategorie.",
+    hiddenNotice: name => `Ukryto ${name} – przywrócisz go w „Edytuj listę”`, renameLabel: "zmień nazwę", hideLabel: "ukryj", scrambledHidden: "Kodowane: ukryte", scrambledShown: "Kodowane: widoczne",
     organiseTip: "Przeciągnij ≡, aby przenieść kanał, dotknij nazwy, aby ją zmienić; oko ukrywa kanał z listy i przełączania. Kategoria grupuje kanały na telewizorze (◀ ▶ na liście kanałów).",
     categories: ["Bez kategorii", "Film", "Informacje", "Rozrywka", "Sport", "Dla dzieci", "Muzyka", "Kultura", "Społeczne", "Edukacja", "Hobby"],
     allCategories: "Wszystkie", radioFilter: "Radio", iptvFilter: "IPTV", categoryAuto: name => `Auto: ${name}`,
@@ -551,10 +565,131 @@ function renderChannels() {
     const t = document.createElement("div"); t.className = "t"; t.textContent = (c.radio ? "♪ " : "") + c.name;
     const p = document.createElement("div"); p.className = "p"; p.textContent = c.now || "";
     item.append(n, t, p);
-    item.addEventListener("click", () => tune(c.id));
+    item.addEventListener("click", () => {
+      if (suppressClick) { suppressClick = false; return; }
+      if (picked) unpick(); else tune(c.id);
+    });
+    item.addEventListener("contextmenu", event => event.preventDefault());
+    holdToPick(item, c);
     list.appendChild(item);
+    // A lifted channel stays lifted with its buttons when the list is read again after a change.
+    if (pickedId === c.id && !dragging) { picked = item; item.classList.add("picked"); showActions(item, c); }
   });
   markCurrent();
+  $("holdTip").classList.toggle("hidden", localStorage.getItem("holdTipSeen") === "1" || !shown.length);
+}
+
+// ---- Hold a channel: move it, then rename or hide it ----
+
+let picked = null;          // the list row lifted by a long press
+let pickedId = null;        // its channel, kept across re-rendering
+let dragging = false;
+let suppressClick = false;  // the click that ends a long press must not tune
+
+// While a row is dragged the page must not scroll – prevented on touchmove, which still reaches us.
+document.addEventListener("touchmove", event => { if (dragging) event.preventDefault(); }, { passive: false });
+document.addEventListener("pointerdown", event => { if (picked && !picked.contains(event.target)) unpick(); }, true);
+
+function unpick() {
+  pickedId = null;
+  if (!picked) return;
+  picked.classList.remove("picked", "dragging");
+  picked.querySelector(".acts")?.remove();
+  picked = null;
+}
+
+function holdToPick(item, c) {
+  let timer = 0, startX = 0, startY = 0, moved = false;
+  item.addEventListener("pointerdown", event => {
+    if (event.button > 0 || event.target.closest(".acts")) return;
+    suppressClick = false;
+    startX = event.clientX; startY = event.clientY; moved = false;
+    clearTimeout(timer);
+    timer = setTimeout(() => {
+      unpick();
+      picked = item;
+      pickedId = c.id;
+      dragging = true;
+      suppressClick = true;
+      item.classList.add("picked", "dragging");
+      if (navigator.vibrate) navigator.vibrate(20);
+      localStorage.setItem("holdTipSeen", "1");
+      try { item.setPointerCapture(event.pointerId); } catch (e) { /* pointer already gone */ }
+    }, 450);
+  });
+  item.addEventListener("pointermove", event => {
+    if (!dragging || picked !== item) {
+      // A finger that moves before the long press scrolls the list.
+      if (Math.abs(event.clientX - startX) > 8 || Math.abs(event.clientY - startY) > 8) clearTimeout(timer);
+      return;
+    }
+    moved = true;
+    const list = $("list");
+    const prev = item.previousElementSibling, next = item.nextElementSibling;
+    if (prev && event.clientY < prev.getBoundingClientRect().top + prev.offsetHeight / 2) list.insertBefore(item, prev);
+    else if (next && event.clientY > next.getBoundingClientRect().top + next.offsetHeight / 2) list.insertBefore(next, item);
+    const main = document.querySelector("main"), box = main.getBoundingClientRect();
+    if (event.clientY < box.top + 40) main.scrollTop -= 12; else if (event.clientY > box.bottom - 40) main.scrollTop += 12;
+  });
+  const end = () => {
+    clearTimeout(timer);
+    if (!dragging || picked !== item) return;
+    dragging = false;
+    item.classList.remove("dragging");
+    if (moved) saveMove(item);
+    showActions(item, c);
+  };
+  item.addEventListener("pointerup", end);
+  item.addEventListener("pointercancel", end);
+}
+
+/** Rename and hide next to the lifted channel. */
+function showActions(item, c) {
+  const acts = document.createElement("div"); acts.className = "acts";
+  const rename = document.createElement("button"); rename.textContent = "✎"; rename.setAttribute("aria-label", T.renameLabel);
+  const hide = document.createElement("button"); hide.innerHTML = EYE_OFF; hide.setAttribute("aria-label", T.hideLabel);
+  rename.addEventListener("click", event => {
+    event.stopPropagation();
+    unpick();
+    const name = prompt(T.renamePrompt, c.name);
+    if (name === null || name.trim() === c.name) return;
+    quickChange(`/api/manage/name?id=${c.id}&name=${encodeURIComponent(name.trim())}`);
+  });
+  hide.addEventListener("click", event => {
+    event.stopPropagation();
+    unpick();
+    item.remove();
+    notice(T.hiddenNotice(c.name), 5000);
+    quickChange(`/api/manage/hidden?id=${c.id}&hidden=true`);
+  });
+  acts.append(rename, hide);
+  item.appendChild(acts);
+}
+
+/**
+ * The visible list may be filtered and leaves out hidden channels, so the moved channel is placed in the full
+ * order right after the channel now above it (or before the one below it when it went to the top).
+ */
+async function saveMove(item) {
+  try {
+    const full = (await api("/api/manage")).channels.map(ch => String(ch.id));
+    const id = item.dataset.id;
+    const order = full.filter(x => x !== id);
+    const above = item.previousElementSibling?.dataset.id, below = item.nextElementSibling?.dataset.id;
+    const at = above && order.includes(above) ? order.indexOf(above) + 1 : below && order.includes(below) ? order.indexOf(below) : 0;
+    order.splice(at, 0, id);
+    if (order.join() !== full.join()) await quickChange(`/api/manage/order?ids=${order.join(",")}`);
+  } catch (e) { explain(e); loadChannels(); }
+}
+
+/** A change from the channel list: saved, then the list is read again once the player has applied it. */
+async function quickChange(path) {
+  try {
+    organised = await api(path, "POST");
+  } catch (e) {
+    if (!(e instanceof Unpaired)) notice(T.saveFailed);
+  }
+  setTimeout(loadChannels, 700);
 }
 
 async function loadChannels() {
@@ -1056,18 +1191,35 @@ requestAnimationFrame(beepLoop);
 
 // ---- Tabs and polling ----
 
+// "Edit list" switches the Channels tab between the channel list and the full organising view.
+let editing = false;
+
+function showChannelsTab(active) {
+  $("tab-channels").classList.toggle("hidden", !active || editing);
+  $("tab-organise").classList.toggle("hidden", !active || !editing);
+  $("editFab").classList.toggle("hidden", !active);
+  $("editFab").textContent = editing ? T.done : T.editList;
+}
+
+$("editFab").addEventListener("click", () => {
+  unpick();
+  editing = !editing;
+  showChannelsTab(true);
+  if (editing) loadOrganise(); else loadChannels();
+  document.querySelector("main").scrollTop = 0;
+});
+
 document.querySelectorAll("nav button").forEach(button => button.addEventListener("click", () => {
   document.querySelectorAll("nav button").forEach(b => b.classList.toggle("on", b === button));
   $("tab-remote").classList.toggle("hidden", button.dataset.tab !== "remote");
-  $("tab-channels").classList.toggle("hidden", button.dataset.tab !== "channels");
-  $("tab-organise").classList.toggle("hidden", button.dataset.tab !== "organise");
+  unpick();
+  showChannelsTab(button.dataset.tab === "channels");
   $("tab-iptv").classList.toggle("hidden", button.dataset.tab !== "iptv");
   $("tab-signal").classList.toggle("hidden", button.dataset.tab !== "signal");
   signalActive = button.dataset.tab === "signal";
   if (signalActive) pollSignal();
   if (button.dataset.tab === "iptv") loadMine();
-  if (button.dataset.tab === "channels") loadChannels();
-  if (button.dataset.tab === "organise") loadOrganise();
+  if (button.dataset.tab === "channels") editing ? loadOrganise() : loadChannels();
 }));
 
 if (new URLSearchParams(location.search).get("pair") === "failed") {
