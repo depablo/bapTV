@@ -1,0 +1,1 @@
+On set-top boxes whose tuner rejects channel searches from other apps (Google "TV Channels" on Android 14), bapTV now opens the system wizard by itself and offers it from then on.
