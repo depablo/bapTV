@@ -18,7 +18,7 @@ import java.security.SecureRandom
  * visible – keys can only be delivered to this app's own windows anyway.
  */
 object PhoneRemote {
-    const val PORT = 8090
+    val PORT = BuildConfig.PHONE_REMOTE_PORT
     private const val PREFS = "phone_remote"
     private const val KEY_ENABLED = "enabled"
     private const val KEY_DEVICES = "devices"

@@ -82,7 +82,7 @@ Requirements:
 
 ```
 export JAVA_HOME=/path/to/jdk ANDROID_HOME=/path/to/android-sdk   # or set sdk.dir in local.properties
-./gradlew assembleDebug      # app/build/outputs/apk/debug/app-debug.apk
+./gradlew assembleDebug      # app/build/outputs/apk/debug/app-debug.apk (com.bonsaponsi.baptv.debug)
 ./gradlew assembleRelease    # app/build/outputs/apk/release/app-release.apk (minified)
 ./gradlew test               # JVM unit tests
 ```

@@ -86,7 +86,8 @@ object Dtv {
         val inputs = manager.tvInputList
         return inputs.firstOrNull { it.serviceInfo.packageName == DTV_INPUT_PACKAGE }
             // The app's own internet input ([IptvInputService]) is a TUNER-type input too – never the broadcast tuner.
-            ?: inputs.firstOrNull { it.type == TvInputInfo.TYPE_TUNER && !it.isPassthroughInput && it.serviceInfo.packageName != context.packageName }
+            // Matched by class, so a debug build installed next to the release one skips that one's input as well.
+            ?: inputs.firstOrNull { it.type == TvInputInfo.TYPE_TUNER && !it.isPassthroughInput && it.serviceInfo.name != IptvInputService::class.java.name }
     }
 
     /** Debug builds only: pretend there is no tuner (POST /debug/no-tuner) to test the internet-only mode. */

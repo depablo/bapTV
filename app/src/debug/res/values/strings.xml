@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Debug builds are installed next to the release version – distinct names in the launcher and the TV input list. -->
+<resources>
+    <string name="app_name">bapTV debug</string>
+    <string name="colour_keys_service">bapTV debug – remote colour keys</string>
+    <string name="iptv_input_label">bapTV debug internet channels</string>
+</resources>

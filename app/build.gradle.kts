@@ -5,18 +5,26 @@ plugins {
     id("org.jetbrains.kotlin.android")
 }
 
+val localProps = Properties().apply {
+    rootProject.file("local.properties").takeIf { it.exists() }?.inputStream()?.use { load(it) }
+}
+
 /**
  * Release signing is read from a properties file outside the repository (storeFile, storePassword,
  * keyAlias, keyPassword). Its path comes from `baptv.signing` in local.properties or the
  * BAPTV_SIGNING environment variable. Without it, release builds are unsigned.
  */
 val signingProps: Properties? = run {
-    val local = Properties().apply {
-        rootProject.file("local.properties").takeIf { it.exists() }?.inputStream()?.use { load(it) }
-    }
-    val path = local.getProperty("baptv.signing") ?: System.getenv("BAPTV_SIGNING")
+    val path = localProps.getProperty("baptv.signing") ?: System.getenv("BAPTV_SIGNING")
     path?.let { file(it) }?.takeIf { it.exists() }?.let { f -> Properties().apply { f.inputStream().use { load(it) } } }
 }
+
+/**
+ * Debug builds are installed as com.bonsaponsi.baptv.debug, next to the release version. `baptv.debugSuffix=false`
+ * in local.properties keeps the release package name – for a set-top box that already runs an older debug build
+ * under that name (its channels and settings stay; a different package would start from scratch).
+ */
+val debugSuffix = localProps.getProperty("baptv.debugSuffix")?.toBoolean() ?: true
 
 android {
     namespace = "com.bonsaponsi.baptv"
@@ -38,6 +46,10 @@ android {
         buildConfigField("String", "REPORTS_URL", "\"https://reports.bonsaponsi.com/v1/report\"")
         buildConfigField("String", "CONTACT_EMAIL", "\"bap@bonsaponsi.com\"")
         buildConfigField("String", "PROJECT_URL", "\"https://github.com/depablo/bapTV\"")
+        // Phone remote (PhoneRemoteServer). A debug build installed next to the release one uses its own port.
+        buildConfigField("int", "PHONE_REMOTE_PORT", "8090")
+        // ColourKeysService only receives events of this package (res/xml/colour_keys_service.xml).
+        resValue("string", "colour_keys_package", "com.bonsaponsi.baptv")
     }
 
     signingConfigs {
@@ -54,6 +66,11 @@ android {
     buildTypes {
         debug {
             versionNameSuffix = "-debug"
+            if (debugSuffix) {
+                applicationIdSuffix = ".debug"
+                buildConfigField("int", "PHONE_REMOTE_PORT", "8091")
+                resValue("string", "colour_keys_package", "com.bonsaponsi.baptv.debug")
+            }
             buildConfigField("long", "BUILD_TIME", "${System.currentTimeMillis()}L")
         }
         release {

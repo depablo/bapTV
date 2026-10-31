@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">bapTV debug</string>
+    <string name="colour_keys_service">bapTV debug – kolorowe przyciski pilota</string>
+    <string name="iptv_input_label">bapTV debug – kanały internetowe</string>
+</resources>

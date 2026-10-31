@@ -144,7 +144,7 @@ so, and the page names it when it loses the connection.
 - Pairing: the QR code holds a one-time code that works only while the code is on the TV screen
   (at most 10 minutes). The phone then stays paired through a cookie. The same menu entry pairs
   more phones, forgets all paired phones or turns the phone remote off.
-- The remote works while bapTV is on the TV screen. The server (port 8090) stops a minute after
+- The remote works while bapTV is on the TV screen. The server (port 8090; 8091 in debug builds) stops a minute after
   the app leaves the screen and starts again when it comes back.
 
 ## 4. Watching TV
@@ -882,6 +882,12 @@ export JAVA_HOME=/path/to/jdk ANDROID_HOME=/path/to/android-sdk   # or sdk.dir i
 ./gradlew test                 # JVM unit tests
 ./gradlew lint
 ```
+
+Debug builds install as `com.bonsaponsi.baptv.debug` ("bapTV debug"), next to the release version:
+their own settings and channel lists, the phone remote on port 8091 instead of 8090, and no update
+check. `baptv.debugSuffix=false` in `local.properties` keeps the package name `com.bonsaponsi.baptv` for a
+device that already runs an older debug build under that name (switching would start it from scratch);
+such a build replaces the release version and still uses port 8090.
 
 To distribute your own release build, configure a signing config with your own key in
 `app/build.gradle.kts`. Updates install over an existing installation only if they are signed with
