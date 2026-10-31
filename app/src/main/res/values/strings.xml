@@ -290,6 +290,7 @@
     <string name="colour_keys_not_now">Not now</string>
     <string name="menu_phone_remote">Phone remote</string>
     <string name="phone_remote_title">Phone remote</string>
+    <string name="phone_remote_code">\n\nCode for a remote added to the phone\'s home screen: %1$s</string>
     <string name="phone_remote_qr_message">The phone must be connected to the same network (Wi-Fi) as this set-top box – not to mobile data. Scan the code with the phone\'s camera: the remote opens in its browser, no app to install.</string>
     <string name="phone_remote_pair">Pair another phone</string>
     <string name="phone_remote_forget">Forget paired phones</string>

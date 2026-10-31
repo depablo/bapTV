@@ -1512,7 +1512,8 @@ class MainActivity : Activity() {
             link == null -> TvDialog.message(this, getString(R.string.phone_remote_title), getString(R.string.phone_remote_no_network), onClose)
             else -> {
                 lateinit var dialog: android.app.Dialog
-                dialog = TvDialog.qr(this, getString(R.string.phone_remote_title), getString(R.string.phone_remote_qr_message), link) {
+                val code = PhoneRemote.shortCode?.let { getString(R.string.phone_remote_code, it.chunked(3).joinToString(" ")) }.orEmpty()
+                dialog = TvDialog.qr(this, getString(R.string.phone_remote_title), getString(R.string.phone_remote_qr_message) + code, link) {
                     PhoneRemote.cancelPairing()
                     PhoneRemote.onPaired = null
                     onClose?.invoke()

@@ -147,6 +147,13 @@ so, and the page names it when it loses the connection.
 - Pairing: the QR code holds a one-time code that works only while the code is on the TV screen
   (at most 10 minutes). The phone then stays paired through a cookie. The same menu entry pairs
   more phones, forgets all paired phones or turns the phone remote off.
+- **On the home screen.** The page has a web app manifest and icon, and in the phone's browser it shows a
+  one-time tip on how to add it to the home screen. Browsers install web apps only from HTTPS, which a
+  set-top box in a home network cannot offer with a trusted certificate, so: on Android the home-screen
+  icon opens the remote in a browser tab (already paired); on iOS it opens as a standalone web app, which
+  keeps its own cookies and therefore pairs once more – with the 6-digit code shown on the TV under the
+  QR code, typed on its "not paired" page. The code is valid as long as the QR code is on screen; five
+  wrong codes end it until the QR code is opened again. There is no service worker (it needs HTTPS).
 - The remote works while bapTV is on the TV screen. The server (port 8090; 8091 in debug builds) stops a minute after
   the app leaves the screen and starts again when it comes back.
 

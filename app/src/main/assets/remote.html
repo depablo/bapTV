@@ -4,6 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
 <meta name="theme-color" content="#101418">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="bapTV">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/icon.png">
+<link rel="apple-touch-icon" href="/icon.png">
 <title>bapTV</title>
 <style>
 :root {
@@ -38,6 +45,9 @@ nav button { flex: 1 0 auto; border: 0; background: none; color: var(--muted); f
 nav button.on { background: var(--surface); color: var(--text); box-shadow: var(--shadow); }
 main { flex: 1; overflow: auto; padding: 14px 0 18px; }
 .hidden { display: none !important; }
+.install { display: flex; gap: 8px; align-items: flex-start; margin-top: 8px; padding: 10px 12px; border-radius: 10px; background: var(--surface2); font-size: 14px; }
+.install span { flex: 1; }
+.install button { border: 0; background: none; color: var(--muted); font-size: 16px; padding: 0 2px; }
 
 .row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 12px; }
 .row.four { grid-template-columns: repeat(4, 1fr); }
@@ -169,6 +179,11 @@ table.results td:last-child { text-align: right; font-variant-numeric: tabular-n
 <section id="unpaired" class="unpaired hidden">
   <h1 data-t="unpairedTitle"></h1>
   <p id="unpairedText"></p>
+  <p data-t="codeHint"></p>
+  <div class="field">
+    <input class="search" id="pairCode" inputmode="numeric" autocomplete="one-time-code" maxlength="7" placeholder="123 456">
+    <button class="key" id="pairButton" data-t="pair"></button>
+  </div>
 </section>
 
 <div id="app" class="hidden" style="display:flex;flex-direction:column;flex:1;min-height:0">
@@ -177,6 +192,7 @@ table.results td:last-child { text-align: right; font-variant-numeric: tabular-n
     <div class="now" id="now"></div>
     <div class="bar"><div id="progress"></div></div>
     <div class="notice" id="notice"></div>
+    <div class="install hidden" id="installTip"><span id="installText"></span><button id="installClose" aria-label="close">✕</button></div>
   </header>
   <nav>
     <button class="on" data-tab="remote" data-t="tabRemote"></button>
@@ -311,6 +327,9 @@ const STRINGS = {
   en: {
     unpairedTitle: "Phone not paired", unpairedText: "On the TV open bapTV, press OK for the menu and choose Settings → Phone remote, then scan the QR code with this phone. The phone must be on the same Wi-Fi network as the set-top box.",
     pairFailed: "The pairing code has expired or was already used. Show the QR code on the TV again and scan it.",
+    codeHint: "A remote added to the home screen pairs with the code shown on the TV under the QR code:", pair: "Pair",
+    installAndroid: "Tip: browser menu ⋮ → “Add to Home screen” puts this remote on the home screen like an app.",
+    installIos: "Tip: Share → “Add to Home Screen” puts this remote on the home screen. There it asks once for the code shown on the TV under the QR code.",
     tabRemote: "Remote", tabChannels: "Channels", menu: "Menu", guide: "Guide", info: "Info", back: "Back", pause: "Pause",
     last: "Previous", audio: "Audio", subtitles: "Subtitles", digits: "123", search: "Search channels",
     offline: "No connection to the set-top box – check that the phone is on the same Wi-Fi network and that bapTV is on the TV screen", notOnScreen: "bapTV is not on the TV screen", cannotTune: "Cannot switch channel now",
@@ -348,6 +367,9 @@ const STRINGS = {
   pl: {
     unpairedTitle: "Telefon nie jest sparowany", unpairedText: "Na telewizorze otwórz bapTV, wciśnij OK, aby otworzyć menu, i wybierz Ustawienia → Pilot w telefonie, a potem zeskanuj kod QR tym telefonem. Telefon musi być w tej samej sieci Wi-Fi co dekoder.",
     pairFailed: "Kod parowania wygasł albo został już użyty. Pokaż ponownie kod QR na telewizorze i zeskanuj go.",
+    codeHint: "Pilot dodany do ekranu głównego paruje się kodem widocznym na telewizorze pod kodem QR:", pair: "Sparuj",
+    installAndroid: "Wskazówka: menu przeglądarki ⋮ → „Dodaj do ekranu głównego” umieści ten pilot na ekranie telefonu jak aplikację.",
+    installIos: "Wskazówka: Udostępnij → „Do ekranu początkowego” umieści ten pilot na ekranie telefonu. Tam raz poprosi o kod widoczny na telewizorze pod kodem QR.",
     tabRemote: "Pilot", tabChannels: "Kanały", menu: "Menu", guide: "Program", info: "Info", back: "Wstecz", pause: "Pauza",
     last: "Poprzedni", audio: "Audio", subtitles: "Napisy", digits: "123", search: "Szukaj kanału",
     offline: "Brak połączenia z dekoderem – sprawdź, czy telefon jest w tej samej sieci Wi-Fi i czy bapTV jest na ekranie telewizora", notOnScreen: "bapTV nie jest na ekranie telewizora", cannotTune: "Nie można teraz przełączyć kanału",
@@ -421,7 +443,27 @@ function showApp() {
   paired = true;
   $("unpaired").classList.add("hidden");
   $("app").classList.remove("hidden");
+  showInstallTip();
 }
+
+// ---- Home screen ----
+
+const standalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+const ios = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+
+/** Once, in the browser only: how to put the remote on the home screen (no install prompt without HTTPS). */
+function showInstallTip() {
+  if (standalone || localStorage.getItem("installTipSeen") === "1" || !matchMedia("(pointer: coarse)").matches) return;
+  $("installText").textContent = ios ? T.installIos : T.installAndroid;
+  $("installTip").classList.remove("hidden");
+}
+$("installClose").addEventListener("click", () => { localStorage.setItem("installTipSeen", "1"); $("installTip").classList.add("hidden"); });
+
+$("pairButton").addEventListener("click", () => {
+  const code = $("pairCode").value.replace(/\D/g, "");
+  if (code.length === 6) location.href = `/pair?code=${code}`;
+});
+$("pairCode").addEventListener("keydown", e => { if (e.key === "Enter") $("pairButton").click(); });
 
 function notice(text, ms = 3000) {
   $("notice").textContent = text || "";

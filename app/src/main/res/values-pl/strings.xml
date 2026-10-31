@@ -289,6 +289,7 @@
     <string name="colour_keys_not_now">Nie teraz</string>
     <string name="menu_phone_remote">Pilot w telefonie</string>
     <string name="phone_remote_title">Pilot w telefonie</string>
+    <string name="phone_remote_code">\n\nKod dla pilota dodanego do ekranu głównego telefonu: %1$s</string>
     <string name="phone_remote_qr_message">Telefon musi być połączony z tą samą siecią (Wi-Fi) co dekoder – nie z danymi komórkowymi. Zeskanuj kod aparatem telefonu: pilot otworzy się w przeglądarce, bez instalowania aplikacji.</string>
     <string name="phone_remote_pair">Sparuj kolejny telefon</string>
     <string name="phone_remote_forget">Zapomnij sparowane telefony</string>

@@ -127,6 +127,11 @@ class PhoneRemoteServer(private val context: Context, val port: Int) {
         when (request.method to request.path) {
             "GET" to "/" -> return Response("200 OK", HTML, context.assets.open("remote.html").use { it.readBytes() })
             "GET" to "/pair" -> return pair(request)
+            // Home-screen shortcut (fetched without cookies, so before the pairing check). Without HTTPS – which a
+            // set-top box in a home network cannot offer – browsers do not install it as an app: Android opens the
+            // shortcut in a browser tab, iOS as a standalone web app with its own cookies (paired with the short code).
+            "GET" to "/manifest.webmanifest" -> return Response("200 OK", "application/manifest+json", manifest(request).toString().toByteArray())
+            "GET" to "/icon.png" -> return Response("200 OK", "image/png", context.assets.open("remote-icon.png").use { it.readBytes() })
         }
         if (!PhoneRemote.isPaired(context, cookie(request))) return error("401 Unauthorized", "not paired")
         return when (request.method to request.path) {
@@ -246,6 +251,19 @@ class PhoneRemoteServer(private val context: Context, val port: Int) {
         DebugLog.log("Remote", "channel organisation changed from the phone: ${request.path}")
         channelsChanged()
         return manageList()?.let { json(it) } ?: error("409 Conflict", "no tuner input")
+    }
+
+    private fun manifest(request: HttpRequest): JSONObject {
+        val polish = request.headers["accept-language"].orEmpty().trim().lowercase().startsWith("pl")
+        return JSONObject()
+            .put("name", if (polish) "bapTV – pilot" else "bapTV remote")
+            .put("short_name", "bapTV")
+            .put("start_url", "/")
+            .put("scope", "/")
+            .put("display", "standalone")
+            .put("background_color", "#101418")
+            .put("theme_color", "#101418")
+            .put("icons", JSONArray().put(JSONObject().put("src", "/icon.png").put("sizes", "512x512").put("type", "image/png").put("purpose", "any")))
     }
 
     /** Pairing from the QR code: a valid code sets the device cookie; either way back to the page, which shows the result. */

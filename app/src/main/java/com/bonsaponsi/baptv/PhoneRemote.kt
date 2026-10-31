@@ -23,6 +23,8 @@ object PhoneRemote {
     private const val KEY_ENABLED = "enabled"
     private const val KEY_DEVICES = "devices"
     private const val PAIRING_TTL_MS = 10 * 60_000L
+    private const val SHORT_CODE_LENGTH = 6
+    private const val MAX_WRONG_ATTEMPTS = 5
     /** Grace period after the last app screen closes – moving between screens must not restart the server. */
     private const val STOP_DELAY_MS = 60_000L
 
@@ -86,6 +88,7 @@ object PhoneRemote {
         server?.stop()
         server = null
         pairingCode = null
+        shortCode = null
     }
 
     /** A new one-time link for the QR code, or null when the device has no network address. */
@@ -93,13 +96,25 @@ object PhoneRemote {
         val address = Diagnostics.localAddresses().firstOrNull() ?: return null
         val code = randomHex(16)
         pairingCode = code
+        shortCode = (0 until SHORT_CODE_LENGTH).joinToString("") { random.nextInt(10).toString() }
+        wrongAttempts = 0
         pairingExpiresMs = SystemClock.elapsedRealtime() + PAIRING_TTL_MS
         return "http://$address:$PORT/pair?code=$code"
     }
 
+    /**
+     * The same pairing as the QR code, typed on the phone: a home-screen web app on iOS keeps its own cookies,
+     * so it pairs again from its "not paired" page. Valid as long as the QR code; [MAX_WRONG_ATTEMPTS] wrong
+     * codes end it (the QR code has to be opened again).
+     */
+    @Volatile var shortCode: String? = null
+        private set
+    private var wrongAttempts = 0
+
     /** The QR code left the screen – its pairing code stops working. */
     fun cancelPairing() {
         pairingCode = null
+        shortCode = null
     }
 
     /** Checks the one-time [code] and registers the device; returns the new device token, or null. */
@@ -107,8 +122,20 @@ object PhoneRemote {
     fun pair(context: Context, code: String?, name: String): String? {
         val expected = pairingCode ?: return null
         if (code == null || SystemClock.elapsedRealtime() > pairingExpiresMs) return null
-        if (!MessageDigest.isEqual(code.toByteArray(), expected.toByteArray())) return null
+        val typed = code.filter { it.isDigit() }
+        val short = shortCode
+        val matches = MessageDigest.isEqual(code.toByteArray(), expected.toByteArray()) ||
+            (short != null && typed.length == SHORT_CODE_LENGTH && MessageDigest.isEqual(typed.toByteArray(), short.toByteArray()))
+        if (!matches) {
+            if (++wrongAttempts >= MAX_WRONG_ATTEMPTS) {
+                DebugLog.warn("Remote", "$wrongAttempts wrong pairing codes – pairing closed until the QR code is shown again")
+                pairingCode = null
+                shortCode = null
+            }
+            return null
+        }
         pairingCode = null
+        shortCode = null
         val token = randomHex(16)
         saveDevices(context, devices(context) + Device(name, sha256(token), System.currentTimeMillis()))
         DebugLog.log("Remote", "phone paired: $name")
