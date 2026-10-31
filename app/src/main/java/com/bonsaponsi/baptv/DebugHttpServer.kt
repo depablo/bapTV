@@ -269,6 +269,14 @@ class DebugHttpServer(private val context: Context, val port: Int = DEFAULT_PORT
             text(SignalMonitor.tuneMultiplex(context, f) + "\n")
         }
         "GET" to "/channels" -> Response("200 OK", JSON, channelsJson().toString(2))
+        "GET" to "/iptv/guide" -> Response("200 OK", JSON, guideJson().toString(2))
+        "POST" to "/iptv/guide" -> {
+            // ?add=<url> and/or ?remove=<url>, then a refresh in this request (may take a minute for a big file).
+            request.query["add"]?.let { IptvGuide.addSources(context, listOf(it)) }
+            request.query["remove"]?.let { IptvGuide.removeSource(context, it) }
+            IptvGuide.refresh(context)
+            Response("200 OK", JSON, guideJson().toString(2))
+        }
         "GET" to "/epg" -> {
             val id = request.query["channel"]?.toLongOrNull() ?: return text("Specify ?channel=<id>\n", "400 Bad Request")
             val channel = ChannelRepository(context).loadChannels(Dtv.findTunerInput(context)?.id).firstOrNull { it.id == id }
@@ -357,6 +365,9 @@ class DebugHttpServer(private val context: Context, val port: Int = DEFAULT_PORT
     }
 
     /** Channel list with identified names, DVB identifiers and the current programme. */
+    private fun guideJson(): JSONObject = JSONObject().put("sources", org.json.JSONArray(IptvGuide.sources(context)))
+        .put("refreshing", IptvGuide.isRefreshing).put("status", IptvGuide.status(context)?.toJson() ?: JSONObject.NULL)
+
     private fun channelsJson(): org.json.JSONArray {
         val input = Dtv.findTunerInput(context)
         val repository = ChannelRepository(context)
@@ -365,7 +376,7 @@ class DebugHttpServer(private val context: Context, val port: Int = DEFAULT_PORT
             repository.loadChannels(input?.id, includeHidden = true).forEach { c ->
                 val (on, next) = repository.loadNowNext(c, now)
                 put(JSONObject().put("id", c.id).put("number", c.number).put("name", c.name)
-                    .put("radio", c.isRadio).put("scrambled", c.scrambled).put("virtual", c.virtual).put("hidden", c.hidden).put("freq", c.frequencyMhz ?: JSONObject.NULL)
+                    .put("radio", c.isRadio).put("iptv", c.iptv).put("category", c.category).put("scrambled", c.scrambled).put("virtual", c.virtual).put("hidden", c.hidden).put("freq", c.frequencyMhz ?: JSONObject.NULL)
                     .put("onid", c.onid ?: JSONObject.NULL).put("tsid", c.tsid ?: JSONObject.NULL).put("sid", c.sid ?: JSONObject.NULL)
                     .put("now", on?.title ?: JSONObject.NULL).put("next", next?.title ?: JSONObject.NULL)
                     .put("epgCount", repository.programmes(c).size))

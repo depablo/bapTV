@@ -814,7 +814,8 @@ Endpoints marked with 🔑 require the token.
 | `GET /report.txt` | text report |
 | `GET /status` | JSON: version, build time, PID, activity on screen, install permission state, last install |
 | `GET /capabilities` | detected device capabilities as JSON |
-| `GET /channels` | channel list: number, name, SID, current programme |
+| `GET /channels` | channel list: number, name, category, SID, current programme |
+| `GET /iptv/guide`, `POST /iptv/guide?add=…&remove=…` 🔑 | internet channels' TV guide: sources and last result; POST changes sources and refreshes at once |
 | `GET /epg?channel=ID` | guide of a channel |
 | `GET /hbbtv` | HbbTV browser state and stored channel data |
 | `POST /hbbtv/eval?js=…` 🔑 | run JavaScript in the HbbTV application page |

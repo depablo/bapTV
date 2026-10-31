@@ -21,7 +21,7 @@ object ServerAccess {
     /** Endpoints requiring the token (the rest: view pages, /signal, /status, log). */
     val PROTECTED = setOf(
         "/hbbtv/eval", "/key", "/screenshot.png", "/launch", "/restart", "/open", "/timeshift", "/recordings", "/probe", "/probe.ts",
-        "/publish", "/tvchannels", "/tvchannels/delete", "/tvchannels/update", "/dtv/install", "/dtv/action", "/debug/no-tuner",
+        "/publish", "/tvchannels", "/tvchannels/delete", "/tvchannels/update", "/dtv/install", "/dtv/action", "/debug/no-tuner", "/iptv/guide",
     )
 
     /** Developer tools – disabled in release builds. */
