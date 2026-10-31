@@ -31,6 +31,10 @@ data class Channel(
     val hidden: Boolean = false,
     /** TV input of an internet channel ([IptvInputService]); null – the tuner input. */
     val inputId: String? = null,
+    /** Playlist group of an internet channel (`group-title`); null for broadcast channels. */
+    val group: String? = null,
+    /** [ChannelCategory] – the user's choice or a guess; [ChannelCategory.NONE] when unknown. */
+    val category: Int = ChannelCategory.NONE,
 ) {
     val identified get() = sid != null
 
@@ -80,7 +84,9 @@ class ChannelRepository(private val context: Context) {
             channels.withIndex().sortedWith(compareBy({ position[store.settingsKey(it.value)] ?: (order.size + it.index) })).map { it.value }
         }
         val hideScrambled = store.hideScrambled
-        var result = ordered.map { ch -> ch.copy(hidden = store.isHidden(ch) || (hideScrambled && ch.scrambled)) }
+        var result = ordered.map { ch ->
+            ch.copy(hidden = store.isHidden(ch) || (hideScrambled && ch.scrambled), category = categoryOf(ch))
+        }
         if (!includeHidden) result = result.filter { !it.hidden }
         if (!lcnNumbering(context)) {
             // Sequential numbering: TV from 1, radio after it, in list order.
@@ -88,6 +94,18 @@ class ChannelRepository(private val context: Context) {
             result = (tv + radio).mapIndexed { i, ch -> ch.copy(number = (i + 1).toString()) }
         }
         return result
+    }
+
+    /** User's category, else [guessCategory]. */
+    private fun categoryOf(ch: Channel): Int = store.customCategory(ch) ?: guessCategory(ch)
+
+    /** A guess from the playlist group and name, else from the TV guide in memory (no provider queries). */
+    fun guessCategory(ch: Channel): Int {
+        val guessed = ChannelCategory.guess(ch.name, ch.group)
+        if (guessed != ChannelCategory.NONE) return guessed
+        val fromGuide = ChannelCategory.fromProgrammes(programmes(ch, cachedOnly = true))
+        if (fromGuide != ChannelCategory.NONE) return fromGuide
+        return if (ch.isRadio) ChannelCategory.MUSIC else ChannelCategory.NONE
     }
 
     /**

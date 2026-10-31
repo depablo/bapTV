@@ -79,6 +79,7 @@ object Iptv {
                         isRadio = c.getString(3) == Channels.SERVICE_TYPE_AUDIO,
                         videoFormat = null,
                         inputId = inputId,
+                        group = stream.group.ifBlank { null },
                     ) to stream
                 }
             }

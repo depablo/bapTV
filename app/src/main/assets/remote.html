@@ -88,7 +88,7 @@ main { flex: 1; overflow: auto; padding: 14px 0 18px; }
 
 .tools { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
 .tip { color: var(--muted); font-size: 13px; margin: 0 2px 10px; }
-.org { display: grid; grid-template-columns: 40px 44px 1fr 48px; align-items: center; padding: 0 4px 0 0; border-top: 1px solid var(--surface2); background: var(--surface); }
+.org { display: grid; grid-template-columns: 40px 44px 1fr auto 48px; align-items: center; padding: 0 4px 0 0; border-top: 1px solid var(--surface2); background: var(--surface); }
 .org:first-child { border-top: 0; }
 .org.off .n, .org.off .t { opacity: .45; }
 .org.dragging { position: relative; z-index: 2; box-shadow: 0 4px 14px rgba(0,0,0,.35); }
@@ -98,6 +98,8 @@ main { flex: 1; overflow: auto; padding: 14px 0 18px; }
 .org .t small { font-weight: 400; color: var(--muted); margin-left: 6px; }
 .org .eye { border: 0; background: none; color: var(--text); height: 44px; display: flex; align-items: center; justify-content: center; touch-action: manipulation; }
 .org.off .eye { color: var(--muted); }
+.org .cat { max-width: 150px; margin-left: 6px; border: 0; border-radius: 8px; background: var(--surface2); color: var(--muted); font: inherit; font-size: 13px; padding: 5px 6px; }
+.org .cat.set { color: var(--text); }
 
 h2 { font-size: 15px; margin: 18px 2px 8px; color: var(--muted); font-weight: 600; }
 h2:first-child { margin-top: 0; }
@@ -105,6 +107,7 @@ h2:first-child { margin-top: 0; }
 .field .search { margin: 0; flex: 1; min-width: 0; }
 .field .key { min-height: 0; padding: 0 14px; }
 .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.chip.on { background: var(--accent); color: var(--accent-text); }
 .chip { border: 0; border-radius: 14px; background: var(--surface2); color: var(--text); font: inherit; font-size: 13px; padding: 5px 10px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .filters { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
 .filters select, .filters .search { margin: 0; appearance: none; -webkit-appearance: none; }
@@ -215,6 +218,7 @@ table.results td:last-child { text-align: right; font-variant-numeric: tabular-n
     </section>
     <section id="tab-channels" class="hidden">
       <input class="search" id="search" type="search" autocomplete="off">
+      <div class="chips hidden" id="catChips"></div>
       <div class="list" id="list"></div>
     </section>
     <section id="tab-organise" class="hidden">
@@ -294,7 +298,9 @@ const STRINGS = {
     offline: "No connection to the set-top box – check that the phone is on the same Wi-Fi network and that bapTV is on the TV screen", notOnScreen: "bapTV is not on the TV screen", cannotTune: "Cannot switch channel now",
     noChannels: "No channels", recording: "● Recording: ", otherScreen: "bapTV",
     tabOrganise: "Organise", reset: "Restore defaults", scrambledHidden: "Scrambled: hidden", scrambledShown: "Scrambled: shown",
-    organiseTip: "Drag ≡ to move a channel, tap its name to rename it; the eye hides it from the list and zapping.",
+    organiseTip: "Drag ≡ to move a channel, tap its name to rename it; the eye hides it from the list and zapping. Pick a category to group channels on the TV (◀ ▶ on the channel list).",
+    categories: ["No category", "Film", "News", "Entertainment", "Sport", "Children", "Music", "Arts", "Society", "Education", "Leisure"],
+    allCategories: "All", radioFilter: "Radio", iptvFilter: "IPTV", categoryAuto: name => `Auto: ${name}`,
     renamePrompt: "Channel name (empty brings back the broadcaster's name):", resetConfirm: "Restore the default order and show all channels? Your channel names stay.",
     hiddenByScrambled: "Hidden with all scrambled channels – switch “Scrambled” to shown first.", saveFailed: "Change not saved",
     tabSignal: "Signal", rssi: "Strength", sound: "Sound: the better the signal, the faster the ticks",
@@ -323,7 +329,9 @@ const STRINGS = {
     offline: "Brak połączenia z dekoderem – sprawdź, czy telefon jest w tej samej sieci Wi-Fi i czy bapTV jest na ekranie telewizora", notOnScreen: "bapTV nie jest na ekranie telewizora", cannotTune: "Nie można teraz przełączyć kanału",
     noChannels: "Brak kanałów", recording: "● Nagrywanie: ", otherScreen: "bapTV",
     tabOrganise: "Porządkuj", reset: "Przywróć domyślne", scrambledHidden: "Kodowane: ukryte", scrambledShown: "Kodowane: widoczne",
-    organiseTip: "Przeciągnij ≡, aby przenieść kanał, dotknij nazwy, aby ją zmienić; oko ukrywa kanał z listy i przełączania.",
+    organiseTip: "Przeciągnij ≡, aby przenieść kanał, dotknij nazwy, aby ją zmienić; oko ukrywa kanał z listy i przełączania. Kategoria grupuje kanały na telewizorze (◀ ▶ na liście kanałów).",
+    categories: ["Bez kategorii", "Film", "Informacje", "Rozrywka", "Sport", "Dla dzieci", "Muzyka", "Kultura", "Społeczne", "Edukacja", "Hobby"],
+    allCategories: "Wszystkie", radioFilter: "Radio", iptvFilter: "IPTV", categoryAuto: name => `Auto: ${name}`,
     renamePrompt: "Nazwa kanału (pusta przywraca nazwę nadawcy):", resetConfirm: "Przywrócić domyślną kolejność i pokazać wszystkie kanały? Twoje nazwy kanałów zostaną.",
     hiddenByScrambled: "Ukryty razem ze wszystkimi kodowanymi – najpierw przełącz „Kodowane” na widoczne.", saveFailed: "Nie zapisano zmiany",
     tabSignal: "Sygnał", rssi: "Siła", sound: "Dźwięk: im lepszy sygnał, tym szybsze tykanie",
@@ -476,11 +484,42 @@ function markCurrent() {
   document.querySelectorAll(".item").forEach(el => el.classList.toggle("current", Number(el.dataset.id) === currentId));
 }
 
+// Same order as ChannelCategory.ALL in the app.
+const CATEGORY_ORDER = [2, 3, 1, 4, 5, 6, 9, 7, 10, 8];
+let categoryFilter = "all";
+
+/** Category chips: shown when the channels fall into more than one category (or mix radio/internet with TV). */
+function renderCategoryChips() {
+  const present = new Set(channels.map(c => c.category));
+  const filters = CATEGORY_ORDER.filter(c => present.has(c)).map(c => [String(c), T.categories[c]]);
+  if (channels.some(c => c.radio) && !channels.every(c => c.radio)) filters.push(["radio", T.radioFilter]);
+  if (channels.some(c => c.iptv) && !channels.every(c => c.iptv)) filters.push(["iptv", T.iptvFilter]);
+  const chips = $("catChips");
+  chips.textContent = "";
+  if (!filters.some(([key]) => key === categoryFilter)) categoryFilter = "all";
+  chips.classList.toggle("hidden", filters.length < 2);
+  [["all", T.allCategories], ...filters].forEach(([key, label]) => {
+    const chip = document.createElement("button");
+    chip.className = "chip" + (key === categoryFilter ? " on" : "");
+    chip.textContent = label;
+    chip.addEventListener("click", () => { categoryFilter = key; renderChannels(); });
+    chips.appendChild(chip);
+  });
+}
+
+function inCategory(c) {
+  if (categoryFilter === "all") return true;
+  if (categoryFilter === "radio") return c.radio;
+  if (categoryFilter === "iptv") return c.iptv;
+  return String(c.category) === categoryFilter;
+}
+
 function renderChannels() {
+  renderCategoryChips();
   const query = $("search").value.trim().toLowerCase();
   const list = $("list");
   list.textContent = "";
-  const shown = channels.filter(c => !query || c.name.toLowerCase().includes(query) || c.number.startsWith(query));
+  const shown = channels.filter(c => inCategory(c) && (!query || c.name.toLowerCase().includes(query) || c.number.startsWith(query)));
   if (!shown.length) {
     const empty = document.createElement("div");
     empty.className = "empty";
@@ -546,7 +585,7 @@ function renderOrganise() {
     t.addEventListener("click", () => rename(c));
     eye.addEventListener("click", () => toggleHidden(c));
     startDrag(handle, row);
-    row.append(handle, n, t, eye);
+    row.append(handle, n, t, categorySelect(c), eye);
     list.appendChild(row);
   });
 }
@@ -567,6 +606,18 @@ async function change(path) {
     if (!(e instanceof Unpaired)) notice(T.saveFailed);
     loadOrganise();
   }
+}
+
+/** Category picker: "Auto" keeps the app's guess (shown in the option), the rest fix the category. */
+function categorySelect(c) {
+  const select = document.createElement("select");
+  select.className = "cat" + (c.categoryAuto ? "" : " set");
+  const option = (value, label) => { const o = document.createElement("option"); o.value = value; o.textContent = label; select.appendChild(o); };
+  option("auto", T.categoryAuto(T.categories[c.guessedCategory] || T.categories[0]));
+  [...CATEGORY_ORDER, 0].forEach(k => option(String(k), T.categories[k]));
+  select.value = c.categoryAuto ? "auto" : String(c.category);
+  select.addEventListener("change", () => change(`/api/manage/category?id=${c.id}&category=${select.value}`));
+  return select;
 }
 
 function rename(c) {

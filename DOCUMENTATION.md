@@ -99,8 +99,8 @@ MENU key; the menu is therefore also available on REC and SETTINGS.
 | OK | `DPAD_CENTER` / `ENTER` | menu (channel search screen when there are no channels) | with the info banner open: pause / resume |
 | ▼ | `DPAD_DOWN` | open the info panel / go one level deeper | banner with the pause bar |
 | ▲ | `DPAD_UP` | go one level back / close the info panel | |
-| ▶ | `DPAD_RIGHT` | open the info panel; at level 3 move between buttons | seek forward 10 s (hold: 30 s) |
-| ◀ | `DPAD_LEFT` | close the channel list; at level 3 move between buttons | seek back 10 s (hold: 30 s) |
+| ▶ | `DPAD_RIGHT` | open the info panel; at level 3 move between buttons; on the channel list: next category | seek forward 10 s (hold: 30 s) |
+| ◀ | `DPAD_LEFT` | on the channel list: previous category, on “All channels” close the list; at level 3 move between buttons | seek back 10 s (hold: 30 s) |
 | BACK | `BACK` | close the panel or list; stop channel identification; stop recording playback | |
 | ⏯ | `MEDIA_PLAY_PAUSE` (also `MEDIA_PAUSE`) | start live pause; in recording playback: pause / resume | pause / resume |
 | ⏹ | `MEDIA_STOP` | in recording playback: back to live | back to live |
@@ -128,10 +128,10 @@ Notes:
 A phone in the same network can work as a remote: Menu → Settings → Phone remote shows a QR code.
 Scanning it opens the remote in the phone's browser; no app is installed. The page has the remote
 keys (arrows, OK, BACK, MENU, GUIDE, INFO, CH+/CH−, ⏯, colour keys, digits, audio and subtitles),
-the channel on screen with the current programme, and a searchable channel list where a tap
-switches the channel. The Organise tab does what the Manage channels screen does: drag ≡ to move a
-channel, tap a name to rename it (an empty name brings back the broadcaster's), the eye hides or
-shows a channel, plus the "Scrambled: hidden/shown" switch and "Restore defaults". Changes reach the
+the channel on screen with the current programme, and a searchable channel list with category chips where a
+tap switches the channel. The Organise tab does what the Manage channels screen does: drag ≡ to move a
+channel, tap a name to rename it (an empty name brings back the broadcaster's), pick its category
+("Auto" keeps the app's guess), the eye hides or shows a channel, plus the "Scrambled: hidden/shown" switch and "Restore defaults". Changes reach the
 player and an open Manage channels screen at once. The IPTV tab adds internet channels (see
 [Internet channels](#internet-channels)). The Signal tab (on devices that report tuner statistics)
 helps aim the antenna: signal quality with strength, SNR and BER as live charts, an optional tick
@@ -209,6 +209,20 @@ Entries that the device does not support are hidden.
 **Menu → Channels** (OK opens the menu) opens the channel list. It shows the channel number and name, the current programme with its
 progress, and markers for radio (♪), encrypted and HbbTV-only channels. A long press on OK on a
 channel renames it.
+
+### Categories
+
+When the channels fall into more than one category, the channel list shows a filter under its title:
+◀ ▶ switch between **All channels**, the categories present (news, entertainment, film, sport,
+children, music, education, arts, leisure, society) and **Radio** / **Internet (IPTV)** when those
+are only part of the list; ◀ on "All channels" closes the list. Channel switching (CH+/CH−,
+digits) always uses all channels.
+
+A channel's category is, in this order: the one chosen in the phone remote (Organise tab); for an
+internet channel the playlist group (`group-title`); a table of Polish terrestrial channels; keywords
+in the name ("sport", "news", "kids", "music", "film"… in several languages); the genre filling at
+least half of the channel's TV guide (from the broadcast EIT); radio stations default to music. The
+categories are the general DVB content categories, the same as the programme genres in the guide.
 
 ### Numbering
 
@@ -608,8 +622,9 @@ Debug builds additionally offer a local HTTP server; see
 | `TvDialog` | Dialogs in the menu style |
 | `Tour` | Introduction on the first start and "What's new" after an update (major features per versionCode) |
 | `UpdateChecker` | Latest GitHub release: version check, store changelog, APK download with SHA-256 check (installed by `SelfUpdater`) |
-| `ChannelRepository` | Loads channels (from `TvContract` or discovered), applies identification, the service catalogue, custom names, order, hiding, numbering and duplicate removal; provides programmes |
+| `ChannelRepository` | Loads channels (from `TvContract` or discovered), applies identification, the service catalogue, custom names, categories, order, hiding, numbering and duplicate removal; provides programmes |
 | `ChannelStore` | Persistent channel settings keyed by multiplex and service number |
+| `ChannelCategory` | Channel categories: guesses from names, playlist groups and the TV guide |
 | `ColourKeysService` | Optional accessibility service that hands the remote's colour keys to the player on devices that route them to another app |
 | `ServiceCatalog` | Built-in names and LCNs of Polish national terrestrial services by service ID |
 | `ChannelPublisher` | Publishes identified channels to `TvContract` through the tuner input's JSON install mode |
@@ -898,6 +913,7 @@ the same key.
 | Test | Covers |
 |---|---|
 | `ChannelRepositoryTest` | genre mapping, channel number ordering |
+| `ChannelCategoryTest` | channel categories from names, playlist groups and the TV guide |
 | `DebugLogTest` | event log |
 | `EpgTest` | EIT parsing from a real recording, now/next, schedule merging, catalogue names |
 | `IptvTest` | M3U playlist parsing |

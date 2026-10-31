@@ -91,6 +91,23 @@ class ChannelStore(context: Context) {
         DebugLog.log("Store", "channel ${settingsKey(ch)} hidden=$hidden")
     }
 
+    /** Category chosen by the user ([ChannelCategory], [ChannelCategory.NONE] – explicitly none); null – guessed. */
+    fun customCategory(ch: Channel): Int? {
+        val key = "category_${settingsKey(ch)}"
+        if (prefs.contains(key)) return prefs.getInt(key, ChannelCategory.NONE)
+        return legacyKeys("category_", ch).firstOrNull { prefs.contains(it) }?.let { prefs.getInt(it, ChannelCategory.NONE) }
+    }
+
+    /** @param category null – back to the guessed category. */
+    fun setCustomCategory(ch: Channel, category: Int?) {
+        val key = "category_${settingsKey(ch)}"
+        prefs.edit().apply {
+            legacyKeys("category_", ch).forEach { remove(it) }
+            if (category == null) remove(key) else putInt(key, category)
+        }.apply()
+        DebugLog.log("Store", "channel ${settingsKey(ch)} category=${category ?: "auto"}")
+    }
+
     /** User-defined order ([settingsKey] keys); empty = default. */
     fun customOrder(): List<String> = runCatching {
         val a = JSONArray(prefs.getString(KEY_ORDER, "[]"))
@@ -122,6 +139,13 @@ class ChannelStore(context: Context) {
         }
         legacyKeys("hidden_", ch).forEach { old ->
             if (prefs.getBoolean(old, false)) { editor.putBoolean("hidden_$key", true); editor.remove(old); moved = true }
+        }
+        legacyKeys("category_", ch).forEach { old ->
+            if (prefs.contains(old)) {
+                if (!prefs.contains("category_$key")) editor.putInt("category_$key", prefs.getInt(old, ChannelCategory.NONE))
+                editor.remove(old)
+                moved = true
+            }
         }
         val order = customOrder()
         if ("id_${ch.id}" in order) {

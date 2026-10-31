@@ -45,6 +45,7 @@ class MainActivity : Activity() {
     private lateinit var channelPanel: View
     private lateinit var menu: MenuPanel
     private lateinit var channelList: ListView
+    private lateinit var channelFilter: TextView
     private lateinit var debugOverlay: TextView
 
     private val handler = Handler(Looper.getMainLooper())
@@ -143,6 +144,8 @@ class MainActivity : Activity() {
     private lateinit var store: ChannelStore
     private lateinit var audio: PlayerAudio
     private val adapter = ChannelAdapter()
+    /** Channel list filter: a [ChannelCategory] or [FILTER_ALL], [FILTER_RADIO], [FILTER_IPTV]. */
+    private var categoryFilter = FILTER_ALL
     private var prober: Prober? = null
 
     private var input: TvInputInfo? = null
@@ -247,6 +250,7 @@ class MainActivity : Activity() {
         channelPanel = findViewById(R.id.channel_panel)
         menu = MenuPanel(this, ::menuSections) { shown -> if (::hbb.isInitialized) hbb.covered = shown }
         channelList = findViewById(R.id.channel_list)
+        channelFilter = findViewById(R.id.channel_filter)
         debugOverlay = findViewById(R.id.debug_overlay)
 
         prefs = getSharedPreferences("player", MODE_PRIVATE)
@@ -257,12 +261,13 @@ class MainActivity : Activity() {
 
         channelList.adapter = adapter
         channelList.setOnItemLongClickListener { _, _, position, _ ->
-            channels.getOrNull(position)?.let { renameChannel(it) }
+            adapter.listed().getOrNull(position)?.let { renameChannel(it) }
             true
         }
         channelList.setOnItemClickListener { _, _, position, _ ->
+            val channel = adapter.listed().getOrNull(position) ?: return@setOnItemClickListener
             hideChannelList()
-            tuneTo(position)
+            tuneTo(channels.indexOfFirst { it.id == channel.id })
         }
         tvView.setCallback(PlayerCallback())
         if (prefs.getBoolean(PREF_DEBUG_OVERLAY, false)) debugOverlay.visibility = View.VISIBLE
@@ -1192,10 +1197,53 @@ class MainActivity : Activity() {
         if (channels.isEmpty()) return
         banner.visibility = View.GONE
         channelPanel.visibility = View.VISIBLE
-        val position = currentIndex.coerceAtLeast(0)
-        channelList.setItemChecked(position, true)
-        channelList.setSelection(position)
+        showFilter()
         channelList.requestFocus()
+    }
+
+    /**
+     * Filters of the channel list: all channels, then the categories present ([ChannelCategory]), radio and
+     * internet channels – the last two only when they are not the whole list.
+     */
+    private fun channelFilters(): List<Int> {
+        val present = channels.map { it.category }.toSet()
+        val categories = ChannelCategory.ALL.filter { it in present }
+        val radio = channels.any { it.isRadio } && !channels.all { it.isRadio }
+        val iptv = channels.any { it.iptv } && !channels.all { it.iptv }
+        if (categories.size < 2 && !radio && !iptv) return listOf(FILTER_ALL)
+        return listOf(FILTER_ALL) + categories + listOfNotNull(FILTER_RADIO.takeIf { radio }, FILTER_IPTV.takeIf { iptv })
+    }
+
+    private fun filterLabel(filter: Int): String = when (filter) {
+        FILTER_ALL -> getString(R.string.filter_all)
+        FILTER_RADIO -> getString(R.string.filter_radio)
+        FILTER_IPTV -> getString(R.string.filter_iptv)
+        else -> genreLabel(filter) ?: getString(R.string.filter_all)
+    }
+
+    /** ◀ ▶ on the channel list: the previous/next filter. ◀ on "all channels" closes the list. */
+    private fun stepFilter(step: Int): Boolean {
+        val filters = channelFilters()
+        val index = filters.indexOf(categoryFilter).coerceAtLeast(0)
+        if (step < 0 && index == 0) return false
+        categoryFilter = filters[(index + step).mod(filters.size)]
+        DebugLog.log("Player", "channel list filter: ${filterLabel(categoryFilter)}")
+        showFilter()
+        return true
+    }
+
+    /** Shows the current filter and selects the playing channel (or the first one when it is filtered out). */
+    private fun showFilter() {
+        val filters = channelFilters()
+        if (categoryFilter !in filters) categoryFilter = FILTER_ALL
+        channelFilter.visibility = if (filters.size > 1) View.VISIBLE else View.GONE
+        channelFilter.text = getString(R.string.filter_label, filterLabel(categoryFilter), adapter.listed().size)
+        adapter.notifyDataSetChanged()
+        val current = channels.getOrNull(currentIndex)
+        val position = adapter.listed().indexOfFirst { it.id == current?.id }
+        channelList.clearChoices()
+        if (position >= 0) channelList.setItemChecked(position, true)
+        channelList.setSelection(position.coerceAtLeast(0))
     }
 
     private fun hideChannelList() {
@@ -1203,12 +1251,31 @@ class MainActivity : Activity() {
     }
 
     private inner class ChannelAdapter : BaseAdapter() {
-        override fun getCount() = channels.size
-        override fun getItem(position: Int) = channels[position]
-        override fun getItemId(position: Int) = channels[position].id
+        private var source: List<Channel>? = null
+        private var sourceFilter = FILTER_ALL
+        private var items: List<Channel> = emptyList()
+
+        /** Channels shown under [categoryFilter]; recomputed when the channel list or the filter changes. */
+        fun listed(): List<Channel> {
+            if (source !== channels || sourceFilter != categoryFilter) {
+                source = channels
+                sourceFilter = categoryFilter
+                items = when (categoryFilter) {
+                    FILTER_ALL -> channels
+                    FILTER_RADIO -> channels.filter { it.isRadio }
+                    FILTER_IPTV -> channels.filter { it.iptv }
+                    else -> channels.filter { it.category == categoryFilter }
+                }
+            }
+            return items
+        }
+
+        override fun getCount() = listed().size
+        override fun getItem(position: Int) = listed()[position]
+        override fun getItemId(position: Int) = listed()[position].id
         override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
             val view = convertView ?: layoutInflater.inflate(R.layout.item_channel, parent, false)
-            val channel = channels[position]
+            val channel = listed()[position]
             view.findViewById<TextView>(R.id.number).text = channel.number
             view.findViewById<TextView>(R.id.name).text = channel.name
             val nowMs = System.currentTimeMillis()
@@ -1222,7 +1289,7 @@ class MainActivity : Activity() {
                 on?.let { progress = it.progress(nowMs) }
             }
             view.findViewById<TextView>(R.id.badge).text = when {
-                position == currentIndex -> "▶"
+                channel.id == channels.getOrNull(currentIndex)?.id -> "▶"
                 channel.virtual -> getString(R.string.badge_hbbtv)
                 channel.iptv -> getString(R.string.badge_iptv)
                 channel.scrambled -> "🔒"
@@ -2075,9 +2142,9 @@ class MainActivity : Activity() {
                 }
                 return true
             }
-            KeyEvent.KEYCODE_DPAD_LEFT -> if (panelVisible) { hideChannelList(); return true }
+            KeyEvent.KEYCODE_DPAD_LEFT -> if (panelVisible) { if (!stepFilter(-1)) hideChannelList(); return true }
             // At level 3 left/right arrows move focus between the "Audio" and "Subtitles" buttons.
-            KeyEvent.KEYCODE_DPAD_RIGHT -> if (!panelVisible && infoLevel != 3) { if (infoLevel == 0) showInfo(1); return true }
+            KeyEvent.KEYCODE_DPAD_RIGHT -> if (panelVisible) { stepFilter(+1); return true } else if (infoLevel != 3) { if (infoLevel == 0) showInfo(1); return true }
             KeyEvent.KEYCODE_INFO -> if (!panelVisible) { showInfo(4); return true }
             // Some remotes have no MENU key: the menu is on REC (the guide key opens the TV guide).
             KeyEvent.KEYCODE_MENU, KeyEvent.KEYCODE_SETTINGS, KeyEvent.KEYCODE_MEDIA_RECORD -> { hideChannelList(); showMenu(); return true }
@@ -2271,6 +2338,9 @@ class MainActivity : Activity() {
     }
 
     companion object {
+        private const val FILTER_ALL = -1
+        private const val FILTER_RADIO = -2
+        private const val FILTER_IPTV = -3
         private const val REPORT_PROMPT_DELAY_MS = 1500L
         private const val UPDATE_CHECK_DELAY_MS = 20_000L
         private const val WHATS_NEW_DELAY_MS = 3000L

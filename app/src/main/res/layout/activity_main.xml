@@ -396,6 +396,19 @@
             android:textSize="26sp"
             android:textStyle="bold" />
 
+        <!-- Category filter: ◀ ▶ switch it (shown when the channels fall into more than one category). -->
+        <TextView
+            android:id="@+id/channel_filter"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="-8dp"
+            android:paddingStart="32dp"
+            android:paddingEnd="24dp"
+            android:paddingBottom="12dp"
+            android:textColor="@color/accent"
+            android:textSize="17sp"
+            android:visibility="gone" />
+
         <ListView
             android:id="@+id/channel_list"
             android:layout_width="match_parent"

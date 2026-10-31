@@ -16,7 +16,7 @@ import kotlin.concurrent.thread
  * exposes only what the remote page needs:
  * - `GET /` – the page (static, no data); `GET /pair?code=…` – pairing from the QR code, sets the device cookie,
  * - `GET /api/state`, `GET /api/channels`, `POST /api/key?name=…`, `POST /api/tune?id=…` – paired devices only,
- * - `GET /api/manage` and `POST /api/manage/{order,hidden,name,hide-scrambled,reset}` – channel organisation,
+ * - `GET /api/manage` and `POST /api/manage/{order,hidden,name,category,hide-scrambled,reset}` – channel organisation,
  *   as on the Manage channels screen (paired devices only),
  * - `GET /api/signal`, `POST /api/signal/{tune,cycle,stop}` – signal measurement for aiming the antenna
  *   ([SignalMonitor]; paired devices only),
@@ -148,6 +148,11 @@ class PhoneRemoteServer(private val context: Context, val port: Int) {
                 // An empty name brings back the broadcaster's name.
                 channelFor(request, channels)?.let { store.setCustomName(it, request.query["name"]?.take(MAX_NAME)) }
             }
+            "POST" to "/api/manage/category" -> manage(request) { store, channels ->
+                // "auto" (or anything else not a category) – back to the guessed category.
+                val category = request.query["category"]?.toIntOrNull()?.takeIf { it == ChannelCategory.NONE || it in ChannelCategory.ALL }
+                channelFor(request, channels)?.let { store.setCustomCategory(it, category) }
+            }
             "POST" to "/api/manage/hide-scrambled" -> manage(request) { store, _ -> store.hideScrambled = request.query["on"] == "true" }
             "POST" to "/api/manage/reset" -> manage(request) { store, _ -> store.resetOrganisation() }
             "GET" to "/api/signal" -> json(SignalMonitor.poll(context).apply { remove("raw"); remove("probe"); remove("lna") })
@@ -201,8 +206,12 @@ class PhoneRemoteServer(private val context: Context, val port: Int) {
     /** All channels with their organisation (hidden ones too), as on the Manage channels screen. */
     private fun manageList(): JSONObject? {
         val array = JSONArray()
-        ChannelRepository(context).loadChannels(Dtv.findTunerInput(context)?.id, includeHidden = true).forEach { c ->
-            array.put(channelJson(c).put("hidden", c.hidden).put("scrambled", c.scrambled).put("virtual", c.virtual))
+        val repository = ChannelRepository(context)
+        val store = ChannelStore(context)
+        repository.loadChannels(Dtv.findTunerInput(context)?.id, includeHidden = true).forEach { c ->
+            val custom = store.customCategory(c)
+            array.put(channelJson(c).put("hidden", c.hidden).put("scrambled", c.scrambled).put("virtual", c.virtual)
+                .put("categoryAuto", custom == null).put("guessedCategory", if (custom == null) c.category else repository.guessCategory(c)))
         }
         return JSONObject().put("hideScrambled", ChannelStore(context).hideScrambled).put("channels", array)
     }
@@ -296,6 +305,7 @@ class PhoneRemoteServer(private val context: Context, val port: Int) {
     }
 
     private fun channelJson(c: Channel) = JSONObject().put("id", c.id).put("number", c.number).put("name", c.name).put("radio", c.isRadio).put("iptv", c.iptv)
+        .put("category", c.category)
 
     /** A key as if pressed on the remote: injected into the app's focused window (dialogs too), otherwise to the activity. */
     private fun key(name: String?): Response {
