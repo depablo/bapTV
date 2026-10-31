@@ -314,7 +314,7 @@
     <string name="iptv_channel_info">Kanał internetowy (IPTV)</string>
     <string name="iptv_source">Źródło: %1$s</string>
     <string name="iptv_address">Adres: %1$s</string>
-    <string name="guide_no_epg_iptv">Brak programu dla tego kanału internetowego.</string>
+    <string name="guide_no_epg_iptv">Brak programu dla tego kanału internetowego. Adres programu TV (XMLTV) dodasz w pilocie w telefonie, zakładka IPTV.</string>
 
     <!-- Updates from GitHub releases -->
     <string name="store_locale" translatable="false">pl</string>

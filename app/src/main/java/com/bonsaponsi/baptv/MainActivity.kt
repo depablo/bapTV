@@ -347,6 +347,8 @@ class MainActivity : Activity() {
         // Pause badge and bar (the handler was cleared in onStop).
         timeshift.startTicking()
         DebugLog.log("Player", "onStart")
+        // Internet channels' TV guide (XMLTV) – downloaded again when older than half a day.
+        IptvGuide.refreshIfStale(this)
         audio.start()
         Recorder.listeners += recorderListener
         RecordingScheduler.player = schedulerPlayer

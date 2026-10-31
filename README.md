@@ -23,7 +23,8 @@ of the HbbTV apps are blurred.</sub>
 
 - Live TV and radio from the device's tuner input, last channel remembered
 - Channel list with broadcaster (LCN) or sequential numbering
-- Channel management: reorder, hide (including all encrypted channels at once), rename
+- Channel management: reorder, hide (including all encrypted channels at once), rename, categories (news, sport, film…)
+  with a category filter on the channel list
 - TV guide (EPG) from `TvContract` and from the DVB EIT tables in the broadcast stream
 - Info panel with now/next, programme details, audio and subtitle selection and technical data
 - Audio track and subtitle selection, with the preferred language remembered
@@ -32,7 +33,8 @@ of the HbbTV apps are blurred.</sub>
 - HbbTV applications (red button) started from the channel's AIT
 - Phone remote: scan a QR code on the TV and control bapTV from the phone's browser, with a channel list
   and channel organisation
-- Internet channels (HLS, DASH) from M3U playlists, added and checked from the phone remote
+- Internet channels (HLS, DASH) from M3U playlists, added and checked from the phone remote, with a TV guide
+  from XMLTV (the playlist's own or any address)
 - In-app channel scan (DVB-T/T2, UHF with optional VHF) on devices with the Google DTV stack
 - Identified channels can be published back to the system, with names and LCN numbers, for other TV apps
 - Signal information (strength, SNR, BER) where the tuner reports it

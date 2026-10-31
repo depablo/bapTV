@@ -258,6 +258,14 @@ table.results td:last-child { text-align: right; font-variant-numeric: tabular-n
         <button class="key" id="checkMine" data-t="checkMine"></button>
         <button class="key" id="removeProblems" disabled></button>
       </div>
+      <h2 data-t="guideTitle"></h2>
+      <p class="tip" id="guideStatus"></p>
+      <div class="chips" id="guideSources"></div>
+      <div class="field">
+        <input class="search" id="guideUrl" type="url" inputmode="url" autocomplete="off" placeholder="https://…/guide.xml.gz">
+        <button class="key" id="addGuide" data-t="addGuide"></button>
+      </div>
+      <div class="tools"><button class="key" id="refreshGuide" data-t="refreshGuide"></button></div>
       <h2 data-t="addTitle"></h2>
       <div class="field">
         <input class="search" id="playlistUrl" type="url" inputmode="url" autocomplete="off" placeholder="https://…/playlist.m3u">
@@ -319,6 +327,10 @@ const STRINGS = {
     status: { OK: "works", SLOW: "server too slow", BLOCKED: "blocked (often outside its country)", DEAD: "dead", TIMEOUT: "no answer", DRM: "DRM – cannot play", ERROR: "error" },
     slowSpeed: x => `data ${x.toFixed(1)}× playback speed, needs 1.2×`, lowMargin: x => `little margin (${x.toFixed(1)}×), may buffer`,
     problem: { buffering: "⚠ keeps buffering", slow: "⚠ server too slow", error: "⚠ does not play" },
+    guideTitle: "TV guide (XMLTV)", addGuide: "Add", refreshGuide: "Refresh guide", guideRefreshing: "Downloading the guide…",
+    guideNone: "No guide yet – add an XMLTV address (.xml or .xml.gz). A playlist's own guide comes with its channels; channels are matched by tvg-id or name.",
+    guideNever: "Not downloaded yet.", guideError: "Problem: ", removeGuideConfirm: url => `Remove the guide ${url}?`,
+    guideStatus: (at, matched, all, n) => `Updated ${at}: guide for ${matched} of ${all} channels, ${n} programmes.`,
     checkMine: "Check added", checkingMine: "Checking…", removeProblems: n => `Remove with problems (${n})`, removeProblemsConfirm: n => `Remove ${n} channels that had problems while watching?`,
   },
   pl: {
@@ -350,6 +362,10 @@ const STRINGS = {
     status: { OK: "działa", SLOW: "serwer za wolny", BLOCKED: "zablokowany (często poza krajem nadawcy)", DEAD: "nie działa", TIMEOUT: "brak odpowiedzi", DRM: "DRM – nie do odtworzenia", ERROR: "błąd" },
     slowSpeed: x => `dane w tempie ${x.toFixed(1).replace(".", ",")}× odtwarzania, potrzeba 1,2×`, lowMargin: x => `mały zapas (${x.toFixed(1).replace(".", ",")}×), może buforować`,
     problem: { buffering: "⚠ często buforuje", slow: "⚠ serwer zbyt wolny", error: "⚠ nie odtwarza się" },
+    guideTitle: "Program TV (XMLTV)", addGuide: "Dodaj", refreshGuide: "Odśwież program", guideRefreshing: "Pobieranie programu…",
+    guideNone: "Brak programu – dodaj adres XMLTV (.xml lub .xml.gz). Program z listy M3U dochodzi razem z jej kanałami; kanały są dopasowywane po tvg-id albo nazwie.",
+    guideNever: "Jeszcze nie pobrany.", guideError: "Problem: ", removeGuideConfirm: url => `Usunąć program ${url}?`,
+    guideStatus: (at, matched, all, n) => `Aktualizacja ${at}: program dla ${matched} z ${all} kanałów, audycji: ${n}.`,
     checkMine: "Sprawdź dodane", checkingMine: "Sprawdzanie…", removeProblems: n => `Usuń z problemami (${n})`, removeProblemsConfirm: n => `Usunąć ${n} kanałów, które sprawiały problemy podczas oglądania?`,
   },
 };
@@ -670,7 +686,9 @@ function startDrag(handle, row) {
 // ---- Internet channels ----
 
 const PAGE = 150;
-let mine = { channels: [], sources: [] };
+let mine = { channels: [], sources: [], guide: { sources: [] } };
+let playlistEpg = [];      // guide addresses from the loaded playlist's header, sent along when adding its channels
+let guideTimer = 0;
 let streams = [];          // loaded playlist entries, each with .status/.detail after a check
 let selected = new Set();  // indexes into streams
 let shownLimit = PAGE;
@@ -713,6 +731,7 @@ function renderMine() {
   $("removeProblems").textContent = T.removeProblems(troubled.length);
   $("removeProblems").disabled = troubled.length === 0;
   $("checkMine").disabled = mine.channels.length === 0;
+  renderGuide();
   const chips = $("sources");
   chips.textContent = "";
   mine.sources.forEach(url => {
@@ -721,6 +740,41 @@ function renderMine() {
     chips.appendChild(chip);
   });
 }
+
+function renderGuide() {
+  const guide = mine.guide || { sources: [] };
+  const status = guide.status;
+  let text = !guide.sources.length ? T.guideNone : !status ? T.guideNever
+    : T.guideStatus(new Date(status.at).toLocaleString(lang, { day: "numeric", month: "numeric", hour: "2-digit", minute: "2-digit" }),
+      status.matched, status.channels, status.programmes);
+  if (guide.sources.length && status && status.error) text += " " + T.guideError + status.error;
+  if (guide.refreshing) text = T.guideRefreshing;
+  $("guideStatus").textContent = text;
+  const chips = $("guideSources");
+  chips.textContent = "";
+  guide.sources.forEach(url => {
+    const chip = document.createElement("button"); chip.className = "chip"; chip.textContent = "✕ " + url.replace(/^https?:\/\//, "");
+    chip.addEventListener("click", () => { if (confirm(T.removeGuideConfirm(url))) guideAction(`/api/iptv/guide/remove?url=${encodeURIComponent(url)}`); });
+    chips.appendChild(chip);
+  });
+  $("refreshGuide").disabled = !guide.sources.length || guide.refreshing;
+  // While the set-top box downloads the guide, ask again in a moment.
+  clearTimeout(guideTimer);
+  if (guide.refreshing) guideTimer = setTimeout(loadMine, 4000);
+}
+
+async function guideAction(path) {
+  try { mine = await api(path, "POST"); renderMine(); } catch (e) { e.status === 400 ? notice(T.loadFailed + e.message, 6000) : explain(e); }
+}
+
+$("addGuide").addEventListener("click", () => {
+  const url = $("guideUrl").value.trim();
+  if (!url) return;
+  $("guideUrl").value = "";
+  guideAction(`/api/iptv/guide/add?url=${encodeURIComponent(url)}`);
+});
+$("guideUrl").addEventListener("keydown", e => { if (e.key === "Enter") $("addGuide").click(); });
+$("refreshGuide").addEventListener("click", () => guideAction("/api/iptv/guide/refresh"));
 
 async function loadPlaylist(url, file) {
   notice(T.loading, 0);
@@ -731,6 +785,7 @@ async function loadPlaylist(url, file) {
     const body = await response.json().catch(() => ({}));
     if (!response.ok) { notice(T.loadFailed + (body.error || response.status), 6000); return; }
     streams = body.streams;
+    playlistEpg = body.epgUrls || [];
     selected = new Set();
     shownLimit = PAGE;
     const groups = [...new Set(streams.map(s => s.group).filter(Boolean))].sort((a, b) => a.localeCompare(b));
@@ -837,7 +892,8 @@ async function addSelected() {
   if (!chosen.length) return;
   $("addSelected").disabled = true;
   try {
-    mine = await api("/api/iptv/add", "POST", JSON.stringify(chosen));
+    const epg = playlistEpg.length ? `?epg=${encodeURIComponent(playlistEpg.join(","))}` : "";
+    mine = await api(`/api/iptv/add${epg}`, "POST", JSON.stringify(chosen));
     notice(T.added(mine.added), 4000);
     selected = new Set();
     renderMine();

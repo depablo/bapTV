@@ -48,7 +48,8 @@ object Iptv {
         }
     }
 
-    class Playlist(val streams: List<Stream>, val epgUrl: String?)
+    /** @param epgUrls TV guide (XMLTV) addresses from the `#EXTM3U` header ([IptvGuide]). */
+    class Playlist(val streams: List<Stream>, val epgUrls: List<String>)
 
     fun inputId(context: Context): String = TvContract.buildInputId(ComponentName(context, IptvInputService::class.java))
 
@@ -209,7 +210,7 @@ object Iptv {
      */
     fun parseM3u(text: String): Playlist {
         val streams = ArrayList<Stream>()
-        var epgUrl: String? = null
+        var epgUrls: List<String> = emptyList()
         var info: Map<String, String> = emptyMap()
         var name = ""
         var group = ""
@@ -220,7 +221,8 @@ object Iptv {
             val line = raw.trim().removePrefix("﻿")
             when {
                 line.isEmpty() -> Unit
-                line.startsWith("#EXTM3U") -> epgUrl = attributes(line).let { it["x-tvg-url"] ?: it["url-tvg"] }?.split(',')?.firstOrNull()?.trim()
+                line.startsWith("#EXTM3U") -> epgUrls = attributes(line).let { listOfNotNull(it["x-tvg-url"], it["url-tvg"]) }
+                    .flatMap { it.split(',') }.map { it.trim() }.filter { it.isNotEmpty() }.distinct()
                 line.startsWith("#EXTINF") -> {
                     name = commaTitle(line)
                     info = attributes(line.removeSuffix(name))
@@ -246,7 +248,7 @@ object Iptv {
                 }
             }
         }
-        return Playlist(streams, epgUrl)
+        return Playlist(streams, epgUrls)
     }
 
     private val ATTRIBUTE = Regex("""([\w-]+)="([^"]*)"""")

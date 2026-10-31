@@ -315,7 +315,7 @@
     <string name="iptv_channel_info">Internet channel (IPTV)</string>
     <string name="iptv_source">Source: %1$s</string>
     <string name="iptv_address">Address: %1$s</string>
-    <string name="guide_no_epg_iptv">No programme data for this internet channel.</string>
+    <string name="guide_no_epg_iptv">No programme data for this internet channel. Add a TV guide (XMLTV) address in the phone remote, IPTV tab.</string>
 
     <!-- Updates from GitHub releases -->
     <string name="store_locale" translatable="false">en-US</string>

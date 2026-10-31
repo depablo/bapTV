@@ -277,6 +277,18 @@ warning. "Check added" runs the check on all added channels; "Remove with proble
 marked ones at once. Short stalls are not reported on the TV, so "Buffering" does not flicker. When a stream fails, the status line says
 why, e.g. "Stream unavailable (HTTP 403)". Dropped live streams reconnect by themselves a few times.
 Recording, live pause, HbbTV and channel identification are for broadcast channels only.
+
+**TV guide for internet channels.** The IPTV tab's "TV guide (XMLTV)" section takes addresses of XMLTV
+files (`.xml` or `.xml.gz`); the guide addresses in a playlist's header (`x-tvg-url`, `url-tvg`) are added
+with its channels. The set-top box downloads them (streamed, so whole-country guides of tens of
+megabytes are fine), matches programmes to the internet channels by `tvg-id` or, failing that, by name
+(case, accents and "HD" ignored, any of a channel's `<display-name>` entries), and stores six hours back
+and four days ahead in `TvContract.Programs` of the app's own input. The TV guide, the info panel, the
+phone remote and other TV apps then show it like a broadcast guide. The guide is downloaded again after
+adding channels or an address, with "Refresh guide", and when the player starts and the last download
+is older than 12 hours. The section shows when it was last updated and for how many channels. The first
+file that has a channel's guide wins; later ones only fill channels still missing. Programme categories
+become genres, so they also help to guess the [channel category](#categories).
 Besides the system's trusted certificates the app trusts one more public root, Certum Trusted Root CA
 (`res/xml/network_security_config.xml`): newer Android versions trust it, but Android 11 set-top
 boxes do not, and some stream servers use certificates under it.
@@ -625,6 +637,7 @@ Debug builds additionally offer a local HTTP server; see
 | `ChannelRepository` | Loads channels (from `TvContract` or discovered), applies identification, the service catalogue, custom names, categories, order, hiding, numbering and duplicate removal; provides programmes |
 | `ChannelStore` | Persistent channel settings keyed by multiplex and service number |
 | `ChannelCategory` | Channel categories: guesses from names, playlist groups and the TV guide |
+| `IptvGuide` | TV guide for internet channels: downloads XMLTV, matches channels, writes `TvContract.Programs` |
 | `ColourKeysService` | Optional accessibility service that hands the remote's colour keys to the player on devices that route them to another app |
 | `ServiceCatalog` | Built-in names and LCNs of Polish national terrestrial services by service ID |
 | `ChannelPublisher` | Publishes identified channels to `TvContract` through the tuner input's JSON install mode |
@@ -914,6 +927,7 @@ the same key.
 |---|---|
 | `ChannelRepositoryTest` | genre mapping, channel number ordering |
 | `ChannelCategoryTest` | channel categories from names, playlist groups and the TV guide |
+| `IptvGuideTest` | XMLTV parsing (also gzip), matching programmes to internet channels, XMLTV times |
 | `DebugLogTest` | event log |
 | `EpgTest` | EIT parsing from a real recording, now/next, schedule merging, catalogue names |
 | `IptvTest` | M3U playlist parsing |

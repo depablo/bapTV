@@ -23,7 +23,7 @@ class IptvTest {
             http://example.com/radio.aac
             """.trimIndent(),
         )
-        assertEquals("https://example.com/guide.xml.gz", playlist.epgUrl)
+        assertEquals(listOf("https://example.com/guide.xml.gz", "https://example.com/other.xml"), playlist.epgUrls)
         assertEquals(3, playlist.streams.size)
         val (info, kids, radio) = playlist.streams
         assertEquals("TVP Info", info.name)

@@ -20,7 +20,8 @@ import kotlin.concurrent.thread
  *   as on the Manage channels screen (paired devices only),
  * - `GET /api/signal`, `POST /api/signal/{tune,cycle,stop}` – signal measurement for aiming the antenna
  *   ([SignalMonitor]; paired devices only),
- * - `GET /api/iptv`, `POST /api/iptv/{load,probe,add,check,remove}` – internet channels ([Iptv]): reading a playlist,
+ * - `GET /api/iptv`, `POST /api/iptv/{load,probe,add,check,remove}`, `POST /api/iptv/guide/{add,remove,refresh}` – internet
+ *   channels ([Iptv]) and their TV guide ([IptvGuide]): reading a playlist,
  *   checking streams, adding, re-checking and removing channels (paired devices only).
  * The Host and cross-site checks of [ServerAccess] apply to every request.
  */
@@ -175,8 +176,27 @@ class PhoneRemoteServer(private val context: Context, val port: Int) {
             }
             "POST" to "/api/iptv/add" -> {
                 val added = Iptv.add(context, streamsFrom(body(request, input)))
+                // The playlist's own guide addresses come along; the guide is (re)read for the new channels.
+                IptvGuide.addSources(context, request.query["epg"].orEmpty().split(',').filter { it.isNotBlank() })
+                if (added > 0 && IptvGuide.sources(context).isNotEmpty()) IptvGuide.refreshInBackground(context) { channelsChanged() }
                 channelsChanged()
                 json(iptvList().put("added", added))
+            }
+            "POST" to "/api/iptv/guide/add" -> {
+                val url = request.query["url"].orEmpty().trim()
+                if (!url.startsWith("http://") && !url.startsWith("https://")) return error("400 Bad Request", "address must start with http:// or https://")
+                IptvGuide.addSources(context, listOf(url))
+                IptvGuide.refreshInBackground(context) { channelsChanged() }
+                json(iptvList())
+            }
+            "POST" to "/api/iptv/guide/remove" -> {
+                IptvGuide.removeSource(context, request.query["url"].orEmpty())
+                IptvGuide.refreshInBackground(context) { channelsChanged() }
+                json(iptvList())
+            }
+            "POST" to "/api/iptv/guide/refresh" -> {
+                IptvGuide.refreshInBackground(context) { channelsChanged() }
+                json(iptvList().apply { getJSONObject("guide").put("refreshing", true) })
             }
             "POST" to "/api/iptv/check" -> {
                 // The added channels with the same check as before adding; what fails is marked like a problem seen while watching.
@@ -257,7 +277,9 @@ class PhoneRemoteServer(private val context: Context, val port: Int) {
                 problems[c.id]?.let { put("problem", it.kind).put("problemDetail", it.detail ?: JSONObject.NULL).put("problemAt", it.atMs) }
             })
         }
-        return JSONObject().put("channels", channels).put("sources", JSONArray(Iptv.sources(context)))
+        val guide = JSONObject().put("sources", JSONArray(IptvGuide.sources(context))).put("refreshing", IptvGuide.isRefreshing)
+            .put("status", IptvGuide.status(context)?.toJson() ?: JSONObject.NULL)
+        return JSONObject().put("channels", channels).put("sources", JSONArray(Iptv.sources(context))).put("guide", guide)
     }
 
     /** A playlist from an address (fetched here – the phone's browser may not reach it across origins) or uploaded as the body. */
@@ -276,7 +298,7 @@ class PhoneRemoteServer(private val context: Context, val port: Int) {
         // Kept with each channel added from it (shown in the player's info panel).
         val source = url?.takeIf { it.isNotBlank() } ?: request.query["name"].orEmpty().take(MAX_NAME)
         val streams = JSONArray().apply { playlist.streams.forEach { put(it.copy(source = source).toJson()) } }
-        return json(JSONObject().put("streams", streams).put("epgUrl", playlist.epgUrl ?: JSONObject.NULL))
+        return json(JSONObject().put("streams", streams).put("epgUrls", JSONArray(playlist.epgUrls)))
     }
 
     /** What is on screen: the player's channel with now/next, or the name of another app screen. */
