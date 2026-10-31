@@ -40,6 +40,12 @@ class ChannelCategoryTest {
         assertEquals(MUSIC, ChannelCategory.guess("RMF MAXX"))
         assertEquals(EDUCATION, ChannelCategory.guess("Discovery Channel"))
         assertEquals(NONE, ChannelCategory.guess("Kanał 7"))
+        // Playlist notes in brackets do not hide a known name.
+        assertEquals(FILM, ChannelCategory.guess("Puls 2 (1080p)"))
+        assertEquals(NEWS, ChannelCategory.guess("Polsat News 2 (1080p) [Geo-blocked]"))
+        assertEquals(MUSIC, ChannelCategory.guess("4 Fun TV"))
+        assertEquals(SPORT, ChannelCategory.guess("PFL MMA (720p)"))
+        assertEquals(KIDS, ChannelCategory.guess("Polsat JimJam (576p)"))
     }
 
     @Test
