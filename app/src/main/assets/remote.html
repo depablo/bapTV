@@ -587,6 +587,8 @@ function inCategory(c) {
 }
 
 function renderChannels() {
+  // Rebuilding the list under a dragged row would lose its pointer – rendered once it is dropped.
+  if (dragging) { renderPending = true; return; }
   renderCategoryChips();
   const query = $("search").value.trim().toLowerCase();
   const list = $("list");
@@ -609,6 +611,7 @@ function renderChannels() {
     item.append(n, t, p);
     item.addEventListener("click", () => {
       if (suppressClick) { suppressClick = false; return; }
+      if (dismissClick) { dismissClick = false; return; }
       if (picked) unpick(); else tune(c.id);
     });
     item.addEventListener("contextmenu", event => event.preventDefault());
@@ -627,13 +630,19 @@ let picked = null;          // the list row lifted by a long press
 let pickedId = null;        // its channel, kept across re-rendering
 let dragging = false;
 let suppressClick = false;  // the click that ends a long press must not tune
+let dismissClick = false;   // a tap on another channel only puts the lifted one down
+let renderPending = false;
 
 // While a row is dragged the page must not scroll – prevented on touchmove, which still reaches us.
 document.addEventListener("touchmove", event => { if (dragging) event.preventDefault(); }, { passive: false });
-document.addEventListener("pointerdown", event => { if (picked && !picked.contains(event.target)) unpick(); }, true);
+document.addEventListener("pointerdown", event => {
+  dismissClick = !!(picked && !picked.contains(event.target) && event.target.closest("#list"));
+  if (picked && !picked.contains(event.target)) unpick();
+}, true);
 
 function unpick() {
   pickedId = null;
+  dragging = false;
   if (!picked) return;
   picked.classList.remove("picked", "dragging");
   picked.querySelector(".acts")?.remove();
@@ -680,9 +689,11 @@ function holdToPick(item, c) {
     item.classList.remove("dragging");
     if (moved) saveMove(item);
     showActions(item, c);
+    if (renderPending) { renderPending = false; renderChannels(); }
   };
   item.addEventListener("pointerup", end);
   item.addEventListener("pointercancel", end);
+  item.addEventListener("lostpointercapture", end);
 }
 
 /** Rename and hide next to the lifted channel. */
@@ -921,7 +932,7 @@ function renderMine() {
 function renderGuide() {
   const guide = mine.guide || { sources: [] };
   const status = guide.status;
-  let text = !guide.sources.length ? T.guideNone : !status ? T.guideNever
+  let text = !guide.sources.length ? T.guideNone : !status || !status.at ? T.guideNever
     : T.guideStatus(new Date(status.at).toLocaleString(lang, { day: "numeric", month: "numeric", hour: "2-digit", minute: "2-digit" }),
       status.matched, status.channels, status.programmes);
   if (guide.sources.length && status && status.error) text += " " + T.guideError + status.error;

@@ -103,7 +103,9 @@ class ChannelRepository(private val context: Context) {
     fun guessCategory(ch: Channel): Int {
         val guessed = ChannelCategory.guess(ch.name, ch.group)
         if (guessed != ChannelCategory.NONE) return guessed
-        val fromGuide = ChannelCategory.fromProgrammes(programmes(ch, cachedOnly = true))
+        // Off the main thread (player's io queue, phone remote server) the guide may be read from the provider.
+        val onMain = android.os.Looper.myLooper() == android.os.Looper.getMainLooper()
+        val fromGuide = ChannelCategory.fromProgrammes(programmes(ch, cachedOnly = onMain))
         if (fromGuide != ChannelCategory.NONE) return fromGuide
         return if (ch.isRadio) ChannelCategory.MUSIC else ChannelCategory.NONE
     }
@@ -162,7 +164,6 @@ class ChannelRepository(private val context: Context) {
         return channels - dropped.toSet()
     }
 
-    private val providerProgrammes = HashMap<Long, Pair<Long, List<Programme>>>()
 
     /**
      * Channel TV guide: from recording EIT (dtvinput), or when missing – from TvContract.Programs, filled by
@@ -347,6 +348,12 @@ class ChannelRepository(private val context: Context) {
     private fun Cursor.positiveIntOrNull(index: Int): Int? = if (isNull(index)) null else getInt(index).takeIf { it > 0 }
 
     companion object {
+        /** Guide read from TvContract, by channel ID – shared by all repositories (player, guide, phone remote). */
+        private val providerProgrammes = HashMap<Long, Pair<Long, List<Programme>>>()
+
+        /** After the guide in TvContract changed (e.g. [IptvGuide] wrote a new one). */
+        fun clearProgrammeCache() = synchronized(providerProgrammes) { providerProgrammes.clear() }
+
         private const val PREF_LCN = "numbering_lcn"
         private const val PROVIDER_EPG_TTL_MS = 5 * 60_000L
         /** Upper bound of the channel number in [numberKey] – a larger one (bad data) must not overflow the key. */

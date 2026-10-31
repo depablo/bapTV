@@ -107,8 +107,13 @@ object IptvGuide {
                     errors += "${url.substringAfter("://").substringBefore('/')}: ${e.message ?: e.javaClass.simpleName}"
                 }
             }
-            val written = write(context, channels.map { it.first.id }, programmes)
-            val status = Status(now, channels.size, programmes.count { it.value.isNotEmpty() }, written, errors.joinToString("; ").ifEmpty { null })
+            // A failed source must not wipe the guide it provided before: then only channels with fresh data are
+            // rewritten, and the time of the last full success stays, so the next player start tries again.
+            val rewrite = if (errors.isEmpty()) channels.map { it.first.id } else programmes.keys.toList()
+            val written = write(context, rewrite, programmes)
+            ChannelRepository.clearProgrammeCache()
+            val at = if (errors.isEmpty()) now else status(context)?.atMs ?: 0
+            val status = Status(at, channels.size, programmes.count { it.value.isNotEmpty() }, written, errors.joinToString("; ").ifEmpty { null })
             prefs(context).edit().putString(KEY_STATUS, status.toJson().toString()).apply()
             DebugLog.log("Guide", "internet channels with a guide: ${status.matched}/${status.channels}, programmes $written")
             return status
