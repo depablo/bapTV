@@ -72,7 +72,11 @@
     <string name="scan_rejected">Tuner od razu odrzucił żądanie wyszukiwania – to nie jest problem z anteną. Wyszukaj kanały przyciskiem „%1$s”; bapTV pokaże je potem.</string>
     <string name="scan_cancelled">Skanowanie przerwane.</string>
     <string name="scan_no_setup">Tuner nie udostępnia kreatora konfiguracji.</string>
-    <string name="scan_setup_returned">Powrót z kreatora (kod wyniku %1$d).</string>
+    <string name="scan_setup_channels">Kreator znalazł kanały: %1$d – wracam do odtwarzacza.</string>
+    <string name="scan_setup_no_channels">Po kreatorze nadal brak kanałów (kod wyniku %1$d).</string>
+    <string name="scan_setup_discover">Kanały nie są jeszcze widoczne – jeśli kreator je znalazł, odtwarzacz zaraz je wykryje.</string>
+    <string name="scan_opening_setup">Za %1$d s otworzy się „Kreator systemowy”…</string>
+    <string name="scan_mode_wizard_rejected">Tuner tego urządzenia odrzuca wyszukiwanie kanałów uruchamiane przez inne aplikacje, dlatego bapTV korzysta z kreatora urządzenia. Wybierz „Kreator systemowy”, a po zakończeniu wróć do aplikacji.</string>
     <string name="scan_send_failed">Nie udało się uruchomić skanowania: %1$s</string>
 
     <string name="diag_title">Diagnostyka</string>

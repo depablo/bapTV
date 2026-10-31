@@ -27,17 +27,19 @@ data class DeviceCapabilities(
     val channelsVisible: Boolean,
     /** A service recording can be read as a TS file – channel identification, EPG from EIT and HbbTV from AIT. */
     val streamAnalysis: Boolean,
+    /** This dtvinput version rejected every in-app scan request – the system wizard is used instead. */
+    val scanRejected: Boolean = false,
 ) {
     /** Channel discovery by probing IDs – a workaround for `searchable=0` in dtvinput. */
     val channelDiscovery get() = cbs && !channelsVisible
-    val inAppScan get() = cbs
+    val inAppScan get() = cbs && !scanRejected
     val signal get() = tunerStats
     val hbbtv get() = streamAnalysis
 
     fun toJson(): JSONObject = JSONObject()
         .put("inputId", inputId).put("inputLabel", inputLabel)
         .put("cbs", cbs).put("tunerStats", tunerStats).put("systemSetup", systemSetup)
-        .put("channelsVisible", channelsVisible).put("streamAnalysis", streamAnalysis)
+        .put("channelsVisible", channelsVisible).put("streamAnalysis", streamAnalysis).put("scanRejected", scanRejected)
         .put("country", Region.country()).put("scanPlan", Region.plan().name)
         .put("features", JSONObject()
             .put("inAppScan", inAppScan).put("channelDiscovery", channelDiscovery)
@@ -46,7 +48,7 @@ data class DeviceCapabilities(
     /** Lines for the diagnostics report. */
     fun describe(): List<String> = listOf(
         "Tuner input: ${inputId ?: "none"}" + (inputLabel?.let { " ($it)" } ?: ""),
-        "Google DTV stack (dtvinput, in-app scan): ${yes(cbs)}",
+        "Google DTV stack (dtvinput, in-app scan): ${yes(cbs)}" + if (scanRejected) " – in-app scan rejected by this dtvinput version, system wizard instead" else "",
         "Tuner statistics (dtvprovider – signal, LNA): ${yes(tunerStats)}",
         "Input channel setup wizard: ${yes(systemSetup)}",
         "Channels visible in TvContract: ${yes(channelsVisible)}" + if (channelDiscovery) " – discovery by probing" else "",
@@ -78,6 +80,7 @@ data class DeviceCapabilities(
                 // Reading the recording file is verified only with dtvinput (directory Android/media/<package>/Records);
                 // switched off when this dtvinput version turned out to refuse recording.
                 streamAnalysis = cbs && !TsProbe.unsupported(app),
+                scanRejected = cbs && ScanActivity.rejected(app),
             )
             if (caps != cached) DebugLog.log("Caps", caps.describe().joinToString("; "))
             cached = caps
@@ -92,7 +95,7 @@ data class DeviceCapabilities(
             input.createSetupIntent()?.let { context.packageManager.resolveActivity(it, 0) != null } ?: false
         }.getOrDefault(false)
 
-        private fun countChannels(context: Context, inputId: String): Int = runCatching {
+        fun countChannels(context: Context, inputId: String): Int = runCatching {
             context.contentResolver.query(TvContract.buildChannelsUriForInput(inputId), arrayOf(TvContract.Channels._ID), null, null, null)
                 ?.use { it.count } ?: 0
         }.getOrDefault(0)

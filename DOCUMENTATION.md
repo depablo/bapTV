@@ -483,6 +483,14 @@ is shown straight away.
 If the tuner does not allow other apps to scan at all, the screen says so and suggests scanning in
 the TV settings.
 
+If the installer service rejects a request straight away (a failure within moments, before any
+frequency is tuned), the app retries with the tuner's own frequency plan for the country and with
+DVB-T only. When every variant is rejected – seen with Google DTV `CBS.U14` on Android 14 – the app
+remembers it for that version of the tuner input, opens the **System wizard** after a few seconds and
+from then on offers only the wizard (the in-app scan and channel publishing are hidden). A tuner
+firmware update or a successful in-app scan clears this. A problem report is suggested only when the
+wizard also returns without channels; with channels the scan screen closes and the player loads them.
+
 ### Scan options (Google DTV stack, under Advanced settings)
 
 - **DVB-T2 mode** (also receives DVB-T).

@@ -146,7 +146,10 @@ class ScanActivity : Activity() {
         findViewById<Button>(R.id.scan_service).setOnClickListener { startScan(Method.SERVICE) }
         directButton.setOnClickListener { startScan(Method.BROADCAST) }
         findViewById<Button>(R.id.scan_setup).setOnClickListener { openSystemSetup() }
-        findViewById<Button>(R.id.scan_diag).setOnClickListener { startActivity(Intent(this, DiagnosticsActivity::class.java)) }
+        findViewById<Button>(R.id.scan_diag).setOnClickListener {
+            handler.removeCallbacks(openWizard)
+            startActivity(Intent(this, DiagnosticsActivity::class.java))
+        }
         findViewById<Button>(R.id.scan_close).setOnClickListener { finish() }
         cancelButton.setOnClickListener { cancelScan() }
 
@@ -181,7 +184,13 @@ class ScanActivity : Activity() {
             // The system wizard is the only way here – shown directly instead of under "Advanced settings".
             showAdvanced(true)
             advancedToggle.visibility = View.GONE
-            modeText.text = getString(if (caps.systemSetup) R.string.scan_mode_wizard else R.string.scan_mode_none)
+            modeText.text = getString(
+                when {
+                    !caps.systemSetup -> R.string.scan_mode_none
+                    caps.scanRejected -> R.string.scan_mode_wizard_rejected
+                    else -> R.string.scan_mode_wizard
+                }
+            )
             statusText.text = if (caps.systemSetup) "" else getString(R.string.scan_iptv_hint)
             findViewById<Button>(if (caps.systemSetup) R.id.scan_setup else R.id.scan_close).requestFocus()
         }
@@ -227,9 +236,27 @@ class ScanActivity : Activity() {
     @Suppress("DEPRECATION")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
-        DebugLog.log("Scan", "returned from setup wizard: requestCode=$requestCode resultCode=$resultCode data=$data")
-        statusText.text = getString(R.string.scan_setup_returned, resultCode)
-        DeviceCapabilities.refresh(this)
+        val caps = DeviceCapabilities.refresh(this)
+        val channels = caps.inputId?.let { DeviceCapabilities.countChannels(this, it) } ?: 0
+        DebugLog.log("Scan", "returned from setup wizard: requestCode=$requestCode resultCode=$resultCode data=$data, input channels=$channels")
+        if (channels > 0) {
+            statusText.text = getString(R.string.scan_setup_channels, channels)
+            findViewById<Button>(R.id.scan_close).requestFocus()
+            handler.postDelayed({ if (!isFinishing) finish() }, CONTINUE_DELAY_MS)
+            return
+        }
+        val message = getString(R.string.scan_setup_no_channels, resultCode)
+        // dtvinput may hide its channels from TvContract (searchable=0, CBS.R11) – then the player finds them by probing.
+        // On a dtvinput that rejects in-app scans (CBS.U14) channels from the wizard were visible, so 0 really means none.
+        if (caps.channelDiscovery && !caps.scanRejected) {
+            DebugLog.log("Scan", "no channels visible after the wizard – the player will discover them by probing")
+            statusText.setText(R.string.scan_setup_discover)
+            handler.postDelayed({ if (!isFinishing) finish() }, CONTINUE_DELAY_MS)
+            return
+        }
+        statusText.text = message + "\n" + getString(R.string.scan_iptv_hint)
+        // Only now a report is worth it: neither the in-app scan nor the device's own wizard gave channels.
+        ReportSender.offer(this, ReportSender.Reason.SCAN_FAILED, message, automatic = true)
     }
 
     private fun registerEvents() {
@@ -251,6 +278,7 @@ class ScanActivity : Activity() {
     }
 
     private fun startScan(method: Method) {
+        handler.removeCallbacks(openWizard)
         val variants = scanParamsVariants(vhfCheck.isChecked, t2Check.isChecked)
         paramsVariant = getSharedPreferences(PREFS, MODE_PRIVATE).getInt(PREF_PARAMS_VARIANT, 0).takeIf { it in variants.indices } ?: 0
         val params = variants[paramsVariant]
@@ -319,6 +347,7 @@ class ScanActivity : Activity() {
                 if (shown == 0) ReportSender.offer(this, ReportSender.Reason.SCAN_FAILED, getString(R.string.scan_complete, 0), automatic = true)
                 if (shown > 0) {
                     getSharedPreferences(PREFS, MODE_PRIVATE).edit().putInt(PREF_PARAMS_VARIANT, paramsVariant).apply()
+                    setRejected(this, false)
                     continueInPlayer(shown)
                 }
             }
@@ -398,6 +427,7 @@ class ScanActivity : Activity() {
 
     @Suppress("DEPRECATION")
     private fun openSystemSetup() {
+        handler.removeCallbacks(openWizard)
         val input = Dtv.findTunerInput(this)
         val setupIntent = input?.createSetupIntent()
         DebugLog.log("Scan", "system setup wizard: input=${input?.id}, intent=$setupIntent")
@@ -442,13 +472,27 @@ class ScanActivity : Activity() {
         }
         val message = getString(R.string.scan_rejected, getString(R.string.scan_method_setup))
         getSharedPreferences(PREFS, MODE_PRIVATE).edit().remove(PREF_PARAMS_VARIANT).apply()
-        finishScan(message + "\n" + getString(R.string.scan_iptv_hint), null)
-        if (DeviceCapabilities.get(this).systemSetup) {
-            showAdvanced(true)
-            findViewById<Button>(R.id.scan_setup).requestFocus()
+        val wasService = scanning == Method.SERVICE
+        if (wasService) setRejected(this, true)
+        val caps = DeviceCapabilities.refresh(this)
+        if (!caps.systemSetup) {
+            finishScan(message + "\n" + getString(R.string.scan_iptv_hint), null)
+            ReportSender.offer(this, ReportSender.Reason.SCAN_FAILED, message, automatic = true)
+            return
         }
-        ReportSender.offer(this, ReportSender.Reason.SCAN_FAILED, message, automatic = true)
+        // The device's own wizard can still scan (it does on dtvinput CBS.U14) – opened for the user;
+        // a report is offered only if the wizard brings no channels either (onActivityResult).
+        finishScan(message + "\n" + getString(R.string.scan_opening_setup, WIZARD_DELAY_MS / 1000), null)
+        if (wasService) {
+            findViewById<View>(R.id.scan_service).visibility = View.GONE
+            options.visibility = View.GONE
+        }
+        showAdvanced(true)
+        findViewById<Button>(R.id.scan_setup).requestFocus()
+        handler.postDelayed(openWizard, WIZARD_DELAY_MS)
     }
+
+    private val openWizard = Runnable { if (!isFinishing) openSystemSetup() }
 
     /**
      * Scan requests in dtvinput JSON format, tried in order when dtvinput rejects one at once:
@@ -484,5 +528,25 @@ class ScanActivity : Activity() {
         private const val REJECTED_MS = 3000L
         private const val PREFS = "scan"
         private const val PREF_PARAMS_VARIANT = "params_variant"
+        private const val WIZARD_DELAY_MS = 3000L
+
+        /**
+         * dtvinput rejected every in-app scan request (seen with CBS.U14 on Android 14). Kept per dtvinput
+         * version – a firmware update gives the in-app scan another chance.
+         */
+        fun rejected(context: Context): Boolean =
+            context.applicationContext.getSharedPreferences(PREFS, MODE_PRIVATE).getBoolean(rejectedKey(context), false)
+
+        fun setRejected(context: Context, rejected: Boolean) {
+            if (rejected == rejected(context)) return
+            context.applicationContext.getSharedPreferences(PREFS, MODE_PRIVATE).edit().putBoolean(rejectedKey(context), rejected).apply()
+            DebugLog.log("Scan", if (rejected) "this dtvinput rejects in-app scans – the system wizard from now on" else "in-app scan works again")
+            DeviceCapabilities.refresh(context)
+        }
+
+        private fun rejectedKey(context: Context): String {
+            val version = runCatching { context.packageManager.getPackageInfo(Dtv.DTV_INPUT_PACKAGE, 0).versionName }.getOrNull()
+            return "rejected_$version"
+        }
     }
 }
