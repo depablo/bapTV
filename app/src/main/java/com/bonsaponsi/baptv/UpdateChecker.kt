@@ -22,6 +22,8 @@ object UpdateChecker {
     private const val KEY_LAST_CHECK = "last_check"
     private const val CHECK_INTERVAL_MS = 24 * 60 * 60_000L
     private const val MAX_NOTES = 600
+    private const val MAX_APK_BYTES = 200L * 1024 * 1024
+    private const val MAX_RESPONSE_BYTES = 2L * 1024 * 1024
 
     class Release(val version: String, val notes: String, val apkUrl: String, val sha256Url: String)
 
@@ -92,8 +94,12 @@ object UpdateChecker {
     fun download(context: Context, release: Release): File {
         val expected = get(release.sha256Url).toString(Charsets.US_ASCII).trim().substringBefore(' ').lowercase()
         val apk = SelfUpdater.updateFile(context)
-        apk.writeBytes(get(release.apkUrl))
-        val actual = MessageDigest.getInstance("SHA-256").digest(apk.readBytes()).joinToString("") { "%02x".format(it) }
+        // Streamed to the file with the hash computed on the way – the APK is never held in memory.
+        val digest = MessageDigest.getInstance("SHA-256")
+        open(release.apkUrl) { input ->
+            java.security.DigestOutputStream(apk.outputStream(), digest).use { out -> copyLimited(input, out, MAX_APK_BYTES) }
+        }
+        val actual = digest.digest().joinToString("") { "%02x".format(it) }
         if (actual != expected) {
             apk.delete()
             error("SHA-256 mismatch for ${release.version}")
@@ -141,7 +147,12 @@ object UpdateChecker {
 
     private fun latestUrl() = "${apiBase()}/releases/latest"
 
-    private fun get(address: String): ByteArray {
+    /** Small responses (API JSON, changelog, checksum), up to [MAX_RESPONSE_BYTES]. */
+    private fun get(address: String): ByteArray = open(address) { input ->
+        java.io.ByteArrayOutputStream().also { copyLimited(input, it, MAX_RESPONSE_BYTES) }.toByteArray()
+    }
+
+    private fun <T> open(address: String, read: (java.io.InputStream) -> T): T {
         val c = URL(address).openConnection() as HttpURLConnection
         try {
             c.connectTimeout = 15_000
@@ -150,9 +161,21 @@ object UpdateChecker {
             c.setRequestProperty("Accept", "application/vnd.github+json, */*")
             val code = c.responseCode
             if (code !in 200..299) error("HTTP $code for $address")
-            return c.inputStream.use { it.readBytes() }
+            return c.inputStream.use(read)
         } finally {
             c.disconnect()
+        }
+    }
+
+    private fun copyLimited(input: java.io.InputStream, out: java.io.OutputStream, limit: Long) {
+        val buffer = ByteArray(64 * 1024)
+        var total = 0L
+        while (true) {
+            val n = input.read(buffer)
+            if (n < 0) return
+            total += n
+            if (total > limit) throw java.io.IOException("response larger than $limit bytes")
+            out.write(buffer, 0, n)
         }
     }
 }
