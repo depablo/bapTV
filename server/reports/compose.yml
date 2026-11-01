@@ -7,7 +7,6 @@ services:
     environment:
       GITHUB_REPO: ${GITHUB_REPO:-depablo/bapTV}
       GITHUB_LABELS: ${GITHUB_LABELS:-}
-      PUBLIC_URL: ${PUBLIC_URL:-https://reports.bonsaponsi.com}
       # 1 = take the client IP from X-Forwarded-For (only behind your own reverse proxy).
       TRUST_PROXY: ${TRUST_PROXY:-1}
       RATE_PER_IP_HOUR: ${RATE_PER_IP_HOUR:-5}

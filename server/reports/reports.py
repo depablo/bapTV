@@ -27,10 +27,6 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 
-def _env_int(name, default):
-    return int(os.environ.get(name, default))
-
-
 def _read_secret(path):
     try:
         return Path(path).read_text().strip() or None
@@ -50,7 +46,6 @@ class Config:
         self.github_labels = [l for l in env.get("GITHUB_LABELS", "").split(",") if l.strip()]
         self.github_token_file = env.get("GITHUB_TOKEN_FILE", "/run/secrets/github_token")
         self.admin_password = _read_secret(env.get("ADMIN_PASSWORD_FILE", "/run/secrets/admin_password"))
-        self.public_url = env.get("PUBLIC_URL", "").rstrip("/")
         self.trust_proxy = env.get("TRUST_PROXY", "0") == "1"
         self.max_body = int(env.get("MAX_BODY_BYTES", 2 * 1024 * 1024))
         self.per_ip_per_hour = int(env.get("RATE_PER_IP_HOUR", "5"))
@@ -195,7 +190,7 @@ class GitHub:
             detail = e.read(500).decode("utf-8", "replace")
             logging.warning("GitHub issue failed: HTTP %s %s", e.code, detail)
             return None
-        except (urllib.error.URLError, KeyError, ValueError) as e:
+        except (OSError, KeyError, ValueError) as e:  # URLError, socket timeouts and resets are all OSError
             logging.warning("GitHub issue failed: %s", e)
             return None
 
@@ -219,7 +214,10 @@ class Store:
         with self.lock:
             record = json.loads(path.read_text())
             record.update(fields)
-            path.write_text(json.dumps(record, ensure_ascii=False))
+            # Same as save(): a crash mid-write must not leave a truncated report.
+            tmp = self.dir / f".{report_id}.tmp"
+            tmp.write_text(json.dumps(record, ensure_ascii=False))
+            tmp.replace(path)
 
     def load(self, report_id: str):
         if not ID_RE.match(report_id):
@@ -229,7 +227,12 @@ class Store:
 
     def list(self, limit: int = 500):
         """Newest first: id, receive time, summary and issue of each stored report."""
-        paths = sorted(self.dir.glob("*.json"), key=lambda p: p.stat().st_mtime, reverse=True)[:limit]
+        def mtime(path):
+            try:
+                return path.stat().st_mtime
+            except FileNotFoundError:  # pruned in the meantime
+                return 0
+        paths = sorted(self.dir.glob("*.json"), key=mtime, reverse=True)[:limit]
         result = []
         for path in paths:
             try:
@@ -244,7 +247,11 @@ class Store:
         now = time.time() if now is None else now
         removed = 0
         for path in self.dir.glob("*.json"):
-            if now - path.stat().st_mtime > self.retention_s:
+            try:
+                age = now - path.stat().st_mtime
+            except FileNotFoundError:
+                continue
+            if age > self.retention_s:
                 path.unlink(missing_ok=True)
                 removed += 1
         if removed:
@@ -327,6 +334,8 @@ def make_handler(app: App):
     class Handler(BaseHTTPRequestHandler):
         server_version = "baptv-reports"
         sys_version = ""
+        # Socket timeout: a client that stops sending must not hold a thread forever.
+        timeout = 30
 
         def log_message(self, fmt, *args):
             logging.info("%s %s", self.client_ip(), fmt % args)
@@ -413,7 +422,10 @@ def main():
 
     def prune_loop():
         while True:
-            app.store.prune()
+            try:
+                app.store.prune()
+            except Exception:  # one failed pass must not stop pruning for good
+                logging.exception("pruning failed")
             time.sleep(86400)
 
     threading.Thread(target=prune_loop, daemon=True).start()

@@ -94,6 +94,37 @@ class ReportsTest(unittest.TestCase):
         self.assertFalse(self.app.check_admin(bad))
         self.assertFalse(self.app.check_admin(""))
 
+    def test_issue_network_errors_do_not_fail_the_report(self):
+        cfg = reports.Config({"DATA_DIR": self.tmp.name, "GITHUB_REPO": "x/y", "GITHUB_TOKEN_FILE": __file__,
+                              "ADMIN_PASSWORD_FILE": "/nonexistent"})
+        github = reports.GitHub(cfg)
+        original = reports.urllib.request.urlopen
+        for error in (TimeoutError("timed out"), ConnectionResetError("reset")):
+            def fail(*args, **kwargs):
+                raise error
+            reports.urllib.request.urlopen = fail
+            try:
+                self.assertIsNone(github.create_issue("t", "b"))
+            finally:
+                reports.urllib.request.urlopen = original
+
+    def test_update_and_list_survive_concurrent_prune(self):
+        status, resp = self.app.submit(body(model="X1"), "", "1.2.3.4")
+        self.app.store.update(resp["id"], issue={"number": 7, "url": "u"})
+        self.assertEqual(7, self.app.store.load(resp["id"])["issue"]["number"])
+        self.assertEqual([], list(Path(self.tmp.name, "reports").glob(".*.tmp")))
+        original = Path.stat
+        def vanished(path, *args, **kwargs):
+            if path.suffix == ".json":
+                raise FileNotFoundError(path)
+            return original(path, *args, **kwargs)
+        Path.stat = vanished
+        try:
+            self.app.store.list()
+            self.app.store.prune()
+        finally:
+            Path.stat = original
+
 
 if __name__ == "__main__":
     unittest.main()
