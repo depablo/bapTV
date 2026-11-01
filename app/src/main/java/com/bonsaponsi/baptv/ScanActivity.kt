@@ -471,17 +471,31 @@ class ScanActivity : Activity() {
             }
             return
         }
-        val message = getString(R.string.scan_rejected, getString(R.string.scan_method_setup))
-        getSharedPreferences(PREFS, MODE_PRIVATE).edit().remove(PREF_PARAMS_VARIANT).apply()
         val wasService = scanning == Method.SERVICE
-        if (wasService) setRejected(this, true)
         io.execute {
+            // Our request was refused, so a working frontend belongs to another client (e.g. a home screen preview):
+            // a busy tuner, not unaccepted parameters, may be the reason.
+            val frontend = tunerSettings.readFrontend()
+            val busy = frontend?.state?.uppercase(java.util.Locale.ROOT) in BUSY_FRONTEND_STATES
             val caps = DeviceCapabilities.refresh(this)
-            handler.post { if (!isDestroyed) onRejected(message, wasService, caps) }
+            handler.post { if (!isDestroyed) onRejected(wasService, caps, busy, frontend) }
         }
     }
 
-    private fun onRejected(message: String, wasService: Boolean, caps: DeviceCapabilities) {
+    private fun onRejected(wasService: Boolean, caps: DeviceCapabilities, busy: Boolean, frontend: TunerSettings.Frontend?) {
+        if (busy && wasService && !busyRetried) {
+            busyRetried = true
+            DebugLog.warn("Scan", "rejected while the frontend is busy (${frontend?.describe()}) – retrying in ${BUSY_RETRY_MS / 1000} s")
+            statusText.text = getString(R.string.scan_tuner_busy_retry, BUSY_RETRY_MS / 1000)
+            handler.postDelayed({ if (!isFinishing) startScan(Method.SERVICE) }, BUSY_RETRY_MS)
+            return
+        }
+        getSharedPreferences(PREFS, MODE_PRIVATE).edit().remove(PREF_PARAMS_VARIANT).apply()
+        // Remembered only when the tuner was free: a busy one may accept the in-app scan another time.
+        if (wasService && !busy) setRejected(this, true)
+        if (busy) DebugLog.warn("Scan", "rejected again with a busy frontend – not remembered as a rejecting tuner")
+        val message = getString(R.string.scan_rejected, getString(R.string.scan_method_setup)) +
+            if (busy) "\n" + getString(R.string.scan_tuner_busy) else ""
         if (!caps.systemSetup) {
             finishScan(message + "\n" + getString(R.string.scan_iptv_hint), null)
             ReportSender.offer(this, ReportSender.Reason.SCAN_FAILED, message, automatic = true)
@@ -498,6 +512,9 @@ class ScanActivity : Activity() {
         findViewById<Button>(R.id.scan_setup).requestFocus()
         handler.postDelayed(openWizard, WIZARD_DELAY_MS)
     }
+
+    /** One retry per screen when the scan was rejected while another client held the tuner. */
+    private var busyRetried = false
 
     private val openWizard = Runnable { if (!isFinishing) openSystemSetup() }
 
@@ -536,6 +553,10 @@ class ScanActivity : Activity() {
         private const val PREFS = "scan"
         private const val PREF_PARAMS_VARIANT = "params_variant"
         private const val WIZARD_DELAY_MS = 3000L
+        /** Wait before retrying a scan rejected while another client held the tuner. */
+        private const val BUSY_RETRY_MS = 5000L
+        /** Frontend states (dtvprovider streamers) of a tuner in use. */
+        private val BUSY_FRONTEND_STATES = setOf("FILTERING", "STREAMING")
 
         /**
          * dtvinput rejected every in-app scan request (seen with CBS.U14 on Android 14). Kept per dtvinput
