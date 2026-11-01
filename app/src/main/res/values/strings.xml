@@ -353,6 +353,9 @@
     <string name="tour_skip">Skip</string>
     <string name="tour_start">Let\'s start</string>
     <string name="tour_open">Introduction</string>
+    <string name="tour_scan_offer">First, let\'s search for antenna channels. The scan runs in the background, so you can go through this guide in the meantime. You can also search later: Menu → Channels → Search for channels.</string>
+    <string name="tour_scan">Search for channels</string>
+    <string name="tour_no_scan">Not now</string>
     <string name="tour_welcome_title">Welcome to bapTV</string>
     <string name="tour_welcome_text">Antenna and internet TV in one player. Change channels with P+/P− or the number keys, OK opens the menu and the down arrow shows what is on.</string>
     <string name="tour_remote_title">Phone remote</string>

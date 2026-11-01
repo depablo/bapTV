@@ -93,10 +93,11 @@ object TvDialog {
     fun confirm(
         activity: Activity, title: String, message: String?, confirmLabel: String,
         cancelLabel: String? = activity.getString(android.R.string.cancel), focusCancel: Boolean = false,
-        onCancel: (() -> Unit)? = null, onClose: (() -> Unit)? = null, onConfirm: () -> Unit,
+        onCancel: (() -> Unit)? = null, onClose: (() -> Unit)? = null, image: String? = null, onConfirm: () -> Unit,
     ): Dialog {
         val (dialog, root) = create(activity, title, onClose)
         message?.let { root.findViewById<TextView>(R.id.tv_dialog_message).apply { text = it; visibility = View.VISIBLE } }
+        image?.let { Illustrations.show(root.findViewById(R.id.tv_dialog_image), it) }
         root.findViewById<View>(R.id.tv_dialog_buttons).visibility = View.VISIBLE
         val ok = root.findViewById<Button>(R.id.tv_dialog_ok)
         val cancel = root.findViewById<Button>(R.id.tv_dialog_cancel)

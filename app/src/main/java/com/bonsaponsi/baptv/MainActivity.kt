@@ -496,10 +496,18 @@ class MainActivity : Activity() {
     }
 
     private fun loadChannelsAndPlay() {
-        // First start of a fresh install: the introduction comes before the channel search.
+        // First start of a fresh install: the introduction, whose welcome page offers the channel scan.
         if (!tourChecked) {
             tourChecked = true
-            if (Tour.showIfFirstStart(this) { if (started) loadChannelsAndPlay() }) return
+            val offer = firstStartScanOffer()
+            if (Tour.showIfFirstStart(this, offer) { if (started) loadChannelsAndPlay() }) {
+                // The user was asked – the scan screen does not open by itself, whatever the answer.
+                if (offer != null) {
+                    autoScanOpened = true
+                    prefs.edit().putBoolean(PREF_FIRST_SCAN_OPENED, true).apply()
+                }
+                return
+            }
         }
         val tuner = Dtv.findTunerInput(this)
         input = tuner
@@ -548,6 +556,10 @@ class MainActivity : Activity() {
                             TvDialog.toast(this, getString(R.string.no_broadcast_iptv), long = true)
                         }
                     } else {
+                        if (ScanSession.running) {
+                            showStatus(getString(R.string.status_scan_running))
+                            return@post
+                        }
                         if (caps.channelDiscovery && !firstLaunch) startDiscovery(tuner) else if (!autoScanOpened) {
                             autoScanOpened = true
                             prefs.edit().putBoolean(PREF_FIRST_SCAN_OPENED, true).apply()
@@ -711,6 +723,20 @@ class MainActivity : Activity() {
     }
 
     // ---- Channel scan running in the background ([ScanSession]) ----
+
+    /**
+     * The welcome page's "Search for channels" on a device with a tuner: the in-app scan starts in the background
+     * with the scan screen's defaults (VHF where the country plan has it, DVB-T2); where only the system wizard
+     * can scan, the scan screen opens.
+     */
+    private fun firstStartScanOffer(): (() -> Unit)? {
+        if (Dtv.findTunerInput(this) == null) return null
+        return {
+            DebugLog.log("Player", "first start – scan chosen on the welcome page")
+            if (DeviceCapabilities.get(this).inAppScan) ScanSession.start(this, ScanSession.Method.SERVICE, Region.plan().vhf != null, true)
+            else startActivity(Intent(this, ScanActivity::class.java))
+        }
+    }
 
     private val scanListener: (ScanSession.State) -> Unit = { state -> postIfActive { onScanState(state) } }
 
@@ -1430,7 +1456,7 @@ class MainActivity : Activity() {
         )
         val settings = listOfNotNull(
             MenuPanel.Entry(getString(R.string.menu_about), BuildConfig.VERSION_NAME) { showAbout(menu::returned) },
-            MenuPanel.Entry(getString(R.string.menu_tour)) { Tour.show(this, menu::returned) },
+            MenuPanel.Entry(getString(R.string.menu_tour)) { Tour.show(this, onDone = menu::returned) },
             MenuPanel.Entry(getString(R.string.menu_update_check), after = leave) { checkForUpdate(manual = true) }
                 .takeIf { UpdateChecker.supported(this) },
             MenuPanel.Entry(getString(R.string.menu_update_auto), onOff(UpdateChecker.autoEnabled(this)), stay) {

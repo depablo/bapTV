@@ -353,6 +353,9 @@
     <string name="tour_skip">Pomiń</string>
     <string name="tour_start">Zaczynamy</string>
     <string name="tour_open">Przewodnik</string>
+    <string name="tour_scan_offer">Najpierw wyszukajmy kanały z anteny. Wyszukiwanie trwa w tle, więc w tym czasie możesz przejrzeć ten przewodnik. Możesz też zrobić to później: Menu → Kanały → Wyszukaj kanały.</string>
+    <string name="tour_scan">Szukaj kanałów</string>
+    <string name="tour_no_scan">Nie teraz</string>
     <string name="tour_welcome_title">Witaj w bapTV</string>
     <string name="tour_welcome_text">Telewizja z anteny i z internetu w jednym odtwarzaczu. Kanały zmieniasz przyciskami P+/P− albo cyframi, OK otwiera menu, a strzałka w dół pokazuje, co jest w programie.</string>
     <string name="tour_remote_title">Pilot w telefonie</string>

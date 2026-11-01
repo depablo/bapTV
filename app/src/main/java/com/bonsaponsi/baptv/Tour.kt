@@ -4,8 +4,10 @@ import android.app.Activity
 import android.content.Context
 
 /**
- * Introduction on the first start (a few pages operated with the remote) and "What's new" after
- * an update – only major features listed in [WHATS_NEW], not fixes or small changes.
+ * Introduction on the first start (a few pages operated with the remote, each with a screenshot from
+ * [Illustrations] when it loads) and "What's new" after an update – only major features listed in
+ * [WHATS_NEW], not fixes or small changes. On the first start the welcome page can start the channel
+ * scan, which then runs in the background ([ScanSession]) while the introduction goes on.
  */
 object Tour {
     private const val TAG = "Tour"
@@ -21,7 +23,8 @@ object Tour {
         62 to listOf(R.string.whats_new_categories, R.string.whats_new_iptv_guide, R.string.whats_new_remote_home),
     )
 
-    private class Page(val title: Int, val text: String)
+    /** [image] – name of the screenshot in [Illustrations]. */
+    private class Page(val title: Int, val text: String, val image: String?)
 
     private fun prefs(context: Context) = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
@@ -34,12 +37,12 @@ object Tour {
      * On the first start of a fresh install: shows the introduction and calls [onDone] when it closes;
      * returns false (and does nothing) otherwise. Marks the running version as seen either way.
      */
-    fun showIfFirstStart(activity: Activity, onDone: () -> Unit): Boolean {
+    fun showIfFirstStart(activity: Activity, scanOffer: (() -> Unit)?, onDone: () -> Unit): Boolean {
         val prefs = prefs(activity)
         if (prefs.contains(KEY_SEEN_VERSION) || !freshInstall(activity)) return false
         prefs.edit().putInt(KEY_SEEN_VERSION, BuildConfig.VERSION_CODE).apply()
         DebugLog.log(TAG, "first start – introduction")
-        show(activity, onDone)
+        show(activity, scanOffer, onDone)
         return true
     }
 
@@ -72,32 +75,41 @@ object Tour {
         val remote = activity.getString(R.string.tour_remote_text) +
             if (caps.signal) " " + activity.getString(R.string.tour_remote_signal) else ""
         return listOfNotNull(
-            Page(R.string.tour_welcome_title, activity.getString(R.string.tour_welcome_text)),
-            Page(R.string.tour_remote_title, remote),
-            Page(R.string.tour_iptv_title, activity.getString(R.string.tour_iptv_text)),
-            Page(R.string.tour_record_title, activity.getString(R.string.tour_record_text)).takeIf { caps.streamAnalysis },
-            Page(R.string.tour_hbbtv_title, activity.getString(R.string.tour_hbbtv_text)).takeIf { caps.hbbtv },
-            Page(R.string.tour_help_title, activity.getString(R.string.tour_help_text)),
+            Page(R.string.tour_welcome_title, activity.getString(R.string.tour_welcome_text), "player"),
+            Page(R.string.tour_remote_title, remote, "menu-phone-remote"),
+            Page(R.string.tour_iptv_title, activity.getString(R.string.tour_iptv_text), "phone-iptv"),
+            Page(R.string.tour_record_title, activity.getString(R.string.tour_record_text), "menu-record").takeIf { caps.streamAnalysis },
+            Page(R.string.tour_hbbtv_title, activity.getString(R.string.tour_hbbtv_text), "hbbtv").takeIf { caps.hbbtv },
+            Page(R.string.tour_help_title, activity.getString(R.string.tour_help_text), "menu-report"),
         )
     }
 
-    /** Shows the introduction from the first page; [onDone] once it is finished or skipped. */
-    fun show(activity: Activity, onDone: () -> Unit) {
+    /**
+     * Shows the introduction from the first page; [onDone] once it is finished or skipped.
+     * With [scanOffer] the welcome page offers the channel scan: either answer goes on to the next page,
+     * "Search for channels" calls [scanOffer] first.
+     */
+    fun show(activity: Activity, scanOffer: (() -> Unit)? = null, onDone: () -> Unit) {
         val pages = pages(activity)
         var finished = false
         fun finish() { if (!finished) { finished = true; onDone() } }
         fun page(i: Int) {
             val p = pages[i]
             val last = i == pages.lastIndex
+            val offer = i == 0 && scanOffer != null
             var advanced = false
+            fun next() { advanced = true; if (last) finish() else page(i + 1) }
             TvDialog.confirm(
-                activity, "${activity.getString(p.title)}  (${i + 1}/${pages.size})", p.text,
-                activity.getString(if (last) R.string.tour_start else R.string.tour_next),
-                if (last) null else activity.getString(R.string.tour_skip),
+                activity, "${activity.getString(p.title)}  (${i + 1}/${pages.size})",
+                if (offer) p.text + "\n\n" + activity.getString(R.string.tour_scan_offer) else p.text,
+                activity.getString(if (offer) R.string.tour_scan else if (last) R.string.tour_start else R.string.tour_next),
+                activity.getString(if (offer) R.string.tour_no_scan else R.string.tour_skip).takeIf { offer || !last },
+                onCancel = if (offer) ({ DebugLog.log(TAG, "first start – scan declined"); next() }) else null,
                 onClose = { if (!advanced) finish() },
+                image = p.image,
             ) {
-                advanced = true
-                if (last) finish() else page(i + 1)
+                if (offer) scanOffer?.invoke()
+                next()
             }
         }
         page(0)
