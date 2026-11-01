@@ -152,7 +152,12 @@
     <string name="diag_hbbtv">HbbTV</string>
     <string name="diag_channel_id">kanał #%1$d</string>
     <string name="diag_fps">%1$s kl/s</string>
-    <string name="diag_track_count">ścieżek %1$d</string>
+    <plurals name="diag_track_count">
+        <item quantity="one">%1$d ścieżka</item>
+        <item quantity="few">%1$d ścieżki</item>
+        <item quantity="many">%1$d ścieżek</item>
+        <item quantity="other">%1$d ścieżki</item>
+    </plurals>
     <string name="diag_no_app">brak aplikacji</string>
     <string name="kind_radio">radio</string>
     <string name="kind_tv">TV</string>

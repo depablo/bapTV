@@ -153,7 +153,10 @@
     <string name="diag_hbbtv">HbbTV</string>
     <string name="diag_channel_id">channel #%1$d</string>
     <string name="diag_fps">%1$s fps</string>
-    <string name="diag_track_count">%1$d tracks</string>
+    <plurals name="diag_track_count">
+        <item quantity="one">%1$d track</item>
+        <item quantity="other">%1$d tracks</item>
+    </plurals>
     <string name="diag_no_app">no app</string>
     <string name="kind_radio">radio</string>
     <string name="kind_tv">TV</string>

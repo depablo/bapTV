@@ -1170,7 +1170,7 @@ class MainActivity : Activity() {
                 listOfNotNull(encoding(selVideo), selVideo?.videoFrameRate?.takeIf { it > 0 }?.let { getString(R.string.diag_fps, "%.0f".format(Locale.US, it)) }).joinToString("") { " · $it" }),
             row(R.string.diag_audio, (selAudio?.let { trackLabel(it, audio.indexOf(it)) } ?: "–") +
                 listOfNotNull(encoding(selAudio), selAudio?.audioSampleRate?.takeIf { it > 0 }?.let { "${it / 1000} kHz" }).joinToString("") { " · $it" } +
-                " · " + getString(R.string.diag_track_count, audio.size)),
+                " · " + resources.getQuantityString(R.plurals.diag_track_count, audio.size, audio.size)),
             row(R.string.diag_kind, listOfNotNull(
                 getString(if (channel.isRadio) R.string.kind_radio else R.string.kind_tv),
                 getString(R.string.kind_scrambled).takeIf { channel.scrambled },
