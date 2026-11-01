@@ -2,11 +2,8 @@ package com.bonsaponsi.baptv
 
 import android.app.Activity
 import android.content.ActivityNotFoundException
-import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import android.content.IntentFilter
-import android.content.pm.PackageManager
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -15,92 +12,36 @@ import android.widget.Button
 import android.widget.CheckBox
 import android.widget.ProgressBar
 import android.widget.TextView
-import org.json.JSONArray
-import org.json.JSONObject
 
 /**
- * DVB-T/T2 channel scan. Available methods:
- *  - the dtvinput input's InstallerService (exported without permissions) – the default,
- *  - the ACTION_START_INSTALL broadcast – only with the INSTALL_TV_CHANNELS permission (priv-app),
- *  - the system input setup wizard (on set-top boxes with Google DTV it leads to DtvSetup Demo),
- * Progress arrives via the INSTALL_EVENT broadcast, sent by dtvinput without permissions.
+ * DVB-T/T2 channel scan screen. Available methods:
+ *  - the in-app scan ([ScanSession]: dtvinput's InstallerService or, with INSTALL_TV_CHANNELS, the broadcast) –
+ *    it runs in the process, so the screen can be left while it scans,
+ *  - the system input setup wizard (on set-top boxes with Google DTV it leads to DtvSetup Demo).
  */
 class ScanActivity : Activity() {
 
     override fun attachBaseContext(base: android.content.Context) = super.attachBaseContext(AppLanguage.wrap(base))
 
-    private enum class Method { SERVICE, BROADCAST }
-
     private lateinit var modeText: TextView
     private lateinit var progressBar: ProgressBar
     private lateinit var statusText: TextView
     private lateinit var methods: View
-    private lateinit var cancelButton: Button
+    private lateinit var runningButtons: View
     private lateinit var vhfCheck: CheckBox
     private lateinit var t2Check: CheckBox
     private lateinit var lnaCheck: CheckBox
     private lateinit var options: View
     private lateinit var advanced: View
     private lateinit var advancedToggle: Button
-    private lateinit var frontendText: TextView
-    private lateinit var logView: TextView
     private lateinit var tunerSettings: TunerSettings
 
     private val handler = Handler(Looper.getMainLooper())
-    private var receiverRegistered = false
-    private var scanning: Method? = null
-    private var lastEventAt = 0L
-    private var startedAt = 0L
-    /** Index in [scanParamsVariants] sent with the current request. */
-    private var paramsVariant = 0
 
-    // Reception statistics collected from the streamers table during the scan.
-    private var lastFrontend: String? = null
-    private val visitedFrequencies = HashSet<Double>()
-    private val lockedFrequencies = HashSet<Double>()
-
-    private val logListener: (String) -> Unit = { line -> handler.post { appendLog(line) } }
-
-    /** Tuner reads off the main thread – one queue instead of a new thread every second. */
+    /** Tuner settings off the main thread – one queue instead of a new thread for each read. */
     private val io = BackgroundWorker("scan-io")
 
-    private val receiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context, intent: Intent) {
-            DebugLog.log("Scan", "<- ${intent.action?.substringAfterLast('.')} ${Dtv.describeExtras(intent)}")
-            lastEventAt = System.currentTimeMillis()
-            when (intent.action) {
-                Dtv.ACTION_INSTALL_EVENT -> onInstallEvent(intent)
-                Dtv.ACTION_SETUP_READY -> if (scanning != null) statusText.setText(R.string.scan_tuner_ready)
-            }
-        }
-    }
-
-    /** Warning when dtvinput goes silent – e.g. it rejected the parameters ("Setup not found" is not broadcast). */
-    private val watchdog = object : Runnable {
-        override fun run() {
-            if (scanning == null) return
-            val silentFor = (System.currentTimeMillis() - lastEventAt) / 1000
-            if (silentFor >= WATCHDOG_SECONDS) {
-                DebugLog.warn("Scan", "no events from dtvinput for $silentFor s (started ${(System.currentTimeMillis() - startedAt) / 1000} s ago)")
-                statusText.text = getString(R.string.scan_no_response, silentFor)
-            }
-            handler.postDelayed(this, WATCHDOG_SECONDS * 1000L)
-        }
-    }
-
-    /** Reads the frontend state every second: frequency, state, signal. Changes go to the log. */
-    private val frontendPoll = object : Runnable {
-        override fun run() {
-            io.execute {
-                val fe = tunerSettings.readFrontend()
-                handler.post { if (!isDestroyed) onFrontend(fe) }
-            }
-            if (scanning != null) handler.postDelayed(this, 1000)
-        }
-    }
-
-    private val hasInstallPermission
-        get() = checkSelfPermission(Dtv.PERMISSION_INSTALL_TV_CHANNELS) == PackageManager.PERMISSION_GRANTED
+    private val sessionListener: (ScanSession.State) -> Unit = { handler.post { if (!isDestroyed) render(it) } }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -109,7 +50,7 @@ class ScanActivity : Activity() {
         progressBar = findViewById(R.id.scan_progress)
         statusText = findViewById(R.id.scan_status)
         methods = findViewById(R.id.scan_methods)
-        cancelButton = findViewById(R.id.scan_cancel)
+        runningButtons = findViewById(R.id.scan_running)
         vhfCheck = findViewById(R.id.scan_vhf)
         t2Check = findViewById(R.id.scan_t2)
         lnaCheck = findViewById(R.id.scan_lna)
@@ -117,8 +58,6 @@ class ScanActivity : Activity() {
         advanced = findViewById(R.id.scan_advanced)
         advancedToggle = findViewById(R.id.scan_advanced_toggle)
         advancedToggle.setOnClickListener { showAdvanced(advanced.visibility != View.VISIBLE) }
-        frontendText = findViewById(R.id.scan_frontend)
-        logView = findViewById(R.id.scan_log)
         tunerSettings = TunerSettings(this)
 
         // Reading and writing the LNA setting are provider queries – off the main thread.
@@ -135,43 +74,42 @@ class ScanActivity : Activity() {
                 }
             }
         }
-        handler.post(frontendPoll)
 
+        val hasInstallPermission = ScanSession.hasInstallPermission(this)
         val directButton = findViewById<Button>(R.id.scan_direct)
         directButton.isEnabled = hasInstallPermission
         // Without the system permission the button would always be disabled – so it is hidden.
         if (!hasInstallPermission) directButton.visibility = View.GONE
 
-        findViewById<Button>(R.id.scan_service).setOnClickListener { startScan(Method.SERVICE) }
-        directButton.setOnClickListener { startScan(Method.BROADCAST) }
+        findViewById<Button>(R.id.scan_service).setOnClickListener { startScan(ScanSession.Method.SERVICE) }
+        directButton.setOnClickListener { startScan(ScanSession.Method.BROADCAST) }
         findViewById<Button>(R.id.scan_setup).setOnClickListener { openSystemSetup() }
         findViewById<Button>(R.id.scan_diag).setOnClickListener {
             handler.removeCallbacks(openWizard)
             startActivity(Intent(this, DiagnosticsActivity::class.java))
         }
         findViewById<Button>(R.id.scan_close).setOnClickListener { finish() }
-        cancelButton.setOnClickListener { cancelScan() }
+        // The scan goes on without the screen – back to the player (menu, internet channels) with a progress banner.
+        findViewById<Button>(R.id.scan_background).setOnClickListener { finish() }
+        findViewById<Button>(R.id.scan_cancel).setOnClickListener { ScanSession.cancel(this) }
 
-        DebugLog.snapshot().filter { "/Scan:" in it }.takeLast(LOG_LINES).forEach { appendLog(it) }
-        DebugLog.addListener(logListener)
-        registerEvents()
         DebugLog.log(
             "Scan",
-            "scan screen: INSTALL_TV_CHANNELS=${hasInstallPermission}, input=${Dtv.findTunerInput(this)?.id}, " +
-                "wizard=${Dtv.findTunerInput(this)?.createSetupIntent()?.component}"
+            "scan screen: INSTALL_TV_CHANNELS=$hasInstallPermission, input=${Dtv.findTunerInput(this)?.id}, " +
+                "wizard=${Dtv.findTunerInput(this)?.createSetupIntent()?.component}, scan running=${ScanSession.running}"
         )
-        vhfCheck.setOnCheckedChangeListener { _, _ -> if (scanning == null) showEstimate() }
+        vhfCheck.setOnCheckedChangeListener { _, _ -> if (!ScanSession.running) showEstimate() }
         applyCapabilities()
+        ScanSession.addListener(sessionListener)
+        // A scan running in the background, or one that ended while the screen was closed (e.g. rejected – the wizard is next).
+        ScanSession.state.let { if (it.running || it.outcome != null) render(it) }
     }
 
     /** Without dtvinput only the input setup wizard can scan; buttons and options unavailable on the device are hidden. */
     private fun applyCapabilities() {
         val caps = DeviceCapabilities.get(this)
         if (!caps.systemSetup) findViewById<View>(R.id.scan_setup).visibility = View.GONE
-        if (!caps.tunerStats) {
-            lnaCheck.visibility = View.GONE
-            frontendText.visibility = View.GONE
-        }
+        if (!caps.tunerStats) lnaCheck.visibility = View.GONE
         if (Region.plan().vhf == null) vhfCheck.visibility = View.GONE
         if (caps.inAppScan) {
             showEstimate()
@@ -195,13 +133,10 @@ class ScanActivity : Activity() {
         }
     }
 
-    /** Number of scan frequencies according to the country plan (in Poland 48 UHF and optionally 8 VHF). */
-    private fun frequencyCount() = Region.plan().frequencyCount(vhfCheck.isChecked)
-
     /** One sentence with the estimated time of the whole run (scan + discovery + identification). */
     private fun showEstimate() {
         val channels = SetupProgress.lastChannelCount(this)
-        val e = SetupProgress.estimate(SetupProgress.rates(this), frequencyCount(), channels)
+        val e = SetupProgress.estimate(SetupProgress.rates(this), Region.plan().frequencyCount(vhfCheck.isChecked), channels)
         DebugLog.log("Scan", "estimate: total ${SetupProgress.format(e.totalSec)} (scan ${SetupProgress.format(e.scanSec)}, " +
             "discovery ${SetupProgress.format(e.discoverySec)}, identification ${SetupProgress.format(e.identifySec)}, ~$channels channels)")
         modeText.text = getString(R.string.scan_intro, SetupProgress.format(e.totalSec))
@@ -212,24 +147,57 @@ class ScanActivity : Activity() {
         advancedToggle.setText(if (show) R.string.scan_advanced_hide else R.string.scan_advanced_show)
     }
 
-    /** Remaining time of the whole run during the scan (stage 1/3). */
-    private fun remainingTotal(progress: Int, channelsSoFar: Int): String {
-        val rates = SetupProgress.rates(this)
-        val elapsed = (System.currentTimeMillis() - startedAt) / 1000.0
-        val scanLeft = SetupProgress.remainingFromProgress(elapsed, progress)
-            ?: (frequencyCount() * rates.perFrequency - elapsed).coerceAtLeast(0.0)
-        val channels = maxOf(channelsSoFar, SetupProgress.lastChannelCount(this))
-        val rest = SetupProgress.estimate(rates, 0, channels)
-        return SetupProgress.format(scanLeft + rest.discoverySec + rest.identifySec)
-    }
-
     override fun onDestroy() {
         handler.removeCallbacksAndMessages(null)
         io.shutdownNow()
-        DebugLog.removeListener(logListener)
-        if (scanning != null) DebugLog.warn("Scan", "screen closed during the scan – the scan continues in the background")
-        if (receiverRegistered) unregisterReceiver(receiver)
+        ScanSession.removeListener(sessionListener)
+        if (ScanSession.running) DebugLog.log("Scan", "scan screen closed – the scan continues in the background")
         super.onDestroy()
+    }
+
+    private fun startScan(method: ScanSession.Method) {
+        handler.removeCallbacks(openWizard)
+        ScanSession.start(this, method, vhfCheck.isChecked, t2Check.isChecked)
+    }
+
+    /** Shows the scan from [ScanSession]: progress while it runs, then the result and what comes next. */
+    private fun render(s: ScanSession.State) {
+        progressBar.progress = s.progress
+        statusText.text = if (s.running) s.status + "\n" + getString(R.string.scan_background_hint) else s.status
+        if (s.running) {
+            progressBar.visibility = View.VISIBLE
+            if (runningButtons.visibility != View.VISIBLE) {
+                methods.visibility = View.GONE
+                advanced.visibility = View.GONE
+                runningButtons.visibility = View.VISIBLE
+                findViewById<Button>(R.id.scan_background).requestFocus()
+            }
+            return
+        }
+        val outcome = s.outcome ?: return
+        runningButtons.visibility = View.GONE
+        methods.visibility = View.VISIBLE
+        showAdvanced(false)
+        findViewById<Button>(R.id.scan_close).requestFocus()
+        ScanSession.takeReport()?.let { ReportSender.offer(this, ReportSender.Reason.SCAN_FAILED, it, automatic = true) }
+        when {
+            outcome == ScanSession.Outcome.COMPLETE && s.channels > 0 ->
+                handler.postDelayed({ if (!isFinishing) finish() }, CONTINUE_DELAY_MS)
+            outcome == ScanSession.Outcome.REJECTED -> {
+                if (s.serviceRejected) {
+                    findViewById<View>(R.id.scan_service).visibility = View.GONE
+                    options.visibility = View.GONE
+                }
+                if (s.openWizard) {
+                    // The device's own wizard can still scan (it does on dtvinput CBS.U14) – opened for the user;
+                    // a report is offered only if the wizard brings no channels either (onActivityResult).
+                    showAdvanced(true)
+                    findViewById<Button>(R.id.scan_setup).requestFocus()
+                    handler.postDelayed(openWizard, ScanSession.WIZARD_DELAY_MS)
+                }
+            }
+        }
+        ScanSession.acknowledge()
     }
 
     @Suppress("DEPRECATION")
@@ -265,167 +233,6 @@ class ScanActivity : Activity() {
         ReportSender.offer(this, ReportSender.Reason.SCAN_FAILED, message, automatic = true)
     }
 
-    private fun registerEvents() {
-        val filter = IntentFilter().apply {
-            addAction(Dtv.ACTION_INSTALL_EVENT)
-            addAction(Dtv.ACTION_UNINSTALL_EVENT)
-            addAction(Dtv.ACTION_SETUP_READY)
-            addAction(Dtv.ACTION_START_WATCHING_UPDATE)
-            addAction(Dtv.ACTION_END_WATCHING_UPDATE)
-        }
-        DebugLog.log("Scan", "scan events only from a sender with permission: ${Dtv.eventSenderPermission(this) ?: "no restriction"}")
-        Dtv.registerEvents(this, receiver, filter)
-        receiverRegistered = true
-    }
-
-    private fun startScan(method: Method) {
-        handler.removeCallbacks(openWizard)
-        val variants = scanParamsVariants(vhfCheck.isChecked, t2Check.isChecked)
-        paramsVariant = getSharedPreferences(PREFS, MODE_PRIVATE).getInt(PREF_PARAMS_VARIANT, 0).takeIf { it in variants.indices } ?: 0
-        val params = variants[paramsVariant]
-        DebugLog.log("Scan", "start with method $method, params=$params")
-        try {
-            when (method) {
-                Method.SERVICE -> startInstallerService(params)
-                Method.BROADCAST -> {
-                    val intent = Intent(Dtv.ACTION_START_INSTALL).setPackage(Dtv.DTV_INPUT_PACKAGE).putExtra(Dtv.EXTRA_PARAMS, params)
-                    sendBroadcast(intent, Dtv.PERMISSION_INSTALL_TV_CHANNELS)
-                }
-            }
-        } catch (e: Exception) {
-            DebugLog.error("Scan", "failed to request the scan", e)
-            statusText.text = getString(R.string.scan_send_failed, e.toString())
-            ReportSender.offer(this, ReportSender.Reason.SCAN_FAILED, getString(R.string.scan_send_failed, e.toString()), automatic = true)
-            return
-        }
-        scanning = method
-        SetupProgress.markScanned(this)
-        visitedFrequencies.clear()
-        lockedFrequencies.clear()
-        startedAt = System.currentTimeMillis()
-        lastEventAt = startedAt
-        progressBar.progress = 0
-        progressBar.visibility = View.VISIBLE
-        statusText.setText(R.string.scan_waiting)
-        methods.visibility = View.GONE
-        advanced.visibility = View.GONE
-        cancelButton.visibility = View.VISIBLE
-        cancelButton.requestFocus()
-        handler.removeCallbacks(frontendPoll)
-        handler.post(frontendPoll)
-        handler.removeCallbacks(watchdog)
-        handler.postDelayed(watchdog, WATCHDOG_SECONDS * 1000L)
-    }
-
-    /**
-     * InstallerService stores the extras and starts the scan once the tuner is ready.
-     * Plain startService – with startForegroundService a service that is already running would not call
-     * startForeground() and the system would kill it.
-     */
-    private fun startInstallerService(params: String) {
-        val intent = Intent().setComponent(Dtv.INSTALLER_SERVICE).putExtra(Dtv.EXTRA_PARAMS, params)
-        val result = try {
-            startService(intent)
-        } catch (e: IllegalStateException) {
-            DebugLog.warn("Scan", "startService rejected (${e.message}), trying startForegroundService")
-            startForegroundService(intent)
-        }
-        DebugLog.log("Scan", "-> startService($intent) = $result")
-        if (result == null) error("service ${Dtv.INSTALLER_SERVICE.flattenToShortString()} does not exist")
-    }
-
-    private fun onInstallEvent(intent: Intent) {
-        val progress = intent.getIntExtra(Dtv.EXTRA_PROGRESS, 0)
-        val count = intent.getIntExtra(Dtv.EXTRA_CHANNEL_COUNT, -1)
-        val status = intent.getStringExtra(Dtv.EXTRA_STATUS).orEmpty().lowercase()
-        progressBar.progress = progress
-        val shown = count.coerceAtLeast(0)
-        when {
-            "complete" in status -> {
-                // A new scan changes channel IDs – the discovered list must be refreshed.
-                ChannelStore(this).clearDiscovered()
-                finishScan(getString(R.string.scan_complete, shown), 100)
-                if (shown == 0) ReportSender.offer(this, ReportSender.Reason.SCAN_FAILED, getString(R.string.scan_complete, 0), automatic = true)
-                if (shown > 0) {
-                    getSharedPreferences(PREFS, MODE_PRIVATE).edit().putInt(PREF_PARAMS_VARIANT, paramsVariant).apply()
-                    setRejected(this, false)
-                    continueInPlayer(shown)
-                }
-            }
-            "fail" in status && System.currentTimeMillis() - startedAt < REJECTED_MS && visitedFrequencies.size <= 1 -> onScanRejected()
-            "fail" in status -> {
-                finishScan(getString(R.string.scan_failed) + "\n" + getString(R.string.scan_iptv_hint), null)
-                ReportSender.offer(this, ReportSender.Reason.SCAN_FAILED, getString(R.string.scan_failed), automatic = true)
-            }
-            "cancel" in status -> finishScan(getString(R.string.scan_cancelled), null)
-            else -> statusText.text = getString(R.string.scan_progress, progress, shown) + "\n" +
-                getString(R.string.setup_stage1_remaining, remainingTotal(progress, shown))
-        }
-    }
-
-    /**
-     * Single run: after the scan the player discovers and identifies channels by itself (stages 2 and 3),
-     * so we close the scan screen and pass the channel count on for the time estimate.
-     */
-    private fun continueInPlayer(channels: Int) {
-        val elapsed = (System.currentTimeMillis() - startedAt) / 1000.0
-        SetupProgress.learn(this, "perFrequency", elapsed, frequencyCount())
-        SetupProgress.startPipeline(this, channels, startedAt)
-        val rest = SetupProgress.estimate(SetupProgress.rates(this), 0, channels)
-        statusText.text = getString(R.string.setup_stage1_done, channels, SetupProgress.format(rest.discoverySec + rest.identifySec))
-        DebugLog.log("Scan", "single run: moving on to discovering and identifying $channels channels")
-        handler.postDelayed({ if (!isFinishing) finish() }, CONTINUE_DELAY_MS)
-    }
-
-    private fun cancelScan() {
-        DebugLog.log("Scan", "cancelling scan (method $scanning)")
-        // The broadcast only gets through with INSTALL_TV_CHANNELS; without it we stop the installer service.
-        sendBroadcast(Intent(Dtv.ACTION_CANCEL_INSTALL).setPackage(Dtv.DTV_INPUT_PACKAGE), Dtv.PERMISSION_INSTALL_TV_CHANNELS)
-        if (!hasInstallPermission) {
-            val stopped = runCatching { stopService(Intent().setComponent(Dtv.INSTALLER_SERVICE)) }
-            DebugLog.log("Scan", "-> stopService(InstallerService) = $stopped")
-        }
-        finishScan(getString(R.string.scan_cancelled), null)
-    }
-
-    private fun finishScan(message: String, progress: Int?) {
-        DebugLog.log("Scan", "finished: $message (after ${(System.currentTimeMillis() - startedAt) / 1000} s)")
-        val wasScanning = scanning != null
-        scanning = null
-        handler.removeCallbacks(watchdog)
-        progress?.let { progressBar.progress = it }
-        if (wasScanning) {
-            DebugLog.log(
-                "Scan",
-                "frontend: visited frequencies=${visitedFrequencies.size}, with signal=${lockedFrequencies.sorted().joinToString { "%.1f".format(java.util.Locale.US, it) }.ifEmpty { "none" }}"
-            )
-        }
-        statusText.text = if (wasScanning && lockedFrequencies.isEmpty() && visitedFrequencies.size > 3 && progress == null) {
-            message + "\n" + getString(R.string.scan_no_lock, visitedFrequencies.size)
-        } else {
-            message
-        }
-        cancelButton.visibility = View.GONE
-        methods.visibility = View.VISIBLE
-        showAdvanced(false)
-        findViewById<Button>(R.id.scan_close).requestFocus()
-    }
-
-    private fun onFrontend(fe: TunerSettings.Frontend?) {
-        val text = fe?.describe() ?: getString(R.string.value_unavailable)
-        frontendText.text = getString(R.string.scan_frontend, text)
-        if (scanning == null) return
-        fe?.frequencyMhz?.let { f ->
-            visitedFrequencies += f
-            val locked = fe.signal.equals("true", ignoreCase = true) || (fe.stats != null && fe.stats != "{}")
-            if (locked) lockedFrequencies += f
-        }
-        if (text != lastFrontend) {
-            lastFrontend = text
-            DebugLog.log("Scan", "frontend $text")
-        }
-    }
-
     @Suppress("DEPRECATION")
     private fun openSystemSetup() {
         handler.removeCallbacks(openWizard)
@@ -444,116 +251,12 @@ class ScanActivity : Activity() {
         }
     }
 
-    private fun appendLog(line: String) {
-        if ("/Scan:" !in line && "/Crash:" !in line) return
-        val lines = (logView.text.toString().lines() + line.substringAfter(' ')).filter { it.isNotBlank() }.takeLast(LOG_LINES)
-        logView.text = lines.joinToString("\n")
-    }
-
-    /**
-     * dtvinput failed the request within moments without tuning (seen with CBS.U14 on Android 14): the
-     * parameters were not accepted. Next request variant; when none is left – the system wizard.
-     */
-    private fun onScanRejected() {
-        val variants = scanParamsVariants(vhfCheck.isChecked, t2Check.isChecked)
-        if (scanning == Method.SERVICE && paramsVariant + 1 < variants.size) {
-            paramsVariant++
-            DebugLog.warn("Scan", "dtvinput rejected the request at once – trying params ${variants[paramsVariant]}")
-            startedAt = System.currentTimeMillis()
-            lastEventAt = startedAt
-            progressBar.progress = 0
-            runCatching { startInstallerService(variants[paramsVariant]) }.onFailure {
-                DebugLog.error("Scan", "failed to request the scan", it)
-                finishScan(getString(R.string.scan_send_failed, it.toString()), null)
-            }
-            return
-        }
-        val wasService = scanning == Method.SERVICE
-        io.execute {
-            // Our request was refused, so a working frontend belongs to another client (e.g. a home screen preview):
-            // a busy tuner, not unaccepted parameters, may be the reason.
-            val frontend = tunerSettings.readFrontend()
-            val busy = frontend?.state?.uppercase(java.util.Locale.ROOT) in BUSY_FRONTEND_STATES
-            val caps = DeviceCapabilities.refresh(this)
-            handler.post { if (!isDestroyed) onRejected(wasService, caps, busy, frontend) }
-        }
-    }
-
-    private fun onRejected(wasService: Boolean, caps: DeviceCapabilities, busy: Boolean, frontend: TunerSettings.Frontend?) {
-        if (busy && wasService && !busyRetried) {
-            busyRetried = true
-            DebugLog.warn("Scan", "rejected while the frontend is busy (${frontend?.describe()}) – retrying in ${BUSY_RETRY_MS / 1000} s")
-            statusText.text = getString(R.string.scan_tuner_busy_retry, BUSY_RETRY_MS / 1000)
-            handler.postDelayed({ if (!isFinishing) startScan(Method.SERVICE) }, BUSY_RETRY_MS)
-            return
-        }
-        getSharedPreferences(PREFS, MODE_PRIVATE).edit().remove(PREF_PARAMS_VARIANT).apply()
-        // Remembered only when the tuner was free: a busy one may accept the in-app scan another time.
-        if (wasService && !busy) setRejected(this, true)
-        if (busy) DebugLog.warn("Scan", "rejected again with a busy frontend – not remembered as a rejecting tuner")
-        val message = getString(R.string.scan_rejected, getString(R.string.scan_method_setup)) +
-            if (busy) "\n" + getString(R.string.scan_tuner_busy) else ""
-        if (!caps.systemSetup) {
-            finishScan(message + "\n" + getString(R.string.scan_iptv_hint), null)
-            ReportSender.offer(this, ReportSender.Reason.SCAN_FAILED, message, automatic = true)
-            return
-        }
-        // The device's own wizard can still scan (it does on dtvinput CBS.U14) – opened for the user;
-        // a report is offered only if the wizard brings no channels either (onActivityResult).
-        finishScan(message + "\n" + getString(R.string.scan_opening_setup, WIZARD_DELAY_MS / 1000), null)
-        if (wasService) {
-            findViewById<View>(R.id.scan_service).visibility = View.GONE
-            options.visibility = View.GONE
-        }
-        showAdvanced(true)
-        findViewById<Button>(R.id.scan_setup).requestFocus()
-        handler.postDelayed(openWizard, WIZARD_DELAY_MS)
-    }
-
-    /** One retry per screen when the scan was rejected while another client held the tuner. */
-    private var busyRetried = false
-
     private val openWizard = Runnable { if (!isFinishing) openSystemSetup() }
-
-    /**
-     * Scan requests in dtvinput JSON format, tried in order when dtvinput rejects one at once:
-     *  - full DVB-T/T2 scan with frequencies (kHz) from the country plan ([Region]): in Poland optionally
-     *    VHF III with 7 MHz channels and UHF 474–850 MHz with 8 MHz channels,
-     *  - dtvinput's own frequency plan for the country,
-     *  - the same as DVB-T only.
-     */
-    private fun scanParamsVariants(includeVhf: Boolean, dvbT2: Boolean): List<String> {
-        val type = if (dvbT2) "dvb-t2" else "dvb-t"
-        val slots = JSONArray()
-        Region.plan().bands(includeVhf).forEach { slots.put(band(it)) }
-        val country = Region.countryName(Region.country())
-        return listOf(
-            JSONObject().put("type", type).put("scan-mode", "full").put("country", "").put("custom-scan", false).put("slots", slots),
-            JSONObject().put("type", type).put("scan-mode", "full").put("country", country),
-            JSONObject().put("type", "dvb-t").put("scan-mode", "full").put("country", country),
-        ).map { it.toString() }.distinct()
-    }
-
-    private fun band(b: Region.Band) = JSONObject()
-        .put("frequency-min", b.minKhz)
-        .put("frequency-max", b.maxKhz)
-        .put("frequency-step", b.stepKhz)
-        .put("bandwidth", b.bandwidthKhz)
 
     companion object {
         private const val REQUEST_SETUP = 1
-        private const val WATCHDOG_SECONDS = 20
-        private const val LOG_LINES = 14
         private const val CONTINUE_DELAY_MS = 3000L
-        /** A failure this soon after the request means rejected parameters, not an empty band. */
-        private const val REJECTED_MS = 3000L
-        private const val PREFS = "scan"
-        private const val PREF_PARAMS_VARIANT = "params_variant"
-        private const val WIZARD_DELAY_MS = 3000L
-        /** Wait before retrying a scan rejected while another client held the tuner. */
-        private const val BUSY_RETRY_MS = 5000L
-        /** Frontend states (dtvprovider streamers) of a tuner in use. */
-        private val BUSY_FRONTEND_STATES = setOf("FILTERING", "STREAMING")
+        const val PREFS = "scan"
 
         /**
          * dtvinput rejected every in-app scan request (seen with CBS.U14 on Android 14). Kept per dtvinput

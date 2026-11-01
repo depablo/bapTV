@@ -59,9 +59,10 @@
     <string name="scan_dvbt2">DVB-T2 mode (also receives DVB-T)</string>
     <string name="scan_lna">Antenna amplifier in the tuner (LNA)</string>
     <string name="scan_lna_unknown">default setting</string>
-    <string name="scan_frontend">Tuner: %1$s</string>
     <string name="scan_no_lock">No signal found on any of %1$d frequencies. Check that the antenna is connected to the set-top box and pointed well. You can also turn on the amplifier in the advanced settings.</string>
     <string name="scan_cancel">Stop</string>
+    <string name="scan_background">Continue in the background</string>
+    <string name="scan_background_hint">You can leave this screen – the scan continues in the background and its progress shows at the top of the player.</string>
     <string name="scan_close">Close</string>
     <string name="scan_waiting">Starting the tuner…</string>
     <string name="scan_tuner_ready">Tuner ready, starting the search…</string>
@@ -270,6 +271,9 @@
     <string name="publish_done">Channels published: %1$d. They are now visible in the system with names and numbers.</string>
     <string name="publish_failed">The tuner did not accept the channels – the detected list stays in use.</string>
     <string name="publish_nothing">No identified channels to publish – run channel identification first.</string>
+    <string name="banner_setup_stage1">Stage 1/3 – searching for channels</string>
+    <string name="banner_hint_scan">The scan runs in the background – OK opens the menu, internet channels play as usual.</string>
+    <string name="status_scan_running">Channel scan in progress – antenna channels will be available once it ends.</string>
     <string name="banner_setup_stage2">Stage 2/3 – detecting channels</string>
     <string name="banner_setup_stage3">Stage 3/3 – identifying channels</string>
     <string name="banner_discovery">Detecting channels</string>

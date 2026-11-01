@@ -140,26 +140,27 @@
             android:textColor="@color/text_primary"
             android:textSize="22sp" />
 
-        <Button
-            android:id="@+id/scan_cancel"
+        <LinearLayout
+            android:id="@+id/scan_running"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
-            android:text="@string/scan_cancel"
-            android:visibility="gone" />
+            android:orientation="horizontal"
+            android:visibility="gone">
+
+            <Button
+                android:id="@+id/scan_background"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/scan_background" />
+
+            <Button
+                android:id="@+id/scan_cancel"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:text="@string/scan_cancel" />
+        </LinearLayout>
 
     </LinearLayout>
-
-    <!-- Not shown: kept so the screen can still read the tuner state and scan events for the log. -->
-    <TextView
-        android:id="@+id/scan_frontend"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:visibility="gone" />
-
-    <TextView
-        android:id="@+id/scan_log"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:visibility="gone" />
 </FrameLayout>

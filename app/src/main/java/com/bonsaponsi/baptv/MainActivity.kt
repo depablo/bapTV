@@ -352,6 +352,7 @@ class MainActivity : Activity() {
         audio.start()
         Recorder.listeners += recorderListener
         RecordingScheduler.player = schedulerPlayer
+        ScanSession.addListener(scanListener)
         updateRecBadge()
         if (debugOverlay.visibility == View.VISIBLE) handler.post(refreshOverlay)
         // READ_EPG_DATA is enough on the set-top box (granted at install). READ_TV_LISTINGS (dangerous,
@@ -364,6 +365,8 @@ class MainActivity : Activity() {
             return
         }
         loadChannelsAndPlay()
+        // A scan left running in the background (or one that ended meanwhile) – its banner or its result.
+        ScanSession.state.let { if (it.running || it.outcome != null) onScanState(it) }
         maybeRequestStorage(intent)
         handler.postDelayed({ if (started) Tour.showWhatsNew(this) }, WHATS_NEW_DELAY_MS)
         // The previous run crashed: offer a report once the player is on screen.
@@ -431,6 +434,7 @@ class MainActivity : Activity() {
         upcomingDialog?.dismiss()
         upcomingDialog = null
         Recorder.listeners -= recorderListener
+        ScanSession.removeListener(scanListener)
         if (RecordingScheduler.player === schedulerPlayer) RecordingScheduler.player = null
         prober?.cancel("activity stopped")
         if (keepSession) {
@@ -532,7 +536,11 @@ class MainActivity : Activity() {
                     // Not after a scan (setup stage 2 must follow) nor after any earlier scan in the app.
                     val firstLaunch = !SetupProgress.inPipeline(this) && !SetupProgress.scannedBefore(this) &&
                         !prefs.getBoolean(PREF_FIRST_SCAN_OPENED, false)
-                    if (loaded.isNotEmpty()) {
+                    if (loaded.isNotEmpty() && caps.channelDiscovery && SetupProgress.inPipeline(this)) {
+                        // Right after a scan (stage 2/3): the broadcast channels are found by probing, internet ones or not.
+                        startDiscovery(tuner)
+                        return@post
+                    } else if (loaded.isNotEmpty()) {
                         // Internet channels play on – a hint about the antenna instead of taking over the screen.
                         if (!broadcastHintShown) {
                             broadcastHintShown = true
@@ -612,6 +620,14 @@ class MainActivity : Activity() {
         val channel = channels[target]
         // Internet channels carry their own input; broadcast ones need the tuner.
         val channelInput = channel.inputId ?: input?.id ?: return
+        // The scan holds the only tuner – a broadcast channel would stop it.
+        if (!channel.iptv && ScanSession.running) {
+            DebugLog.log("Player", "tune ${channel.number} skipped – channel scan in progress")
+            currentIndex = target
+            adapter.notifyDataSetChanged()
+            showStatus(getString(R.string.status_scan_running))
+            return
+        }
         if (timeshift.active && channels.getOrNull(currentIndex)?.id != channel.id) {
             confirmInterruptTimeshift(channel)
             return
@@ -694,10 +710,42 @@ class MainActivity : Activity() {
         handler.post { if (started && !isFinishing && !isDestroyed) block() }
     }
 
+    // ---- Channel scan running in the background ([ScanSession]) ----
+
+    private val scanListener: (ScanSession.State) -> Unit = { state -> postIfActive { onScanState(state) } }
+
+    /** Banner while the scan runs; when it ends – the new channel list, or the scan screen with the result. */
+    private fun onScanState(state: ScanSession.State) {
+        if (state.running) {
+            showSetupBanner(getString(R.string.banner_setup_stage1), state.status.substringBefore('\n'),
+                getString(R.string.banner_hint_scan), state.progress)
+            return
+        }
+        val outcome = state.outcome ?: return
+        hideSetupBanner()
+        DebugLog.log("Player", "background scan ended: $outcome")
+        when {
+            // Stage 2/3 follows: the cleared list is discovered again by probing.
+            outcome == ScanSession.Outcome.COMPLETE && state.channels > 0 -> {
+                ScanSession.acknowledge()
+                TvDialog.toast(this, state.status, long = true)
+                loadChannelsAndPlay()
+            }
+            // The system wizard is next, or a failure worth a report – both are on the scan screen.
+            state.openWizard || outcome == ScanSession.Outcome.FAILED || outcome == ScanSession.Outcome.REJECTED ||
+                outcome == ScanSession.Outcome.COMPLETE -> startActivity(Intent(this, ScanActivity::class.java))
+            else -> {
+                ScanSession.acknowledge()
+                showStatusBriefly(state.status)
+                loadChannelsAndPlay()
+            }
+        }
+    }
+
     // ---- Discovery of channels not visible in TvContract ----
 
     private fun startDiscovery(tuner: TvInputInfo) {
-        if (prober != null) return
+        if (prober != null || ScanSession.running) return
         showSetupBanner(
             getString(if (SetupProgress.inPipeline(this)) R.string.banner_setup_stage2 else R.string.banner_discovery),
             getString(R.string.banner_preparing), getString(R.string.banner_hint_discovery), null,
@@ -1924,7 +1972,7 @@ class MainActivity : Activity() {
      * One longer recording per multiplex also yields a week of TV guide data.
      */
     private fun identifyAll() {
-        if (identifying) return
+        if (identifying || ScanSession.running) return
         // The stage 3 banner shown after discovery must not stay when identification does not start.
         if (Recorder.active != null || !DeviceCapabilities.get(this).streamAnalysis) { hideSetupBanner(); return }
         if (!TsProbe.hasStoragePermission(this)) {

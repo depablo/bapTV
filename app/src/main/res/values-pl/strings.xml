@@ -58,9 +58,10 @@
     <string name="scan_dvbt2">Tryb DVB-T2 (odbiera też DVB-T)</string>
     <string name="scan_lna">Wzmacniacz antenowy w tunerze (LNA)</string>
     <string name="scan_lna_unknown">ustawienie domyślne</string>
-    <string name="scan_frontend">Tuner: %1$s</string>
     <string name="scan_no_lock">Nie znaleziono sygnału na żadnej z %1$d częstotliwości. Sprawdź, czy antena jest podłączona do dekodera i dobrze ustawiona. Możesz też włączyć wzmacniacz w ustawieniach zaawansowanych.</string>
     <string name="scan_cancel">Przerwij</string>
+    <string name="scan_background">Szukaj w tle</string>
+    <string name="scan_background_hint">Możesz wyjść z tego ekranu – wyszukiwanie trwa w tle, a jego postęp widać u góry odtwarzacza.</string>
     <string name="scan_close">Zamknij</string>
     <string name="scan_waiting">Uruchamiam tuner…</string>
     <string name="scan_tuner_ready">Tuner gotowy, zaczynam szukać…</string>
@@ -271,6 +272,9 @@
     <string name="publish_done">Opublikowano kanałów: %1$d. Są teraz widoczne w systemie z nazwami i numerami.</string>
     <string name="publish_failed">Tuner nie przyjął kanałów – nadal używana jest wykryta lista.</string>
     <string name="publish_nothing">Brak zidentyfikowanych kanałów do opublikowania – najpierw uruchom identyfikację kanałów.</string>
+    <string name="banner_setup_stage1">Etap 1/3 – wyszukiwanie kanałów</string>
+    <string name="banner_hint_scan">Wyszukiwanie trwa w tle – OK otwiera menu, kanały internetowe działają normalnie.</string>
+    <string name="status_scan_running">Trwa wyszukiwanie kanałów – kanały z anteny będą dostępne po jego zakończeniu.</string>
     <string name="banner_setup_stage2">Etap 2/3 – wykrywanie kanałów</string>
     <string name="banner_setup_stage3">Etap 3/3 – rozpoznawanie kanałów</string>
     <string name="banner_discovery">Wykrywanie kanałów</string>
