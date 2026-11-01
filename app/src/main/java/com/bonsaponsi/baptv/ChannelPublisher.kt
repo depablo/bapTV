@@ -30,6 +30,8 @@ class ChannelPublisher(private val context: Context) {
     private var receiver: BroadcastReceiver? = null
     private var queue: List<Mux> = emptyList()
     private var index = 0
+    /** Multiplex whose installation already ended – dtvinput may send several terminal events (progress=100, completed). */
+    private var endedIndex = -1
     private var onDone: ((Result) -> Unit)? = null
     private var failedMuxes = 0
     private var startedAt = 0L
@@ -37,6 +39,7 @@ class ChannelPublisher(private val context: Context) {
     data class Result(val muxes: Int, val failedMuxes: Int, val visibleChannels: Int)
 
     private val timeout = Runnable {
+        endedIndex = index
         DebugLog.warn(TAG, "no completion event for multiplex ${queue.getOrNull(index)?.frequencyMhz} MHz within ${MUX_TIMEOUT_MS / 1000} s")
         failedMuxes++
         next()
@@ -52,6 +55,7 @@ class ChannelPublisher(private val context: Context) {
         }
         onDone = done
         index = -1
+        endedIndex = -1
         failedMuxes = 0
         startedAt = System.currentTimeMillis()
         DebugLog.log(TAG, "publishing ${queue.sumOf { it.services.size }} services on ${queue.size} multiplexes: " +
@@ -96,6 +100,12 @@ class ChannelPublisher(private val context: Context) {
     private fun onEvent(intent: Intent) {
         val status = intent.getStringExtra(Dtv.EXTRA_STATUS).orEmpty().lowercase(Locale.ROOT)
         DebugLog.log(TAG, "<- status=$status nb=${intent.getIntExtra(Dtv.EXTRA_CHANNEL_COUNT, -1)} progress=${intent.getIntExtra(Dtv.EXTRA_PROGRESS, -1)}")
+        val terminal = "complete" in status || "fail" in status || "cancel" in status
+        if (terminal) {
+            // A repeated end event (or one after the timeout moved on) must not skip the next multiplex.
+            if (endedIndex == index) return
+            endedIndex = index
+        }
         when {
             "complete" in status -> handler.postDelayed({ next() }, BETWEEN_MUXES_MS)
             "fail" in status || "cancel" in status -> {
@@ -103,7 +113,7 @@ class ChannelPublisher(private val context: Context) {
                 handler.postDelayed({ next() }, BETWEEN_MUXES_MS)
             }
         }
-        if ("complete" in status || "fail" in status || "cancel" in status) handler.removeCallbacks(timeout)
+        if (terminal) handler.removeCallbacks(timeout)
     }
 
     private fun finish() {
