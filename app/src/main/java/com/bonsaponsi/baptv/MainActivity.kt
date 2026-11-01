@@ -686,6 +686,14 @@ class MainActivity : Activity() {
         status.visibility = if (text.isNullOrEmpty()) View.GONE else View.VISIBLE
     }
 
+    /**
+     * Posts to the main thread for background tasks that tune or show something: one finishing after [onStop] must
+     * not take the tuner in the background (onStop clears the handler queue, but not posts that come later).
+     */
+    private fun postIfActive(block: () -> Unit) {
+        handler.post { if (started && !isFinishing && !isDestroyed) block() }
+    }
+
     // ---- Discovery of channels not visible in TvContract ----
 
     private fun startDiscovery(tuner: TvInputInfo) {
@@ -697,7 +705,7 @@ class MainActivity : Activity() {
         io.execute {
             val ceiling = repository.findChannelIdCeiling()
             val epg = repository.epgChannelIds()
-            handler.post {
+            postIfActive {
                 val start = ceiling ?: epg.keys.maxOrNull()?.plus(BLOCK_SPAN)
                 DebugLog.log(
                     "Discovery",
@@ -755,6 +763,8 @@ class MainActivity : Activity() {
         private val tracksGrace = Runnable { if (casDenied) timeout.run() }
 
         fun step() {
+            // A late tuner callback after onStop must not probe on in the background.
+            if (!started) { cancel("activity stopped"); return }
             if (expected > 0 && found.size >= expected) {
                 DebugLog.log("Discovery", "found all $expected channels reported by the scan – done")
                 finish(save = true)
@@ -1868,8 +1878,8 @@ class MainActivity : Activity() {
                 val learned = TsProbe.learn(applicationContext, channel.id, seconds = if (epgStale) 8 else 4)
                 if (learned != null) {
                     changed = entry?.sid != learned.sid || entry?.scrambled != learned.scrambled || entry?.looksVirtual != learned.looksVirtual
-                    handler.post {
-                        if (channels.getOrNull(currentIndex)?.id != channel.id || !hbbStore.enabled) return@post
+                    postIfActive {
+                        if (channels.getOrNull(currentIndex)?.id != channel.id || !hbbStore.enabled) return@postIfActive
                         val url = learned.autostart?.url
                         if (url != hbb.currentUrl) hbb.start(url)
                     }

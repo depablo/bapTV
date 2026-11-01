@@ -119,6 +119,8 @@ class GuideActivity : Activity() {
 
     override fun onDestroy() {
         io.shutdownNow()
+        // Results of background tasks that finish later must not touch the destroyed screen.
+        handler.removeCallbacksAndMessages(null)
         super.onDestroy()
     }
 
