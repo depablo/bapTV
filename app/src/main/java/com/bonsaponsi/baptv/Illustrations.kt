@@ -11,12 +11,13 @@ import java.net.HttpURLConnection
 import java.net.URL
 
 /**
- * Screenshots for the introduction and the "Did you know?" tips, kept in the GitHub repository
- * (docs/tour/<language>/<name>.webp) instead of the APK. Only an illustration: without a network,
- * on a slow connection or when the file is missing the view simply stays hidden.
+ * Screenshots for the introduction and the "Did you know?" tips, kept on the repository's "tour" branch
+ * (<language>/<name>.webp, no shared history with main) instead of the APK, so they can be replaced without
+ * a release. Only an illustration: without a network, on a slow connection or when the file is missing
+ * the view simply stays hidden.
  */
 object Illustrations {
-    private const val BASE_URL = "https://raw.githubusercontent.com/depablo/bapTV/main/docs/tour"
+    private const val BASE_URL = "https://raw.githubusercontent.com/depablo/bapTV/tour"
     private const val TIMEOUT_MS = 4000
     private const val MAX_BYTES = 1024 * 1024
     /** Cached files are fetched again after a week – screenshots follow the current interface. */
