@@ -118,8 +118,19 @@ object RecordingScheduler {
         set(context, ACTION_START, e.id, startAt)
     }
 
-    private fun set(context: Context, action: String, id: Long, at: Long) =
-        alarm(context).setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, pending(context, action, id))
+    /**
+     * Exact alarms need no permission at targetSdk 29. From targetSdk 31 they require SCHEDULE_EXACT_ALARM and throw
+     * SecurityException without it – then the alarm falls back to an inexact one instead of losing the recording.
+     */
+    private fun set(context: Context, action: String, id: Long, at: Long) {
+        val alarms = alarm(context)
+        try {
+            alarms.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, pending(context, action, id))
+        } catch (e: SecurityException) {
+            DebugLog.warn(TAG, "exact alarm not allowed – using an inexact one", e)
+            alarms.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, pending(context, action, id))
+        }
+    }
 
     private fun alarm(context: Context) = context.getSystemService(AlarmManager::class.java)
 

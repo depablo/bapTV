@@ -178,7 +178,9 @@ object Recorder {
             override fun onTuned(channelUri: Uri) {
                 DebugLog.log(TAG, "onTuned $channelUri – startRecording")
                 main.removeCallbacks(tuneTimeout)
-                runCatching { client?.startRecording(null) }.onSuccess { recording = true }.onFailure { fail(app, "startRecording: $it") }
+                // A late onTuned after release(): no client, nothing is recording.
+                val c = client ?: return
+                runCatching { c.startRecording(null) }.onSuccess { recording = true }.onFailure { fail(app, "startRecording: $it") }
             }
             override fun onRecordingStopped(recordedProgramUri: Uri) = finished(app, recordedProgramUri)
             override fun onError(code: Int) = fail(app, "onError $code" + if (code == TvInputManagerCompat.RECORDING_ERROR_RESOURCE_BUSY) " (tuner busy)" else "")
