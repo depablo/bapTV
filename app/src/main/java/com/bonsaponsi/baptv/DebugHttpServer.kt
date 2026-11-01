@@ -353,16 +353,7 @@ class DebugHttpServer(private val context: Context, val port: Int = DEFAULT_PORT
         return text(SelfUpdater.install(context, file).trimEnd() + "\ntoken: ${ServerAccess.token(context)}\n")
     }
 
-    /** Runs code on the main thread and waits for the result (up to 5 s). */
-    private fun <T> onMain(block: () -> T): T? {
-        val latch = java.util.concurrent.CountDownLatch(1)
-        var value: T? = null
-        android.os.Handler(android.os.Looper.getMainLooper()).post {
-            try { value = block() } finally { latch.countDown() }
-        }
-        latch.await(5, java.util.concurrent.TimeUnit.SECONDS)
-        return value
-    }
+    private fun <T> onMain(block: () -> T): T? = MainThread.call(block = block)
 
     /** Channel list with identified names, DVB identifiers and the current programme. */
     private fun guideJson(): JSONObject = JSONObject().put("sources", org.json.JSONArray(IptvGuide.sources(context)))

@@ -369,16 +369,7 @@ class PhoneRemoteServer(private val context: Context, val port: Int) {
         return if (onMain { tune(id) } == true) json(JSONObject().put("ok", true)) else error("409 Conflict", "cannot tune now")
     }
 
-    /** Runs code on the main thread and waits for the result (up to 5 s). */
-    private fun <T> onMain(block: () -> T): T? {
-        val latch = java.util.concurrent.CountDownLatch(1)
-        var value: T? = null
-        android.os.Handler(android.os.Looper.getMainLooper()).post {
-            try { value = block() } finally { latch.countDown() }
-        }
-        latch.await(5, java.util.concurrent.TimeUnit.SECONDS)
-        return value
-    }
+    private fun <T> onMain(block: () -> T): T? = MainThread.call(block = block)
 
     private fun send(out: OutputStream, r: Response) {
         val extra = r.headers.entries.joinToString("") { "${it.key}: ${it.value}\r\n" }

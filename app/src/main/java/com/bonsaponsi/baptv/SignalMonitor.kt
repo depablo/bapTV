@@ -1,13 +1,9 @@
 package com.bonsaponsi.baptv
 
 import android.content.Context
-import android.os.Handler
-import android.os.Looper
 import org.json.JSONArray
 import org.json.JSONObject
 import java.util.ArrayDeque
-import java.util.concurrent.CountDownLatch
-import java.util.concurrent.TimeUnit
 
 /**
  * Signal measurement for aiming the antenna, driven entirely from the web server's /signal page.
@@ -60,7 +56,6 @@ object SignalMonitor {
     /** Results of the last cycle: frequency -> statistics. */
     private val cycleResults = LinkedHashMap<Double, JSONObject>()
 
-    private val main = Handler(Looper.getMainLooper())
 
     /** Page poll: starts sampling and returns the state to display. */
     fun poll(context: Context): JSONObject {
@@ -208,12 +203,5 @@ object SignalMonitor {
 
     fun <T> onMainBlocking(block: () -> T): T? = onMain(block)
 
-    private fun <T> onMain(block: () -> T): T? {
-        if (Looper.myLooper() == Looper.getMainLooper()) return block()
-        val latch = CountDownLatch(1)
-        var value: T? = null
-        main.post { try { value = block() } finally { latch.countDown() } }
-        latch.await(3, TimeUnit.SECONDS)
-        return value
-    }
+    private fun <T> onMain(block: () -> T): T? = MainThread.call(3000, block)
 }

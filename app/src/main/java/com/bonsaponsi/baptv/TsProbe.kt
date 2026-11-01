@@ -148,10 +148,7 @@ object TsProbe {
         if (switchPlayer && uri != currentChannelUri) {
             val id = android.content.ContentUris.parseId(uri)
             val hook = tuneHook
-            val switched = CountDownLatch(1)
-            var ok = false
-            Handler(Looper.getMainLooper()).post { ok = hook?.invoke(id) == true; switched.countDown() }
-            switched.await(5, TimeUnit.SECONDS)
+            val ok = MainThread.call { hook?.invoke(id) } == true
             note(if (ok) "player switched to channel #$id" else "player inactive or channel #$id missing – recording may hit a busy tuner")
             if (ok) Thread.sleep(4000)
         }
