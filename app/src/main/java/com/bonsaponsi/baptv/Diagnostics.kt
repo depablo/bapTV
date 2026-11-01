@@ -59,7 +59,8 @@ class Diagnostics(private val context: Context) {
         val info = runCatching { context.packageManager.getPackageInfo(context.packageName, 0) }.getOrNull()
         line("Package: ${context.packageName} ${info?.versionName} (${info?.longVersionCodeCompat()})")
         line("Report time: ${SimpleDateFormat("yyyy-MM-dd HH:mm:ss Z", Locale.US).format(Date())}")
-        line("Uptime: ${SystemClock.elapsedRealtime() / 60000} min")
+        val now = SystemClock.elapsedRealtime()
+        line("Uptime: device ${now / 60000} min, app process ${(now - Process.getStartElapsedRealtime()) / 60000} min")
         line("DVB input selected by the app: ${Dtv.findTunerInput(context)?.id ?: "NONE"}")
     }
 
@@ -142,7 +143,7 @@ class Diagnostics(private val context: Context) {
             }
             cursor.use { c ->
                 while (c.moveToNext()) {
-                    val input = c.str(1) ?: "?"
+                    val input = c.str(1).orEmpty()
                     val serviceType = c.str(3)
                     val flag1 = if (c.isNull(10)) null else c.getLong(10)
                     val data = if (c.isNull(11)) null else runCatching { String(c.getBlob(11), Charsets.UTF_8) }.getOrNull()
@@ -171,7 +172,8 @@ class Diagnostics(private val context: Context) {
         }
         if (perInput.isEmpty()) line("No channels (or READ_EPG_DATA permission missing).")
         perInput.forEach { (input, n) ->
-            line("$input: all=${n[0]}, TV=${n[1]}, radio=${n[2]}, other=${n[3]}, hidden=${n[4]}, scrambled=${n[5]}")
+            // Preview channels (e.g. a launcher row of a video app) have no input.
+            line("${input.ifEmpty { "(no input – preview)" }}: all=${n[0]}, TV=${n[1]}, radio=${n[2]}, other=${n[3]}, hidden=${n[4]}, scrambled=${n[5]}")
         }
         val tuner = Dtv.findTunerInput(context)
         if (tuner != null) {
@@ -350,13 +352,16 @@ class Diagnostics(private val context: Context) {
     }
 
     companion object {
-        /** Logcat of the app's own process (without READ_LOGS the system shows only the app's entries). */
-        /** Logcat of the app's own process; the line count from the URL is clamped, the logcat process is always cleaned up. */
+        /**
+         * Logcat of the app's own process (without READ_LOGS the system shows only the app's entries); the line count
+         * from the URL is clamped, the logcat process is always cleaned up.
+         */
         fun ownLogcat(lines: Int): String = try {
             val process = ProcessBuilder("logcat", "-d", "-v", "time", "--pid=${Process.myPid()}", "-t", lines.coerceIn(1, 20_000).toString())
                 .redirectErrorStream(true).start()
             try {
                 BufferedReader(InputStreamReader(process.inputStream)).use { it.readText() }
+                    .ifBlank { "(empty – the system shows no entries of this process)\n" }
             } finally {
                 process.waitFor(5, java.util.concurrent.TimeUnit.SECONDS)
                 process.destroy()
