@@ -110,14 +110,24 @@ object SelfUpdater {
                 setRequireUserAction(PackageInstaller.SessionParams.USER_ACTION_NOT_REQUIRED)
             }
         }
-        val sessionId = installer.createSession(params)
-        installer.openSession(sessionId).use { session ->
-            session.openWrite("base.apk", 0, apk.length()).use { out ->
-                apk.inputStream().use { it.copyTo(out) }
-                session.fsync(out)
+        var sessionId = -1
+        try {
+            sessionId = installer.createSession(params)
+            installer.openSession(sessionId).use { session ->
+                session.openWrite("base.apk", 0, apk.length()).use { out ->
+                    apk.inputStream().use { it.copyTo(out) }
+                    session.fsync(out)
+                }
+                releaseTunerBeforeInstall()
+                session.commit(statusIntent(context).intentSender)
             }
-            releaseTunerBeforeInstall()
-            session.commit(statusIntent(context).intentSender)
+        } catch (e: Exception) {
+            // Otherwise the app would go on waiting for a confirmation that never comes, with the session left behind.
+            DebugLog.warn(TAG, "installation session failed", e)
+            if (sessionId >= 0) runCatching { installer.abandonSession(sessionId) }
+            prefs(context).edit().remove(KEY_RELAUNCH_SINCE).apply()
+            finish(context, "error: $e")
+            throw Rejected("Installation could not start: ${e.message ?: e.javaClass.simpleName}", "500 Internal Server Error")
         }
         val desc = "${archive.versionName} (${archive.versionCodeCompat()}), ${apk.length()} B"
         DebugLog.log(TAG, "install session $sessionId: $desc; auto-confirm service: ${if (InstallClickService.isConnected) "active" else "disabled"}")
