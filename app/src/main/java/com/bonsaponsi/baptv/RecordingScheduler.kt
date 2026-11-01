@@ -162,7 +162,14 @@ object RecordingScheduler {
 class RecordingAlarmReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val id = intent.getLongExtra(RecordingScheduler.EXTRA_ID, -1)
-        RecordingScheduler.onAlarm(context, intent.action ?: return, id)
+        val action = intent.action ?: return
+        // The receiver runs on the main thread: an exception would end the process and lose the recording silently.
+        runCatching { RecordingScheduler.onAlarm(context, action, id) }.onFailure { e ->
+            DebugLog.error("Rec", "recording alarm $action for $id", e)
+            if (action == RecordingScheduler.ACTION_START) runCatching {
+                RecordingScheduler.list(context).firstOrNull { it.id == id }?.let { Recorder.recordFailure(context, it, "start failed: $e") }
+            }
+        }
     }
 }
 
