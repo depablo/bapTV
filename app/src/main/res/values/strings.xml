@@ -40,7 +40,7 @@
     <string name="scan_mode_wizard">This device searches for channels with its own tuner wizard. Choose “System wizard” and come back to the app when it finishes.</string>
     <string name="scan_mode_none">This device\'s tuner does not let other apps search for channels. Search for channels in the TV settings.</string>
     <string name="no_channels_scan">No channels – opening channel search.</string>
-    <string name="no_channels">No channels. Press OK to search for channels, or MENU → Diagnostics.</string>
+    <string name="no_channels">No channels. Press OK to open the menu – search for channels under Channels → Search for channels.</string>
 
     <string name="menu_diagnostics">Diagnostics</string>
     <string name="menu_rediscover">Detect channels again</string>

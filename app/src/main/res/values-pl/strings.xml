@@ -39,7 +39,7 @@
     <string name="scan_mode_wizard">To urządzenie wyszukuje kanały własnym kreatorem tunera. Wybierz „Kreator systemowy”, a po zakończeniu wróć do aplikacji.</string>
     <string name="scan_mode_none">Tuner tego urządzenia nie udostępnia wyszukiwania kanałów innym aplikacjom. Wyszukaj kanały w ustawieniach telewizora.</string>
     <string name="no_channels_scan">Brak kanałów – otwieram wyszukiwanie kanałów.</string>
-    <string name="no_channels">Brak kanałów. Naciśnij OK, aby wyszukać kanały, lub MENU → Diagnostyka.</string>
+    <string name="no_channels">Brak kanałów. Naciśnij OK, aby otworzyć menu – kanały wyszukasz w sekcji Kanały → Wyszukaj kanały.</string>
 
     <string name="menu_diagnostics">Diagnostyka</string>
     <string name="menu_rediscover">Wykryj kanały ponownie</string>

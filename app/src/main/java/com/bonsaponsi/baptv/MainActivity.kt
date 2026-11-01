@@ -2148,8 +2148,9 @@ class MainActivity : Activity() {
                     handler.removeCallbacks(commitDigits)
                     commitDigits.run()
                 } else if (channels.isEmpty()) {
-                    // Without a tuner the only source of channels is the phone (IPTV tab).
-                    if (input == null) showPhoneRemote() else startActivity(Intent(this, ScanActivity::class.java))
+                    // Nothing to watch: the menu opens where channels come from – the scan, or without a tuner
+                    // the phone remote (IPTV tab) in the settings. The scan is never forced on the user.
+                    menu.show(if (input == null) "settings" else "channels")
                 } else {
                     showMenu()
                 }

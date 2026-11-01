@@ -103,9 +103,11 @@ class MenuPanel(
         else -> 0
     })
 
-    fun show() {
+    /** Opens the menu in the last used section, or in [sectionId] when given and present. */
+    fun show(sectionId: String? = null) {
         awaitingReturn = false
         sections = build()
+        sections.indexOfFirst { it.id == sectionId }.takeIf { it >= 0 }?.let { sectionIndex = it }
         sectionIndex = sectionIndex.coerceIn(0, (sections.size - 1).coerceAtLeast(0))
         entryIndex = 0
         inEntries = false
