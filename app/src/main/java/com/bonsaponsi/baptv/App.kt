@@ -8,6 +8,7 @@ class App : Application() {
     override fun onCreate() {
         super.onCreate()
         DebugLog.init(this)
+        ProcessExits.logNew(this)
         val previous = Thread.getDefaultUncaughtExceptionHandler()
         Thread.setDefaultUncaughtExceptionHandler { thread, error ->
             // Write the crash to the log – after a restart it is visible in Diagnostics.
