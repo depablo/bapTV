@@ -44,7 +44,7 @@ object ServerAccess {
             h.startsWith("[") -> return h.substringAfter('[').substringBefore(']').let { it.isNotEmpty() && it.all { c -> c.isLetterOrDigit() || c == ':' || c == '.' } }
             else -> h.substringBefore(':')
         }
-        return name == "localhost" || IPV4.matches(name)
+        return name == "localhost" || IPV4.matchEntire(name)?.groupValues?.drop(1)?.all { it.toInt() <= 255 } == true
     }
 
     /**

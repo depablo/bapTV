@@ -17,6 +17,7 @@ class ServerAccessTest {
         // DNS rebinding: a domain name pointing at the device's address.
         assertFalse(ServerAccess.hostAllowed("evil.example.com:8080"))
         assertFalse(ServerAccess.hostAllowed("192.168.1.109.nip.io"))
+        assertFalse(ServerAccess.hostAllowed("999.168.1.1"))
     }
 
     @Test
