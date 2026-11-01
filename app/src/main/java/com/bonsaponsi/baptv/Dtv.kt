@@ -77,6 +77,19 @@ object Dtv {
         }
 
     /**
+     * Registers for dtvinput's scan broadcasts (sent by another app, so exported – required from Android 14), only
+     * from a sender holding [eventSenderPermission] when dtvinput has it.
+     */
+    fun registerEvents(context: Context, receiver: android.content.BroadcastReceiver, filter: android.content.IntentFilter, handler: android.os.Handler? = null) {
+        val permission = eventSenderPermission(context)
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            context.registerReceiver(receiver, filter, permission, handler, Context.RECEIVER_EXPORTED)
+        } else {
+            context.registerReceiver(receiver, filter, permission, handler)
+        }
+    }
+
+    /**
      * Returns the TV input that handles terrestrial TV. The CBS input is preferred,
      * and if there is none (another manufacturer) – the first TUNER-type input.
      */

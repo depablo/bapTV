@@ -5,7 +5,6 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.media.tv.TvContract.Channels
-import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import org.json.JSONArray
@@ -139,13 +138,7 @@ class ChannelPublisher(private val context: Context) {
         val r = object : BroadcastReceiver() {
             override fun onReceive(c: Context, intent: Intent) = onEvent(intent)
         }
-        val filter = IntentFilter(Dtv.ACTION_INSTALL_EVENT)
-        val permission = Dtv.eventSenderPermission(context)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            context.registerReceiver(r, filter, permission, handler, Context.RECEIVER_EXPORTED)
-        } else {
-            context.registerReceiver(r, filter, permission, handler)
-        }
+        Dtv.registerEvents(context, r, IntentFilter(Dtv.ACTION_INSTALL_EVENT), handler)
         receiver = r
     }
 

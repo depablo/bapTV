@@ -8,7 +8,6 @@ import android.content.IntentFilter
 import android.database.Cursor
 import android.media.tv.TvContract
 import android.media.tv.TvContract.Channels
-import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import org.json.JSONArray
@@ -84,9 +83,7 @@ object DebugTvTools {
             val filter = IntentFilter().apply {
                 addAction(Dtv.ACTION_INSTALL_EVENT); addAction(Dtv.ACTION_UNINSTALL_EVENT); addAction(Dtv.ACTION_SETUP_READY)
             }
-            val permission = Dtv.eventSenderPermission(app)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) app.registerReceiver(r, filter, permission, handler, Context.RECEIVER_EXPORTED)
-            else app.registerReceiver(r, filter, permission, handler)
+            Dtv.registerEvents(app, r, filter, handler)
             receiver = r
         }
         handler.removeCallbacksAndMessages(null)

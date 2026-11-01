@@ -105,7 +105,7 @@ object FrequencyProbe {
                 }
             }
         }
-        context.registerReceiver(receiver, IntentFilter(Dtv.ACTION_INSTALL_EVENT), Dtv.eventSenderPermission(context), null)
+        Dtv.registerEvents(context, receiver, IntentFilter(Dtv.ACTION_INSTALL_EVENT))
         val reader = SignalReader(context)
         var locked = false
         val values = HashMap<String, MutableList<Double>>()

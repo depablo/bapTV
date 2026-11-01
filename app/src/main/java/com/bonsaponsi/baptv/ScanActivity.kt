@@ -7,7 +7,6 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
-import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -267,13 +266,8 @@ class ScanActivity : Activity() {
             addAction(Dtv.ACTION_START_WATCHING_UPDATE)
             addAction(Dtv.ACTION_END_WATCHING_UPDATE)
         }
-        val permission = Dtv.eventSenderPermission(this)
-        DebugLog.log("Scan", "scan events only from a sender with permission: ${permission ?: "no restriction"}")
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            registerReceiver(receiver, filter, permission, null, RECEIVER_EXPORTED)
-        } else {
-            registerReceiver(receiver, filter, permission, null)
-        }
+        DebugLog.log("Scan", "scan events only from a sender with permission: ${Dtv.eventSenderPermission(this) ?: "no restriction"}")
+        Dtv.registerEvents(this, receiver, filter)
         receiverRegistered = true
     }
 
