@@ -8,8 +8,6 @@ import java.io.OutputStream
 import java.net.InetSocketAddress
 import java.net.ServerSocket
 import java.net.Socket
-import java.net.SocketException
-import kotlin.concurrent.thread
 
 /**
  * HTTP server of the phone remote ([PhoneRemote]). Unlike [DebugHttpServer] it runs in release builds, so it
@@ -39,16 +37,7 @@ class PhoneRemoteServer(private val context: Context, val port: Int) {
         }
         server = socket
         DebugLog.log("Remote", "phone remote server started on port $port")
-        thread(name = "phone-remote", isDaemon = true) {
-            while (!socket.isClosed) {
-                val client = try {
-                    socket.accept()
-                } catch (e: SocketException) {
-                    break
-                }
-                thread(name = "phone-remote-client", isDaemon = true) { handle(client) }
-            }
-        }
+        AcceptLoop.start(socket, "phone-remote", MAX_CLIENTS, ::handle)
     }
 
     fun stop() {
@@ -105,6 +94,7 @@ class PhoneRemoteServer(private val context: Context, val port: Int) {
     /** Request body as text (playlists, JSON lists of streams), up to [limit] bytes. */
     private fun body(request: HttpRequest, input: java.io.InputStream, limit: Int = MAX_BODY): String {
         val length = request.contentLength ?: throw BadBody("Content-Length required")
+        if (length < 0) throw BadBody("invalid Content-Length")
         if (length > limit) throw BadBody("body too large")
         val bytes = ByteArray(length.toInt())
         var read = 0
@@ -382,6 +372,8 @@ class PhoneRemoteServer(private val context: Context, val port: Int) {
     }
 
     companion object {
+        /** Parallel connections – a few phones polling the state need far fewer. */
+        private const val MAX_CLIENTS = 16
         private const val TEXT = "text/plain; charset=utf-8"
         private const val HTML = "text/html; charset=utf-8"
         private const val JSON = "application/json; charset=utf-8"

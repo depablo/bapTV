@@ -12,9 +12,7 @@ import java.io.OutputStream
 import java.net.InetSocketAddress
 import java.net.ServerSocket
 import java.net.Socket
-import java.net.SocketException
 import java.net.URLDecoder
-import kotlin.concurrent.thread
 
 /**
  * Minimal HTTP server on the local network that replaces adb: diagnostic report, log
@@ -35,16 +33,7 @@ class DebugHttpServer(private val context: Context, val port: Int = DEFAULT_PORT
         }
         server = socket
         DebugLog.log("Http", "server started on port $port, addresses: ${Diagnostics.localAddresses()}")
-        thread(name = "debug-http", isDaemon = true) {
-            while (!socket.isClosed) {
-                val client = try {
-                    socket.accept()
-                } catch (e: SocketException) {
-                    break
-                }
-                thread(name = "debug-http-client", isDaemon = true) { handle(client) }
-            }
-        }
+        AcceptLoop.start(socket, "debug-http", MAX_CLIENTS, ::handle)
     }
 
     fun stop() {
@@ -459,6 +448,8 @@ class DebugHttpServer(private val context: Context, val port: Int = DEFAULT_PORT
 
     companion object {
         const val DEFAULT_PORT = 8080
+        /** Parallel connections; a recording download or a guide refresh holds one for minutes. */
+        private const val MAX_CLIENTS = 16
         private const val MAX_APK_BYTES = 200L * 1024 * 1024
         private const val TEXT = "text/plain; charset=utf-8"
         private const val HTML = "text/html; charset=utf-8"
