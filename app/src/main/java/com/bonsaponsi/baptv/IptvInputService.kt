@@ -46,6 +46,8 @@ class IptvInputService : TvInputService() {
         private var retries = 0
         /** The address has no recognisable extension and did not play as a plain file – try it as HLS. */
         private var asHls = false
+        /** The address says HLS/DASH but the server sends a plain stream (e.g. a .m3u8 that redirects to .ts). */
+        private var asProgressive = false
         private var firstFrame = false
         /** Buffering after the picture appeared – READY then means the picture is back. */
         private var stalled = false
@@ -93,6 +95,7 @@ class IptvInputService : TvInputService() {
             channelId = id
             retries = 0
             asHls = false
+            asProgressive = false
             stalls.clear()
             start()
             return true
@@ -114,7 +117,8 @@ class IptvInputService : TvInputService() {
                 .setConnectTimeoutMs(CONNECT_TIMEOUT_MS)
                 .setReadTimeoutMs(READ_TIMEOUT_MS)
             s.referrer?.let { http.setDefaultRequestProperties(mapOf("Referer" to it)) }
-            val mime = mimeType(s.url) ?: MimeTypes.APPLICATION_M3U8.takeIf { asHls }
+            // Any non-adaptive type makes the player use the progressive source, whose extractors detect the format.
+            val mime = if (asProgressive) MimeTypes.VIDEO_MP2T else mimeType(s.url) ?: MimeTypes.APPLICATION_M3U8.takeIf { asHls }
             DebugLog.log("Iptv", "play \"${s.name}\" ${s.url}${mime?.let { " as $it" } ?: ""}")
             player = ExoPlayer.Builder(this@IptvInputService)
                 .setMediaSourceFactory(DefaultMediaSourceFactory(http))
@@ -206,6 +210,11 @@ class IptvInputService : TvInputService() {
                     error.errorCode == PlaybackException.ERROR_CODE_BEHIND_LIVE_WINDOW -> {
                         p.seekToDefaultPosition()
                         p.prepare()
+                    }
+                    !asProgressive && mimeType(stream?.url.orEmpty()) != null && error.errorCode in MANIFEST_ERRORS -> {
+                        DebugLog.log("Iptv", "no manifest behind the address – playing it as a plain stream")
+                        asProgressive = true
+                        start()
                     }
                     !asHls && mimeType(stream?.url.orEmpty()) == null && error.errorCode in PARSING_ERRORS -> {
                         asHls = true
@@ -301,6 +310,10 @@ class IptvInputService : TvInputService() {
         private val SLOW_SERVER_ERRORS = setOf(
             PlaybackException.ERROR_CODE_IO_READ_POSITION_OUT_OF_RANGE,
             PlaybackException.ERROR_CODE_BEHIND_LIVE_WINDOW,
+        )
+        private val MANIFEST_ERRORS = setOf(
+            PlaybackException.ERROR_CODE_PARSING_MANIFEST_MALFORMED,
+            PlaybackException.ERROR_CODE_PARSING_MANIFEST_UNSUPPORTED,
         )
         private val PARSING_ERRORS = setOf(
             PlaybackException.ERROR_CODE_PARSING_CONTAINER_UNSUPPORTED,
