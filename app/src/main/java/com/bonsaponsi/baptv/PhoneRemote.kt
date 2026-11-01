@@ -25,6 +25,7 @@ object PhoneRemote {
     private const val PAIRING_TTL_MS = 10 * 60_000L
     private const val SHORT_CODE_LENGTH = 6
     private const val MAX_WRONG_ATTEMPTS = 5
+    private const val MAX_DEVICES = 20
     /** Grace period after the last app screen closes – moving between screens must not restart the server. */
     private const val STOP_DELAY_MS = 60_000L
 
@@ -137,7 +138,8 @@ object PhoneRemote {
         pairingCode = null
         shortCode = null
         val token = randomHex(16)
-        saveDevices(context, devices(context) + Device(name, sha256(token), System.currentTimeMillis()))
+        // Bounded: each pairing adds an entry; beyond the limit the oldest phone has to pair again.
+        saveDevices(context, (devices(context) + Device(name, sha256(token), System.currentTimeMillis())).takeLast(MAX_DEVICES))
         DebugLog.log("Remote", "phone paired: $name")
         handler.post { onPaired?.invoke(name) }
         return token
