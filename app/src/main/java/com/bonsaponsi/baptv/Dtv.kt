@@ -77,6 +77,14 @@ object Dtv {
         }
 
     /**
+     * All extras of a dtvinput broadcast for the log, `{key=value, …}`. The values have different, undocumented
+     * types, so the untyped (deprecated) Bundle.get is the only way to read them.
+     */
+    @Suppress("DEPRECATION")
+    fun describeExtras(intent: android.content.Intent): String =
+        intent.extras?.let { extras -> extras.keySet().joinToString(", ", "{", "}") { "$it=${extras.get(it)}" } } ?: "{}"
+
+    /**
      * Registers for dtvinput's scan broadcasts (sent by another app, so exported – required from Android 14), only
      * from a sender holding [eventSenderPermission] when dtvinput has it.
      */

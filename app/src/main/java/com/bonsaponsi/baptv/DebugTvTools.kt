@@ -76,8 +76,7 @@ object DebugTvTools {
         if (receiver == null) {
             val r = object : BroadcastReceiver() {
                 override fun onReceive(c: Context, intent: Intent) {
-                    val extras = intent.extras?.keySet()?.joinToString { "$it=${intent.extras?.get(it)}" }
-                    DebugLog.log(TAG, "<- ${intent.action?.substringAfterLast('.')} {$extras}")
+                    DebugLog.log(TAG, "<- ${intent.action?.substringAfterLast('.')} ${Dtv.describeExtras(intent)}")
                 }
             }
             val filter = IntentFilter().apply {

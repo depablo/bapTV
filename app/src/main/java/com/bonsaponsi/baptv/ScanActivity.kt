@@ -66,7 +66,7 @@ class ScanActivity : Activity() {
 
     private val receiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
-            DebugLog.log("Scan", "<- ${intent.action?.substringAfterLast('.')} ${describeExtras(intent)}")
+            DebugLog.log("Scan", "<- ${intent.action?.substringAfterLast('.')} ${Dtv.describeExtras(intent)}")
             lastEventAt = System.currentTimeMillis()
             when (intent.action) {
                 Dtv.ACTION_INSTALL_EVENT -> onInstallEvent(intent)
@@ -449,9 +449,6 @@ class ScanActivity : Activity() {
         val lines = (logView.text.toString().lines() + line.substringAfter(' ')).filter { it.isNotBlank() }.takeLast(LOG_LINES)
         logView.text = lines.joinToString("\n")
     }
-
-    private fun describeExtras(intent: Intent): String =
-        intent.extras?.keySet()?.joinToString(", ", "{", "}") { "$it=${intent.extras?.get(it)}" } ?: "{}"
 
     /**
      * dtvinput failed the request within moments without tuning (seen with CBS.U14 on Android 14): the

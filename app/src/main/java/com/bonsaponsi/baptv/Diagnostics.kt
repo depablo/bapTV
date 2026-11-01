@@ -121,7 +121,7 @@ class Diagnostics(private val context: Context) {
             line("- ${input.id}")
             line("    type=${inputType(input.type)}, label=\"${input.loadLabel(context)}\", passthrough=${input.isPassthroughInput}, hidden=${input.isHidden(context)}")
             line("    tuners=${input.tunerCount}, recording=${input.canRecord()}, state=${inputState(state)}, parent=${input.parentId}")
-            line("    setup=${input.createSetupIntent()?.component}, settings=${runCatching { input.createSettingsIntent()?.component }.getOrNull()}")
+            line("    setup=${input.createSetupIntent()?.component}, settings=${settingsComponent(input)}")
         }
     }
 
@@ -328,6 +328,10 @@ class Diagnostics(private val context: Context) {
     private fun line(text: String) {
         sb.append(text).append('\n')
     }
+
+    /** Deprecated in API 33 without a replacement for other apps' inputs; only reported here. */
+    @Suppress("DEPRECATION")
+    private fun settingsComponent(input: android.media.tv.TvInputInfo) = runCatching { input.createSettingsIntent()?.component }.getOrNull()
 
     private fun Cursor.str(i: Int): String? = if (isNull(i)) null else getString(i)
 
