@@ -235,8 +235,15 @@ class ScanActivity : Activity() {
     @Suppress("DEPRECATION")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
-        val caps = DeviceCapabilities.refresh(this)
-        val channels = caps.inputId?.let { DeviceCapabilities.countChannels(this, it) } ?: 0
+        // Queries to dtvinput's and the TV provider (slow on a busy box) stay off the main thread.
+        io.execute {
+            val caps = DeviceCapabilities.refresh(this)
+            val channels = caps.inputId?.let { DeviceCapabilities.countChannels(this, it) } ?: 0
+            handler.post { if (!isDestroyed) onSetupResult(requestCode, resultCode, data, caps, channels) }
+        }
+    }
+
+    private fun onSetupResult(requestCode: Int, resultCode: Int, data: Intent?, caps: DeviceCapabilities, channels: Int) {
         DebugLog.log("Scan", "returned from setup wizard: requestCode=$requestCode resultCode=$resultCode data=$data, input channels=$channels")
         if (channels > 0) {
             statusText.text = getString(R.string.scan_setup_channels, channels)
@@ -468,7 +475,13 @@ class ScanActivity : Activity() {
         getSharedPreferences(PREFS, MODE_PRIVATE).edit().remove(PREF_PARAMS_VARIANT).apply()
         val wasService = scanning == Method.SERVICE
         if (wasService) setRejected(this, true)
-        val caps = DeviceCapabilities.refresh(this)
+        io.execute {
+            val caps = DeviceCapabilities.refresh(this)
+            handler.post { if (!isDestroyed) onRejected(message, wasService, caps) }
+        }
+    }
+
+    private fun onRejected(message: String, wasService: Boolean, caps: DeviceCapabilities) {
         if (!caps.systemSetup) {
             finishScan(message + "\n" + getString(R.string.scan_iptv_hint), null)
             ReportSender.offer(this, ReportSender.Reason.SCAN_FAILED, message, automatic = true)
