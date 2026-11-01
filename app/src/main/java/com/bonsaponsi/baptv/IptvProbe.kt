@@ -38,8 +38,10 @@ object IptvProbe {
         if (streams.isEmpty()) return emptyList()
         val pool = Executors.newFixedThreadPool(WORKERS.coerceAtMost(streams.size))
         return try {
-            pool.invokeAll(streams.map { s -> Callable { probe(s) } }).map { f ->
-                runCatching { f.get(TIMEOUT_MS * 8L, TimeUnit.MILLISECONDS) }.getOrElse { Result(Status.TIMEOUT, "timeout") }
+            // The timeout bounds the whole batch: invokeAll cancels what has not finished, and get() then throws.
+            val budgetMs = TIMEOUT_MS * 8L * ((streams.size + WORKERS - 1) / WORKERS)
+            pool.invokeAll(streams.map { s -> Callable { probe(s) } }, budgetMs, TimeUnit.MILLISECONDS).map { f ->
+                runCatching { f.get() }.getOrElse { Result(Status.TIMEOUT, "timeout") }
             }
         } finally {
             pool.shutdownNow()
