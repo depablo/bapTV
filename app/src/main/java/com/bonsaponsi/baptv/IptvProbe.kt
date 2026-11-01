@@ -55,7 +55,7 @@ object IptvProbe {
         }
         return try {
             val (url, data) = fetch(stream, stream.url, PLAYLIST_LIMIT)
-            val head = String(data, 0, minOf(data.size, 2048), Charsets.UTF_8).trimStart('﻿', ' ', '\r', '\n', '\t')
+            val head = String(data, 0, minOf(data.size, 2048), Charsets.UTF_8).trimStart('\uFEFF', ' ', '\r', '\n', '\t')
             when {
                 head.startsWith("#EXTM3U") -> probeHls(stream, url, String(data, Charsets.UTF_8))
                 "<MPD" in head -> if ("ContentProtection" in String(data, Charsets.UTF_8)) Result(Status.DRM, "DRM", "dash")

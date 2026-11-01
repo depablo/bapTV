@@ -218,7 +218,7 @@ object Iptv {
         var referrer: String? = null
         var drm = false
         for (raw in text.lineSequence()) {
-            val line = raw.trim().removePrefix("﻿")
+            val line = raw.trim().removePrefix("\uFEFF")
             when {
                 line.isEmpty() -> Unit
                 line.startsWith("#EXTM3U") -> epgUrls = attributes(line).let { listOfNotNull(it["x-tvg-url"], it["url-tvg"]) }
