@@ -361,4 +361,7 @@
     <string name="whats_new_iptv_without_tuner">Internet channels work without a TV tuner and when the tuner fails – the same player, list and phone remote.</string>
     <string name="whats_new_updates">Updates: the app checks GitHub for new versions and installs them (Menu → Settings).</string>
     <string name="whats_new_tour">An introduction to the app\'s features: Menu → Settings → Introduction to the app.</string>
+    <string name="whats_new_categories">Channel categories: on the channel list ◀ ▶ switch between news, film, sport, kids and more, radio and internet channels. Change a channel\'s category in the phone remote.</string>
+    <string name="whats_new_iptv_guide">TV guide for internet channels: add a guide (XMLTV) address in the phone remote, IPTV tab – playlists that name one bring it along.</string>
+    <string name="whats_new_remote_home">The phone remote can be added to the phone\'s home screen.</string>
 </resources>

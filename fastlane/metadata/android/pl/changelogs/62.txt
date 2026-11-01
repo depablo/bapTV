@@ -1,0 +1,1 @@
+Kategorie kanałów z filtrem na liście kanałów (◀ ▶). Program TV dla kanałów internetowych z adresów XMLTV. Porządkowanie kanałów z listy w pilocie w telefonie i pilot na ekranie głównym telefonu.

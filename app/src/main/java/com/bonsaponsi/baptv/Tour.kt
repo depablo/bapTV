@@ -18,6 +18,7 @@ object Tour {
      */
     private val WHATS_NEW = mapOf(
         60 to listOf(R.string.whats_new_iptv_without_tuner, R.string.whats_new_updates, R.string.whats_new_tour),
+        62 to listOf(R.string.whats_new_categories, R.string.whats_new_iptv_guide, R.string.whats_new_remote_home),
     )
 
     private class Page(val title: Int, val text: String)

@@ -360,4 +360,7 @@
     <string name="whats_new_iptv_without_tuner">Kanały internetowe działają bez tunera TV i gdy tuner zawodzi – ten sam odtwarzacz, lista i pilot w telefonie.</string>
     <string name="whats_new_updates">Aktualizacje: aplikacja sama sprawdza nowe wersje na GitHubie i je instaluje (Menu → Ustawienia).</string>
     <string name="whats_new_tour">Przewodnik po funkcjach aplikacji: Menu → Ustawienia → Przewodnik po aplikacji.</string>
+    <string name="whats_new_categories">Kategorie kanałów: na liście kanałów ◀ ▶ przełączają informacje, filmy, sport, dzieci i inne, radio i kanały internetowe. Kategorię kanału zmienisz w pilocie w telefonie.</string>
+    <string name="whats_new_iptv_guide">Program TV dla kanałów internetowych: dodaj adres przewodnika (XMLTV) w pilocie w telefonie, zakładka IPTV – listy, które go podają, dodają go same.</string>
+    <string name="whats_new_remote_home">Pilota w telefonie można dodać do ekranu głównego telefonu.</string>
 </resources>
