@@ -45,7 +45,6 @@
     <string name="menu_rediscover">Wykryj kanały ponownie</string>
     <string name="rename_title">Nazwa kanału %1$s</string>
     <string name="discovered_name">Kanał %1$d</string>
-    <string name="discovery_preparing">Wykrywanie kanałów…</string>
     <string name="discovery_progress">Sprawdzam #%1$d · znaleziono %2$d</string>
     <string name="discovery_cancelled">Wykrywanie kanałów przerwane. Wznowi się po ponownym otwarciu aplikacji (lub MENU → Wykryj kanały ponownie).</string>
     <string name="discovery_done_detail">Wykryto: TV %1$d, radio %2$d, kodowane %3$d. Nazwy: MENU → Zmień nazwę.</string>
@@ -318,7 +317,7 @@
     <string name="guide_no_epg_iptv">Brak programu dla tego kanału internetowego. Adres programu TV (XMLTV) dodasz w pilocie w telefonie, zakładka IPTV.</string>
 
     <!-- Updates from GitHub releases -->
-    <string name="store_locale" translatable="false">pl</string>
+    <string name="store_locale">pl</string>
     <string name="menu_update_check">Sprawdź aktualizacje</string>
     <string name="menu_update_auto">Automatyczne sprawdzanie aktualizacji</string>
     <string name="update_title">Dostępna jest wersja bapTV %1$s</string>

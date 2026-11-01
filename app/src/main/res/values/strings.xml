@@ -46,7 +46,6 @@
     <string name="menu_rediscover">Detect channels again</string>
     <string name="rename_title">Name of channel %1$s</string>
     <string name="discovered_name">Channel %1$d</string>
-    <string name="discovery_preparing">Detecting channels…</string>
     <string name="discovery_progress">Checking #%1$d · found %2$d</string>
     <string name="discovery_cancelled">Channel detection stopped. It will resume when the app is opened again (or MENU → Detect channels again).</string>
     <string name="discovery_done_detail">Detected: TV %1$d, radio %2$d, encrypted %3$d. Names: MENU → Rename.</string>
@@ -319,7 +318,8 @@
     <string name="guide_no_epg_iptv">No programme data for this internet channel. Add a TV guide (XMLTV) address in the phone remote, IPTV tab.</string>
 
     <!-- Updates from GitHub releases -->
-    <string name="store_locale" translatable="false">en-US</string>
+    <!-- Language of the fastlane changelog shown in the update dialog: one value per app language. -->
+    <string name="store_locale">en-US</string>
     <string name="menu_update_check">Check for updates</string>
     <string name="menu_update_auto">Automatic update check</string>
     <string name="update_title">bapTV %1$s is available</string>
