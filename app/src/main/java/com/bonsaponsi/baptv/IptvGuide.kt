@@ -11,10 +11,9 @@ import org.xml.sax.helpers.DefaultHandler
 import java.io.BufferedInputStream
 import java.io.IOException
 import java.io.InputStream
-import java.text.ParseException
-import java.text.SimpleDateFormat
-import java.util.Locale
-import java.util.TimeZone
+import java.time.DateTimeException
+import java.time.LocalDateTime
+import java.time.ZoneOffset
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.zip.GZIPInputStream
 import javax.xml.parsers.SAXParserFactory
@@ -98,10 +97,12 @@ object IptvGuide {
             val errors = ArrayList<String>()
             for (url in sources(context)) {
                 try {
+                    val started = android.os.SystemClock.elapsedRealtime()
                     val found = download(url) { parse(it, matcher, now - KEEP_PAST_MS, now + KEEP_AHEAD_MS) }
+                    val seconds = (android.os.SystemClock.elapsedRealtime() - started) / 1000
                     // The first source with a channel's guide wins; later ones only fill channels still missing.
                     found.forEach { (id, list) -> if (programmes[id].isNullOrEmpty()) programmes[id] = list.toMutableList() }
-                    DebugLog.log("Guide", "$url: guide for ${found.size} channels, ${found.values.sumOf { it.size }} programmes")
+                    DebugLog.log("Guide", "$url: guide for ${found.size} channels, ${found.values.sumOf { it.size }} programmes in $seconds s")
                 } catch (e: Exception) {
                     DebugLog.warn("Guide", "guide from $url failed", e)
                     errors += "${url.substringAfter("://").substringBefore('/')}: ${e.message ?: e.javaClass.simpleName}"
@@ -224,8 +225,9 @@ object IptvGuide {
                     "channel" -> { channelId = attributes.getValue("id"); names.clear() }
                     "programme" -> {
                         targets = matcher.channelsFor(attributes.getValue("channel"))
-                        start = attributes.getValue("start")?.let(::parseTime) ?: 0
-                        stop = attributes.getValue("stop")?.let(::parseTime) ?: 0
+                        // Times only for the matched channels: a country's file has 100k+ programmes, mostly not ours.
+                        start = if (targets.isEmpty()) 0 else attributes.getValue("start")?.let(::parseTime) ?: 0
+                        stop = if (targets.isEmpty()) 0 else attributes.getValue("stop")?.let(::parseTime) ?: 0
                         title = null; description = null; category = ChannelCategory.NONE
                     }
                     "display-name", "title", "desc", "category" -> if (channelId != null || targets.isNotEmpty()) { text.setLength(0); collecting = true }
@@ -289,18 +291,26 @@ object IptvGuide {
         }
     }
 
-    /** XMLTV time: `20261031203000 +0100`; without an offset UTC. */
+    /** XMLTV time: `20261031203000 +0100`; without an offset UTC. Read by hand – called for every matched programme. */
     fun parseTime(value: String): Long? {
         val v = value.trim()
-        if (v.length < 12) return null
-        val digits = v.takeWhile { it.isDigit() }.padEnd(14, '0').take(14)
-        val offset = v.drop(v.takeWhile { it.isDigit() }.length).trim().takeIf { it.matches(Regex("[+-]\\d{4}")) } ?: "+0000"
+        val length = v.indexOfFirst { !it.isDigit() }.let { if (it < 0) v.length else it }
+        if (length < 12) return null
+        val digits = v.substring(0, length).padEnd(14, '0')
+        fun field(from: Int, to: Int) = digits.substring(from, to).toInt()
+        val offset = v.substring(length).trim()
+        val offsetSeconds = if (TIME_OFFSET.matches(offset)) {
+            (if (offset[0] == '-') -1 else 1) * (offset.substring(1, 3).toInt() * 3600 + offset.substring(3, 5).toInt() * 60)
+        } else 0
         return try {
-            SimpleDateFormat("yyyyMMddHHmmssZ", Locale.US).apply { timeZone = TimeZone.getTimeZone("UTC") }.parse(digits + offset)?.time
-        } catch (e: ParseException) {
+            LocalDateTime.of(field(0, 4), field(4, 6), field(6, 8), field(8, 10), field(10, 12), field(12, 14))
+                .toEpochSecond(ZoneOffset.ofTotalSeconds(offsetSeconds)) * 1000
+        } catch (e: DateTimeException) {
             null
         }
     }
+
+    private val TIME_OFFSET = Regex("[+-]\\d{4}")
 
     /** Stops reading after [limit] bytes – a misbehaving server must not fill the memory or run forever. */
     private class LimitedInputStream(private val input: InputStream, private val limit: Long) : InputStream() {

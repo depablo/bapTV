@@ -68,7 +68,10 @@ class IptvGuideTest {
         assertEquals(IptvGuide.parseTime("20261031190000 +0000"), IptvGuide.parseTime("20261031200000 +0100"))
         assertEquals(IptvGuide.parseTime("20261031190000 +0000"), IptvGuide.parseTime("20261031190000"))
         assertEquals(IptvGuide.parseTime("20261031190000 +0000"), IptvGuide.parseTime("202610311900 +0000"))
+        assertEquals(IptvGuide.parseTime("20261031203000 +0000"), IptvGuide.parseTime("20261031190000 -0130"))
+        assertEquals(1793473200000L, IptvGuide.parseTime("20261031190000 +0000"))
         assertNull(IptvGuide.parseTime("2026"))
+        assertNull(IptvGuide.parseTime("20261331190000 +0000"))
         assertTrue(IptvGuide.parseTime("20261031190000 +0000")!! > 0)
     }
 }
