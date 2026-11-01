@@ -69,12 +69,16 @@ possible, and the country and scan frequency plan.
 
 1. Install the APK (see [README](README.md#installing)) and start **bapTV**. The first start of a
    fresh install opens a short introduction (a few pages: controls, phone remote, internet channels,
-   pause and recording, HbbTV, help – pages for features the device lacks are left out). It can be
+   pause and recording, HbbTV, help – pages for features the device lacks are left out). Its welcome
+   page offers **Search for channels**: the scan then runs in the background while the introduction
+   goes on; **Not now** skips it. Pages show a screenshot when it can be downloaded (from the
+   repository's `tour` branch, cached for a week) and plain text otherwise. The introduction can be
    opened again from Menu → Settings → Introduction to the app. After an update the app shows once
    what is new – major features only.
 2. Grant access to TV listings when asked. It is needed to read the channel list and guide of the
    tuner input.
-3. On first start, and whenever there are no channels, the app opens the channel search screen
+3. Without channels OK opens the menu at Channels → **Search for channels** – the scan is never forced.
+   When the introduction was not shown, the first start still opens the channel search screen
    (after any permission dialogs are answered). On devices with the Google DTV stack, **Search for channels** runs
    the whole setup in one go (see [Channel scan](#11-channel-scan)). Later starts without visible
    channels detect the channels of an earlier scan instead (for example one made by another TV app).
@@ -96,7 +100,7 @@ MENU key; the menu is therefore also available on REC and SETTINGS.
 |---|---|---|---|
 | CH+ / CH− | `CHANNEL_UP` / `CHANNEL_DOWN` (also `PAGE_UP` / `PAGE_DOWN`) | next / previous channel | asks for confirmation: changing the channel ends the pause |
 | 0–9 | `0`…`9` | channel number entry (up to 4 digits, confirmed after 1.5 s or with OK) | as above |
-| OK | `DPAD_CENTER` / `ENTER` | menu (channel search screen when there are no channels) | with the info banner open: pause / resume |
+| OK | `DPAD_CENTER` / `ENTER` | menu (at Channels when there are no channels) | with the info banner open: pause / resume |
 | ▼ | `DPAD_DOWN` | open the info panel / go one level deeper | banner with the pause bar |
 | ▲ | `DPAD_UP` | go one level back / close the info panel | |
 | ▶ | `DPAD_RIGHT` | open the info panel; at level 3 move between buttons; on the channel list: next category | seek forward 10 s (hold: 30 s) |
@@ -209,7 +213,7 @@ Entries that the device does not support are hidden.
 | **Watching** | Channel list · TV guide · Audio track · Subtitles · Pause live TV / Back to live TV |
 | **Recordings** | Record current programme / Stop recording · Recordings · Free space (with an estimate in hours) |
 | **Channels** | Search for channels · Manage channels · Channel numbers (broadcaster LCN / in order) · Identify channels and get the guide · Detect channels again · Publish channels to the system |
-| **Settings** | About bapTV · Introduction to the app · Check for updates · Automatic update check · Language (system / Polish / English) · HbbTV on/off ("Not available on this device" where unsupported) · Colour keys · Phone remote · Refresh HbbTV data for channel |
+| **Settings** | About bapTV · Introduction to the app · Tips at start · Check for updates · Automatic update check · Language (system / Polish / English) · HbbTV on/off ("Not available on this device" where unsupported) · Colour keys · Phone remote · Refresh HbbTV data for channel |
 | **Diagnostics** | Signal information · Diagnostics · Debug overlay |
 
 ## 6. Channels: list, numbering, management
@@ -503,8 +507,20 @@ Details:
 
 Menu → Channels → **Search for channels**. The screen is kept simple: one sentence with the
 estimated total time, **Search for channels**, **Close** and **Advanced settings**. During the scan it
-shows a progress bar, one status line (progress and channels found), the time left and **Stop**.
-The tuner state and the scan events are written only to the log and the diagnostics report.
+shows a progress bar, one status line (progress and channels found), the time left, **Continue in
+the background** and **Stop**. The tuner state and the scan events are written only to the log and the
+diagnostics report.
+
+The scan belongs to the app, not to the screen: **Continue in the background** (or BACK) returns to
+the player, which shows the progress in its setup banner, keeps the menu and internet channels working
+and does not tune broadcast channels, discover or identify until the scan ends. When it ends, the
+player loads the new list and goes on with stages 2 and 3; a rejected or failed scan reopens the scan
+screen with the wizard or the report offer.
+
+While the setup runs (scan, discovery, identification), the banner and the scan screen show rotating
+"Did you know?" tips about features that are easy to miss. One tip is also offered at start at most
+once a day (not on the install day) until it is switched off in the dialog or under Menu → Settings →
+Tips at start.
 
 **Advanced settings** (collapsed by default) hold the scan options below, the other methods the device
 supports and a shortcut to Diagnostics. When the device can scan only with its own wizard, that part
@@ -642,7 +658,9 @@ Debug builds additionally offer a local HTTP server; see
 | `MainActivity` | The player: `TvView`, channel switching, info panel, channel list, menu, key handling, channel discovery by probing, identification, recording and live pause wiring |
 | `MenuPanel` | Two-column menu panel (sections and entries) |
 | `TvDialog` | Dialogs in the menu style |
-| `Tour` | Introduction on the first start and "What's new" after an update (major features per versionCode) |
+| `Tour` | Introduction on the first start (with the scan offer) and "What's new" after an update (major features per versionCode) |
+| `Tips` | "Did you know?" tips: rotating during the setup, one at start at most once a day |
+| `Illustrations` | Screenshots for the introduction and tips, downloaded from the repository's `tour` branch and cached |
 | `UpdateChecker` | Latest GitHub release: version check, store changelog, APK download with SHA-256 check (installed by `SelfUpdater`) |
 | `ChannelRepository` | Loads channels (from `TvContract` or discovered), applies identification, the service catalogue, custom names, categories, order, hiding, numbering and duplicate removal; provides programmes |
 | `ChannelStore` | Persistent channel settings keyed by multiplex and service number |
@@ -656,7 +674,9 @@ Debug builds additionally offer a local HTTP server; see
 | `TsAnalyzer` | MPEG-TS parser: PAT, PMT, AIT, EIT, DVB text decoding (including ISO 6937) |
 | `GuideActivity` | TV guide screen |
 | `ChannelsActivity` | Channel management screen |
-| `ScanActivity` | Channel search screen and scan methods |
+| `ScanActivity` | Channel search screen and the system wizard |
+| `ScanSession` | The in-app scan, kept by the process: requests, dtvinput events, rejection handling and the result |
+| `ProcessExits` | Logs why earlier app processes ended (Android 11+) for the diagnostics report |
 | `SetupProgress` | Time estimates for the one-pass setup |
 | `Region` | Country-dependent scan frequency plan and HbbTV language/country |
 | `Dtv`, `TunerSettings` | Google DTV stack constants and helpers; tuner settings such as LNA |

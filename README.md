@@ -64,7 +64,7 @@ The Diagnostics screen shows the detected capabilities.
    - from a computer with developer options enabled on the TV: `adb install baptv.apk`.
 3. Allow installing from unknown sources for the app you use to open the APK when Android asks.
 4. Start **bapTV** from the launcher. On first start it asks for access to TV listings (channel list
-   and guide) and then opens the channel search screen.
+   and guide) and shows a short introduction, which offers to search for channels in the background.
 
 ### Updates
 
