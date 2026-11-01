@@ -144,8 +144,10 @@ object Recorder {
         return if (ms <= 0) 3_000_000_000L else (measured.sumOf { it.sizeBytes } * 3_600_000L / ms).coerceAtLeast(500_000_000L)
     }
 
-    private fun writeAll(context: Context, entries: List<Entry>) =
+    /** Logs instead of throwing: the list is bookkeeping, a full storage must not stop a recording or crash the caller. */
+    private fun writeAll(context: Context, entries: List<Entry>) = runCatching {
         StoredFile.write(storeFile(context), JSONArray().apply { entries.sortedBy { it.startMs }.forEach { put(it.toJson()) } }.toString())
+    }.onFailure { DebugLog.error(TAG, "writing the recordings list", it) }.isSuccess
 
     /** Free space where dtvinput stores recordings (shared storage). */
     fun freeBytes(): Long = runCatching { StatFs(Environment.getExternalStorageDirectory().path).availableBytes }.getOrDefault(-1L)

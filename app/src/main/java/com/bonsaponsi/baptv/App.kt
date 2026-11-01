@@ -35,8 +35,9 @@ class App : Application() {
         // The web server comes back by itself after an update, a process restart and a set-top box reboot.
         DebugServerService.restoreIfEnabled(this)
         // Alarms for scheduled recordings are lost on a set-top box reboot – we set them at every process start.
-        Recorder.recoverInterrupted(this)
-        RecordingScheduler.rearm(this)
+        // Both write files: a full storage must not crash every process start before any screen shows.
+        runCatching { Recorder.recoverInterrupted(this) }.onFailure { DebugLog.error("App", "recovering interrupted recordings", it) }
+        runCatching { RecordingScheduler.rearm(this) }.onFailure { DebugLog.error("App", "re-arming recording alarms", it) }
     }
 
     companion object {

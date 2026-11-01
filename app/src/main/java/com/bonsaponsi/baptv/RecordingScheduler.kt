@@ -51,10 +51,11 @@ object RecordingScheduler {
     fun list(context: Context): List<Recorder.Entry> =
         StoredFile.readList(file(context), TAG, Recorder.Entry::fromJson).sortedBy { it.startMs }
 
+    /** Returns false (and logs) when the file cannot be written, e.g. on a full storage – called from the UI and alarms. */
     @Synchronized
-    private fun write(context: Context, entries: List<Recorder.Entry>) {
+    private fun write(context: Context, entries: List<Recorder.Entry>): Boolean = runCatching {
         StoredFile.write(file(context), JSONArray().apply { entries.sortedBy { it.startMs }.forEach { put(it.toJson()) } }.toString())
-    }
+    }.onFailure { DebugLog.error(TAG, "writing the schedule", it) }.isSuccess
 
     fun find(context: Context, channelId: Long, programme: Programme): Recorder.Entry? =
         list(context).firstOrNull { it.channelId == channelId && it.startMs == programme.startMs }
@@ -78,7 +79,7 @@ object RecordingScheduler {
             startMs = programme.startMs, endMs = programme.endMs, stopAtMs = stopAt,
             recordedUri = null, path = null, state = Recorder.Entry.SCHEDULED,
         )
-        write(context, list(context) + entry)
+        if (!write(context, list(context) + entry)) return Result.failure(java.io.IOException("cannot save the schedule (storage full?)"))
         arm(context, entry)
         DebugLog.log(TAG, "scheduled: ${channel.number} ${channel.name} \"${programme.title}\" ${fmt(programme.startMs)}–${fmt(programme.endMs)}")
         return Result.success(entry)
@@ -94,7 +95,7 @@ object RecordingScheduler {
     }
 
     @Synchronized
-    private fun remove(context: Context, id: Long) = write(context, list(context).filter { it.id != id })
+    private fun remove(context: Context, id: Long) { write(context, list(context).filter { it.id != id }) }
 
     /** Alarms for all scheduled entries (process start, set-top box reboot); expired ones are removed. */
     @Synchronized
