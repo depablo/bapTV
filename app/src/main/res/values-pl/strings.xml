@@ -376,4 +376,21 @@
     <string name="whats_new_categories">Kategorie kanałów: na liście kanałów ◀ ▶ przełączają informacje, filmy, sport, dzieci i inne, radio i kanały internetowe. Kategorię kanału zmienisz w pilocie w telefonie.</string>
     <string name="whats_new_iptv_guide">Program TV dla kanałów internetowych: dodaj adres przewodnika (XMLTV) w pilocie w telefonie, zakładka IPTV – listy, które go podają, dodają go same.</string>
     <string name="whats_new_remote_home">Pilota w telefonie można dodać do ekranu głównego telefonu.</string>
+
+    <!-- "Did you know?" tips (Tips). -->
+    <string name="tip_title">Czy wiesz, że…?</string>
+    <string name="tip_daily_off">Nie pokazuj więcej</string>
+    <string name="menu_tips">Ciekawostki przy starcie</string>
+    <string name="tip_iptv_check">Zanim dodasz kanały internetowe do swojej listy, możesz sprawdzić, czy w ogóle działają. W pilocie w telefonie, na karcie IPTV, „Sprawdź widoczne” oznacza działające kanały, a „Zaznacz działające” wybiera tylko je.</string>
+    <string name="tip_info">Strzałka w dół pokazuje, co jest teraz w programie, a kolejne naciśnięcia – więcej szczegółów o audycji.</string>
+    <string name="tip_categories">Na liście kanałów strzałki ◀ ▶ przełączają kategorie: informacje, filmy, sport, dzieci, radio i kanały internetowe.</string>
+    <string name="tip_pause">⏯ zatrzymuje obraz na żywo, a drugie naciśnięcie wznawia go od miejsca, w którym przerwałeś.</string>
+    <string name="tip_signal">Karta Sygnał w pilocie w telefonie pomaga ustawić antenę: na bieżąco pokazuje siłę i jakość sygnału, a dźwięk tyka tym szybciej, im sygnał lepszy.</string>
+    <string name="tip_guide">Program TV otworzysz przyciskiem PROGRAM (GUIDE) na pilocie albo z menu: Oglądanie → Program TV.</string>
+    <string name="tip_iptv_cleanup">Kanały internetowe, które przestały działać, łatwo posprzątać: w pilocie w telefonie, na karcie IPTV, „Sprawdź dodane” sprawdza Twoje kanały, a „Usuń z problemami” usuwa te, które sprawiały kłopoty podczas oglądania.</string>
+    <string name="tip_record">Bieżący program nagrasz z menu: Nagrania → Nagraj bieżący program. Tam też znajdziesz swoje nagrania.</string>
+    <string name="tip_numbering">Numery kanałów mogą być jak w telewizorze (LCN) albo po kolei 1, 2, 3… – przełączysz to w Menu → Kanały → Numeracja kanałów.</string>
+    <string name="tip_remote_home">Pilota w telefonie możesz dodać do ekranu głównego telefonu – otworzysz go wtedy jak zwykłą aplikację.</string>
+    <string name="tip_hbbtv">Na kanałach z usługami HbbTV (np. TVP) czerwony przycisk otwiera aplikację nadawcy.</string>
+    <string name="tip_report">Coś nie działa? Menu → Diagnostyka → Wyślij raport do autora. Raport zawiera dziennik zdarzeń, który pomaga znaleźć przyczynę.</string>
 </resources>

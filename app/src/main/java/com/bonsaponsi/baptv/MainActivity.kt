@@ -371,6 +371,10 @@ class MainActivity : Activity() {
         handler.postDelayed({ if (started) Tour.showWhatsNew(this) }, WHATS_NEW_DELAY_MS)
         // The previous run crashed: offer a report once the player is on screen.
         handler.postDelayed({ if (started) ReportSender.offerPendingCrash(this) }, REPORT_PROMPT_DELAY_MS)
+        // "Did you know?" – at most once a day, only when nothing else is on screen (the dialog takes the window focus).
+        handler.postDelayed({
+            if (started && !menu.visible && hasWindowFocus() && setupBanner.visibility != View.VISIBLE && !SetupProgress.inPipeline(this)) Tips.showDaily(this)
+        }, TIP_DELAY_MS)
         // New release on GitHub: checked at most once a day, a while after the picture appears.
         handler.postDelayed({ if (started) checkForUpdate(manual = false) }, UPDATE_CHECK_DELAY_MS)
     }
@@ -703,11 +707,16 @@ class MainActivity : Activity() {
             percent?.let { progress = it.coerceIn(0, 100) }
         }
         setupBanner.visibility = View.VISIBLE
+        // Something to read while waiting.
+        setupTips.start()
     }
 
     private fun hideSetupBanner() {
         setupBanner.visibility = View.GONE
+        setupTips.stop()
     }
+
+    private val setupTips by lazy { Tips.Rotator(setupBanner.findViewById(R.id.setup_banner_tip)) }
 
     private fun showStatus(text: String?) {
         status.text = text
@@ -1457,6 +1466,9 @@ class MainActivity : Activity() {
         val settings = listOfNotNull(
             MenuPanel.Entry(getString(R.string.menu_about), BuildConfig.VERSION_NAME) { showAbout(menu::returned) },
             MenuPanel.Entry(getString(R.string.menu_tour)) { Tour.show(this, onDone = menu::returned) },
+            MenuPanel.Entry(getString(R.string.menu_tips), onOff(Tips.dailyEnabled(this)), stay) {
+                Tips.setDailyEnabled(this, !Tips.dailyEnabled(this))
+            },
             MenuPanel.Entry(getString(R.string.menu_update_check), after = leave) { checkForUpdate(manual = true) }
                 .takeIf { UpdateChecker.supported(this) },
             MenuPanel.Entry(getString(R.string.menu_update_auto), onOff(UpdateChecker.autoEnabled(this)), stay) {
@@ -2432,6 +2444,8 @@ class MainActivity : Activity() {
         private const val REPORT_PROMPT_DELAY_MS = 1500L
         private const val UPDATE_CHECK_DELAY_MS = 20_000L
         private const val WHATS_NEW_DELAY_MS = 3000L
+        /** After "What's new" and the crash report offer, so they do not meet. */
+        private const val TIP_DELAY_MS = 8000L
         private const val REQUEST_PERMISSION = 1
         private const val PREF_LAST_CHANNEL = "last_channel_id"
         private const val PREF_AUDIO_LANG = "audio_lang"

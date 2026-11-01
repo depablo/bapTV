@@ -162,5 +162,9 @@
                 android:text="@string/scan_cancel" />
         </LinearLayout>
 
+        <include
+            android:id="@+id/scan_tip"
+            layout="@layout/include_tip" />
+
     </LinearLayout>
 </FrameLayout>

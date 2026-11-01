@@ -41,6 +41,8 @@ class ScanActivity : Activity() {
     /** Tuner settings off the main thread – one queue instead of a new thread for each read. */
     private val io = BackgroundWorker("scan-io")
 
+    private val tips by lazy { Tips.Rotator(findViewById(R.id.scan_tip)) }
+
     private val sessionListener: (ScanSession.State) -> Unit = { handler.post { if (!isDestroyed) render(it) } }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -150,6 +152,7 @@ class ScanActivity : Activity() {
     override fun onDestroy() {
         handler.removeCallbacksAndMessages(null)
         io.shutdownNow()
+        tips.stop()
         ScanSession.removeListener(sessionListener)
         if (ScanSession.running) DebugLog.log("Scan", "scan screen closed – the scan continues in the background")
         super.onDestroy()
@@ -165,6 +168,7 @@ class ScanActivity : Activity() {
         progressBar.progress = s.progress
         statusText.text = if (s.running) s.status + "\n" + getString(R.string.scan_background_hint) else s.status
         if (s.running) {
+            tips.start()
             progressBar.visibility = View.VISIBLE
             if (runningButtons.visibility != View.VISIBLE) {
                 methods.visibility = View.GONE
@@ -174,6 +178,7 @@ class ScanActivity : Activity() {
             }
             return
         }
+        tips.stop()
         val outcome = s.outcome ?: return
         runningButtons.visibility = View.GONE
         methods.visibility = View.VISIBLE

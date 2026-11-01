@@ -376,4 +376,21 @@
     <string name="whats_new_categories">Channel categories: on the channel list ◀ ▶ switch between news, film, sport, kids and more, radio and internet channels. Change a channel\'s category in the phone remote.</string>
     <string name="whats_new_iptv_guide">TV guide for internet channels: add a guide (XMLTV) address in the phone remote, IPTV tab – playlists that name one bring it along.</string>
     <string name="whats_new_remote_home">The phone remote can be added to the phone\'s home screen.</string>
+
+    <!-- "Did you know?" tips (Tips). -->
+    <string name="tip_title">Did you know?</string>
+    <string name="tip_daily_off">Don\'t show again</string>
+    <string name="menu_tips">Tips at start</string>
+    <string name="tip_iptv_check">Before adding internet channels to your list you can check whether they work at all. In the phone remote, IPTV tab, “Check shown” marks the working channels and “Select working” picks just those.</string>
+    <string name="tip_info">The down arrow shows what is on now, and further presses show more about the programme.</string>
+    <string name="tip_categories">In the channel list the ◀ ▶ arrows switch categories: news, movies, sport, kids, radio and internet channels.</string>
+    <string name="tip_pause">⏯ pauses live TV, and pressing it again resumes from where you stopped.</string>
+    <string name="tip_signal">The Signal tab of the phone remote helps aim the antenna: it shows signal strength and quality live, and the sound ticks faster the better the signal.</string>
+    <string name="tip_guide">Open the TV guide with the GUIDE button on the remote or from the menu: Watching → TV guide.</string>
+    <string name="tip_iptv_cleanup">Internet channels that stopped working are easy to clean up: in the phone remote, IPTV tab, “Check added” checks your channels and “Remove with problems” removes those that had problems while watching.</string>
+    <string name="tip_record">Record the current programme from the menu: Recordings → Record current programme. Your recordings are there too.</string>
+    <string name="tip_numbering">Channel numbers can follow the broadcaster (LCN) or go in order 1, 2, 3… – switch it in Menu → Channels → Channel numbers.</string>
+    <string name="tip_remote_home">You can add the phone remote to your phone\'s home screen and open it like an app.</string>
+    <string name="tip_hbbtv">On channels with HbbTV services (e.g. TVP) the red button opens the broadcaster\'s app.</string>
+    <string name="tip_report">Something not working? Menu → Diagnostics → Send report to the developer. The report includes the event log, which helps find the cause.</string>
 </resources>

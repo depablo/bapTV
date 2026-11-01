@@ -73,6 +73,10 @@
             android:maxWidth="720dp"
             android:textColor="@color/text_secondary"
             android:textSize="16sp" />
+
+        <include
+            android:id="@+id/setup_banner_tip"
+            layout="@layout/include_tip" />
     </LinearLayout>
 
     <!-- Recording-in-progress badge (top left corner). -->
