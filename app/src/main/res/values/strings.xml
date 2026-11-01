@@ -376,6 +376,8 @@
     <string name="whats_new_categories">Channel categories: on the channel list ◀ ▶ switch between news, film, sport, kids and more, radio and internet channels. Change a channel\'s category in the phone remote.</string>
     <string name="whats_new_iptv_guide">TV guide for internet channels: add a guide (XMLTV) address in the phone remote, IPTV tab – playlists that name one bring it along.</string>
     <string name="whats_new_remote_home">The phone remote can be added to the phone\'s home screen.</string>
+    <string name="whats_new_background_scan">Channel search runs in the background – the menu and internet channels work meanwhile, progress shows at the top of the player.</string>
+    <string name="whats_new_tips">“Did you know?” tips about lesser-known features, now and then at start (Menu → Settings → Tips at start).</string>
 
     <!-- "Did you know?" tips (Tips). -->
     <string name="tip_title">Did you know?</string>

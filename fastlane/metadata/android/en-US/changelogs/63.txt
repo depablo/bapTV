@@ -1,0 +1,1 @@
+Channel search runs in the background: the menu, the introduction and internet channels stay available meanwhile. Without channels OK opens the menu. The introduction offers the search on its first page and shows screenshots. "Did you know?" tips about lesser-known features.

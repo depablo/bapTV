@@ -376,6 +376,8 @@
     <string name="whats_new_categories">Kategorie kanałów: na liście kanałów ◀ ▶ przełączają informacje, filmy, sport, dzieci i inne, radio i kanały internetowe. Kategorię kanału zmienisz w pilocie w telefonie.</string>
     <string name="whats_new_iptv_guide">Program TV dla kanałów internetowych: dodaj adres przewodnika (XMLTV) w pilocie w telefonie, zakładka IPTV – listy, które go podają, dodają go same.</string>
     <string name="whats_new_remote_home">Pilota w telefonie można dodać do ekranu głównego telefonu.</string>
+    <string name="whats_new_background_scan">Wyszukiwanie kanałów działa w tle – w tym czasie działają menu i kanały internetowe, a postęp widać u góry odtwarzacza.</string>
+    <string name="whats_new_tips">Ciekawostki „Czy wiesz, że…?” o mniej znanych funkcjach, od czasu do czasu przy starcie (Menu → Ustawienia → Ciekawostki przy starcie).</string>
 
     <!-- "Did you know?" tips (Tips). -->
     <string name="tip_title">Czy wiesz, że…?</string>

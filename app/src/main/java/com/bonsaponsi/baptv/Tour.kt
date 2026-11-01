@@ -21,6 +21,7 @@ object Tour {
     private val WHATS_NEW = mapOf(
         60 to listOf(R.string.whats_new_iptv_without_tuner, R.string.whats_new_updates, R.string.whats_new_tour),
         62 to listOf(R.string.whats_new_categories, R.string.whats_new_iptv_guide, R.string.whats_new_remote_home),
+        63 to listOf(R.string.whats_new_background_scan, R.string.whats_new_tips),
     )
 
     /** [image] – name of the screenshot in [Illustrations]. */

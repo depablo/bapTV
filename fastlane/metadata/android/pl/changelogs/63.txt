@@ -1,0 +1,1 @@
+Wyszukiwanie kanałów działa w tle: w tym czasie dostępne są menu, przewodnik i kanały internetowe. Bez kanałów OK otwiera menu. Przewodnik proponuje wyszukiwanie na pierwszej stronie i pokazuje zrzuty ekranu. Ciekawostki „Czy wiesz, że…?” o mniej znanych funkcjach.
