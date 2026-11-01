@@ -59,6 +59,9 @@ class TestTunerService : TvInputService() {
             return true
         }
 
+        /** The pending "tuned" report of the last onTune. */
+        private var tuned: Runnable? = null
+
         override fun onTune(channelUri: Uri): Boolean {
             val def = TestChannels.byChannelId(ctx, ContentUris.parseId(channelUri))
             Log.i(TAG, "onTune $channelUri -> ${def?.name}")
@@ -68,10 +71,12 @@ class TestTunerService : TvInputService() {
             pausedAtMs = 0
             notifyVideoUnavailable(TvInputManager.VIDEO_UNAVAILABLE_REASON_TUNING)
             drawHandler.removeCallbacks(draw)
-            drawHandler.postDelayed({
+            // A quick zap must not report the tracks and picture of the previous channel.
+            tuned?.let { drawHandler.removeCallbacks(it) }
+            val report = Runnable {
                 if (def == null) {
                     notifyVideoUnavailable(TvInputManager.VIDEO_UNAVAILABLE_REASON_UNKNOWN)
-                    return@postDelayed
+                    return@Runnable
                 }
                 notifyTracksChanged(listOf(
                     TvTrackInfo.Builder(TvTrackInfo.TYPE_VIDEO, "v").setVideoWidth(1920).setVideoHeight(1080).setVideoFrameRate(25f).build(),
@@ -84,7 +89,9 @@ class TestTunerService : TvInputService() {
                 notifyVideoAvailable()
                 notifyTimeShiftStatusChanged(TvInputManager.TIME_SHIFT_STATUS_AVAILABLE)
                 drawHandler.post(draw)
-            }, 800)
+            }
+            tuned = report
+            drawHandler.postDelayed(report, 800)
             return true
         }
 
