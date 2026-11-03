@@ -292,6 +292,13 @@ marked ones at once. Short stalls are not reported on the TV, so "Buffering" doe
 why, e.g. "Stream unavailable (HTTP 403)". Dropped live streams reconnect by themselves a few times.
 Recording, live pause, HbbTV and channel identification are for broadcast channels only.
 
+**Phone app.** On a phone bapTV opens its own screen for internet channels instead of the TV screen
+(the TV is recognised by its leanback feature). It has a touch list with search, a player above it and
+the buttons to add a playlist: by address (http or https) or from a file on the phone. Channels are
+kept in the app's own file on the phone, not in `TvContract` (the phones tested had no TV provider), so
+the TV and the phone keep separate lists. Playback uses the same headers as on the TV; a long press on a
+channel removes it. The phone app has no TV guide, recording or broadcast channels yet.
+
 **TV guide for internet channels.** The IPTV tab's "TV guide (XMLTV)" section takes addresses of XMLTV
 files (`.xml` or `.xml.gz`); the guide addresses in a playlist's header (`x-tvg-url`, `url-tvg`) are added
 with its channels. The set-top box downloads them (streamed, so whole-country guides of tens of

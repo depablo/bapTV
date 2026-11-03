@@ -3,9 +3,12 @@ package com.bonsaponsi.baptv
 import android.app.Activity
 import android.app.AlertDialog
 import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.provider.OpenableColumns
 import android.text.Editable
 import android.text.TextWatcher
 import android.view.View
@@ -24,6 +27,9 @@ import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.ui.PlayerView
+import java.io.ByteArrayOutputStream
+import java.io.IOException
+import java.io.InputStream
 
 /**
  * The phone's own screen for internet channels (IPTV): a touch list with search, a player under it and adding of
@@ -139,6 +145,7 @@ class PhoneActivity : Activity() {
             .setTitle(R.string.phone_add_title)
             .setView(input)
             .setPositiveButton(R.string.phone_add_ok) { _, _ -> addPlaylist(input.text.toString().trim()) }
+            .setNeutralButton(R.string.phone_add_file) { _, _ -> pickFile() }
             .setNegativeButton(R.string.phone_cancel, null)
             .show()
     }
@@ -150,25 +157,73 @@ class PhoneActivity : Activity() {
         }
         Toast.makeText(this, R.string.phone_add_loading, Toast.LENGTH_SHORT).show()
         io.execute {
-            val message = try {
-                val playlist = Iptv.parseM3u(Iptv.download(address, MAX_PLAYLIST))
-                if (playlist.streams.isEmpty()) getString(R.string.phone_add_empty)
-                else {
-                    // Kept with each channel, as the TV keeps the address it was added from.
-                    val added = store.add(playlist.streams.map { it.copy(source = address) })
-                    getString(R.string.phone_added, added)
-                }
-            } catch (e: java.io.IOException) {
+            showResult(try {
+                addText(Iptv.download(address, MAX_PLAYLIST), source = address)
+            } catch (e: IOException) {
                 DebugLog.warn("PhoneIptv", "cannot load playlist", e)
                 getString(R.string.phone_add_error, e.message ?: e.javaClass.simpleName)
-            }
-            handler.post {
-                if (isDestroyed) return@post
-                Toast.makeText(this, message, Toast.LENGTH_LONG).show()
-                streams = store.load()
-                applyFilter()
-            }
+            })
         }
+    }
+
+    private fun pickFile() {
+        startActivityForResult(Intent(Intent.ACTION_OPEN_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE).setType("*/*"), REQUEST_FILE)
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        val uri = data?.data
+        if (requestCode == REQUEST_FILE && resultCode == RESULT_OK && uri != null) addFile(uri)
+    }
+
+    private fun addFile(uri: Uri) {
+        Toast.makeText(this, R.string.phone_add_loading, Toast.LENGTH_SHORT).show()
+        io.execute {
+            showResult(try {
+                val text = contentResolver.openInputStream(uri)?.use { readLimited(it, MAX_PLAYLIST) }
+                    ?: throw IOException("cannot open the file")
+                addText(text, source = displayName(uri))
+            } catch (e: IOException) {
+                DebugLog.warn("PhoneIptv", "cannot read playlist file", e)
+                getString(R.string.phone_add_error, e.message ?: e.javaClass.simpleName)
+            })
+        }
+    }
+
+    /** Stores the channels of a playlist text; returns the message for the user. Runs on the worker. */
+    private fun addText(text: String, source: String): String {
+        val playlist = Iptv.parseM3u(text)
+        if (playlist.streams.isEmpty()) return getString(R.string.phone_add_empty)
+        // Kept with each channel, as the TV keeps the address or file it was added from.
+        val added = store.add(playlist.streams.map { it.copy(source = source) })
+        return getString(R.string.phone_added, added)
+    }
+
+    private fun showResult(message: String) {
+        handler.post {
+            if (isDestroyed) return@post
+            Toast.makeText(this, message, Toast.LENGTH_LONG).show()
+            streams = store.load()
+            applyFilter()
+        }
+    }
+
+    private fun displayName(uri: Uri): String =
+        contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use {
+            if (it.moveToFirst()) it.getString(0) else null
+        } ?: uri.lastPathSegment.orEmpty()
+
+    /** Reads at most [max] bytes as UTF-8 text; a bigger file is refused rather than cut. */
+    private fun readLimited(input: InputStream, max: Int): String {
+        val out = ByteArrayOutputStream()
+        val chunk = ByteArray(64 * 1024)
+        while (out.size() <= max) {
+            val n = input.read(chunk)
+            if (n < 0) break
+            out.write(chunk, 0, n)
+        }
+        if (out.size() > max) throw IOException("playlist too large")
+        return String(out.toByteArray(), Charsets.UTF_8)
     }
 
     private fun confirmRemove(stream: Iptv.Stream) {
@@ -200,6 +255,7 @@ class PhoneActivity : Activity() {
     }
 
     private companion object {
+        const val REQUEST_FILE = 1
         const val CONNECT_TIMEOUT_MS = 10_000
         const val READ_TIMEOUT_MS = 15_000
         const val MIN_BUFFER_MS = 10_000
