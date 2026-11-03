@@ -322,6 +322,8 @@ object IptvGuide {
         val factory = SAXParserFactory.newInstance()
         factory.isNamespaceAware = false
         runCatching { factory.setFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd", false) }
+        // Limits entity expansion ("billion laughs" in an internal DTD) where the parser supports it.
+        runCatching { factory.setFeature(javax.xml.XMLConstants.FEATURE_SECURE_PROCESSING, true) }
         factory.newSAXParser().parse(input, handler)
         return matcher.resolve(result.mapValues { (_, list) -> complete(list, fromMs) }.filterValues { it.isNotEmpty() })
     }

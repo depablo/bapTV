@@ -124,6 +124,13 @@ object RecordingScheduler {
      */
     private fun set(context: Context, action: String, id: Long, at: Long) {
         val alarms = alarm(context)
+        // With a target of Android 12+ exact alarms need the user's permission; then the inexact fallback could
+        // start the recording much later, so it is logged where it shows up in a report.
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S && !alarms.canScheduleExactAlarms()) {
+            DebugLog.warn(TAG, "exact alarms not allowed – the recording may start late")
+            alarms.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, pending(context, action, id))
+            return
+        }
         try {
             alarms.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, pending(context, action, id))
         } catch (e: SecurityException) {

@@ -27,6 +27,10 @@ class ChannelCategoryTest {
         assertEquals(FILM, ChannelCategory.guess("Stopklatka TV"))
         assertEquals(EDUCATION, ChannelCategory.guess("TVP Historia"))
         assertEquals(LEISURE, ChannelCategory.guess("TVN Turbo HD"))
+        // Keyword rules would make these music or film.
+        assertEquals(ENTERTAINMENT, ChannelCategory.guess("VOX HD"))
+        assertEquals(NEWS, ChannelCategory.guess("Polskie Radio 24"))
+        assertEquals(EDUCATION, ChannelCategory.guess("Crime+Investigation"))
     }
 
     @Test

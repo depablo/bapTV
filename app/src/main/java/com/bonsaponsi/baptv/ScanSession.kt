@@ -232,20 +232,10 @@ object ScanSession {
         receiverRegistered = true
     }
 
-    /**
-     * InstallerService stores the extras and starts the scan once the tuner is ready.
-     * Plain startService – with startForegroundService a service that is already running would not call
-     * startForeground() and the system would kill it.
-     */
+    /** InstallerService stores the extras and starts the scan once the tuner is ready. */
     private fun startInstallerService(params: String) {
-        val intent = Intent().setComponent(Dtv.INSTALLER_SERVICE).putExtra(Dtv.EXTRA_PARAMS, params)
-        val result = try {
-            app.startService(intent)
-        } catch (e: IllegalStateException) {
-            DebugLog.warn("Scan", "startService rejected (${e.message}), trying startForegroundService")
-            app.startForegroundService(intent)
-        }
-        DebugLog.log("Scan", "-> startService($intent) = $result")
+        val result = Dtv.startInstaller(app, params)
+        DebugLog.log("Scan", "-> startService(${Dtv.INSTALLER_SERVICE.flattenToShortString()}, $params) = $result")
         if (result == null) error("service ${Dtv.INSTALLER_SERVICE.flattenToShortString()} does not exist")
     }
 

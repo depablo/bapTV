@@ -21,6 +21,23 @@ class HttpRequestTest {
     }
 
     @Test
+    fun slowHeaderIsRejected() {
+        var now = 0L
+        // Each byte arrives 1 s later – within the socket timeout, but the whole header takes too long.
+        val slow = object : java.io.InputStream() {
+            val bytes = "GET / HTTP/1.1\r\nHost: tv\r\n\r\n".toByteArray()
+            var i = 0
+            override fun read(): Int { now += 1000; return if (i < bytes.size) bytes[i++].toInt() else -1 }
+        }
+        try {
+            HttpRequest.read(slow, timeoutMs = 10_000, clock = { now })
+            org.junit.Assert.fail()
+        } catch (e: HttpRequest.BadRequest) {
+            assertEquals("Header too slow", e.message)
+        }
+    }
+
+    @Test
     fun parsesQueryWithEncoding() {
         val r = HttpRequest.read(ByteArrayInputStream("GET /log.txt?since=12&boot=99&a=b%20c HTTP/1.1\r\n\r\n".toByteArray()))!!
         assertEquals(mapOf("since" to "12", "boot" to "99", "a" to "b c"), r.query)

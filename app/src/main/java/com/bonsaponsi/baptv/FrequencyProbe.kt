@@ -111,7 +111,7 @@ object FrequencyProbe {
         val values = HashMap<String, MutableList<Double>>()
         val started = System.currentTimeMillis()
         try {
-            context.startService(Intent().setComponent(Dtv.INSTALLER_SERVICE).putExtra(Dtv.EXTRA_PARAMS, params))
+            Dtv.startInstaller(context, params)
             while (done.count > 0 && System.currentTimeMillis() - started < SCAN_TIMEOUT_MS && !cancelled) {
                 val t = reader.readTuner()
                 val f = t?.frequencyMhz

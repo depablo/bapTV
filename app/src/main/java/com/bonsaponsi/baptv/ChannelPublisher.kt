@@ -85,14 +85,7 @@ class ChannelPublisher(private val context: Context) {
         }
         val params = json(mux, Region.plan()).toString()
         DebugLog.log(TAG, "-> multiplex ${index + 1}/${queue.size} ${fmt(mux.frequencyMhz)} MHz: $params")
-        val started = runCatching {
-            val intent = Intent().setComponent(Dtv.INSTALLER_SERVICE).putExtra(Dtv.EXTRA_PARAMS, params)
-            try {
-                context.startService(intent)
-            } catch (e: IllegalStateException) {
-                context.startForegroundService(intent)
-            }
-        }.onFailure { DebugLog.error(TAG, "starting InstallerService failed", it) }.getOrNull()
+        val started = runCatching { Dtv.startInstaller(context, params) }.onFailure { DebugLog.error(TAG, "starting InstallerService failed", it) }.getOrNull()
         if (started == null) {
             failedMuxes++
             handler.post { next() }

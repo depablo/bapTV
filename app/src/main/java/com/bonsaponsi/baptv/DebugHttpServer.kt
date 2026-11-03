@@ -476,16 +476,21 @@ class HttpRequest(
 
     companion object {
         private const val MAX_HEADER_BYTES = 16 * 1024
+        private const val HEADER_TIMEOUT_MS = 20_000L
 
         /** Reads the header byte by byte so as not to consume the start of the body. Null – the client disconnected. */
-        fun read(input: InputStream): HttpRequest? {
+        fun read(input: InputStream, timeoutMs: Long = HEADER_TIMEOUT_MS, clock: () -> Long = System::currentTimeMillis): HttpRequest? {
             val head = StringBuilder()
             var matched = 0
+            // The socket timeout only limits the wait for each byte – a client sending one now and then would
+            // keep a connection slot for ever.
+            val deadline = clock() + timeoutMs
             while (matched < 4) {
                 val b = input.read()
                 if (b < 0) return if (head.isEmpty()) null else throw BadRequest("Incomplete header")
                 head.append(b.toChar())
                 if (head.length > MAX_HEADER_BYTES) throw BadRequest("Header too large")
+                if (clock() > deadline) throw BadRequest("Header too slow")
                 matched = when {
                     (matched == 0 || matched == 2) && b == '\r'.code -> matched + 1
                     (matched == 1 || matched == 3) && b == '\n'.code -> matched + 1

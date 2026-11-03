@@ -2,6 +2,7 @@ package com.bonsaponsi.baptv
 
 import android.content.ComponentName
 import android.content.Context
+import android.content.Intent
 import android.media.tv.TvInputInfo
 import android.media.tv.TvInputManager
 
@@ -115,6 +116,22 @@ object Dtv {
     /** Debug builds only: pretend there is no tuner (POST /debug/no-tuner) to test the internet-only mode. */
     private fun simulateNoTuner(context: Context) =
         BuildConfig.DEBUG && context.getSharedPreferences("debug", Context.MODE_PRIVATE).getBoolean("no_tuner", false)
+
+    /**
+     * Sends a request ([EXTRA_PARAMS]) to dtvinput's InstallerService: scan, json install, single frequency.
+     * Plain startService – with startForegroundService a service that is already running would not call
+     * startForeground() and the system would kill it; that one is only the fallback when a background start is
+     * refused. Returns the started component, null when the service does not exist.
+     */
+    fun startInstaller(context: Context, params: String): ComponentName? {
+        val intent = Intent().setComponent(INSTALLER_SERVICE).putExtra(EXTRA_PARAMS, params)
+        return try {
+            context.startService(intent)
+        } catch (e: IllegalStateException) {
+            DebugLog.warn("Dtv", "startService rejected (${e.message}), trying startForegroundService")
+            context.startForegroundService(intent)
+        }
+    }
 
     @android.annotation.SuppressLint("ApplySharedPref") // a restart (process kill) usually follows at once
     fun setSimulateNoTuner(context: Context, on: Boolean) {

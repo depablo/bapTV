@@ -38,6 +38,10 @@ object ChannelCategory {
         listOf("tvp kultura", "tvp kultura 2", "tv trwam", "radio jasna gora").forEach { put(it, ARTS) }
         listOf("tvn turbo", "tvn style", "tvp kobieta", "sklep kapitan pl", "tv okazje").forEach { put(it, LEISURE) }
         listOf("tok fm", "radio bezpieczna podroz").forEach { put(it, NEWS) }
+        // Names a keyword rule below would get wrong ("vox", "radio", "crime").
+        put("vox", ENTERTAINMENT)
+        put("polskie radio 24", NEWS)
+        listOf("crime+investigation", "crime + investigation", "crime investigation").forEach { put(it, EDUCATION) }
     }
 
     /** Keyword rules for names and playlist groups, checked in order (the first match wins). */
