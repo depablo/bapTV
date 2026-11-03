@@ -61,6 +61,15 @@ data class DeviceCapabilities(
     companion object {
         @Volatile private var cached: DeviceCapabilities? = null
 
+        /**
+         * A TV device: Android TV (leanback) or a box in television UI mode – uncertified AOSP boxes may not
+         * report leanback. Decides between the TV player ([MainActivity]) and the phone screen ([PhoneActivity]).
+         */
+        fun isTelevision(context: Context): Boolean =
+            context.packageManager.hasSystemFeature(android.content.pm.PackageManager.FEATURE_LEANBACK) ||
+                (context.getSystemService(Context.UI_MODE_SERVICE) as? android.app.UiModeManager)?.currentModeType ==
+                android.content.res.Configuration.UI_MODE_TYPE_TELEVISION
+
         /** Cached result; [refresh] after a scan or package installation. */
         fun get(context: Context): DeviceCapabilities = cached ?: refresh(context)
 

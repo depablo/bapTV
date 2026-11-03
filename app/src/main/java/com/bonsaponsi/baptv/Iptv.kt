@@ -147,7 +147,8 @@ object Iptv {
         throw java.io.IOException("too many redirects")
     }
 
-    private fun java.io.InputStream.readNBytesCompat(max: Int): ByteArray {
+    /** Reads at most [max] bytes (InputStream.readNBytes needs API 33). */
+    fun java.io.InputStream.readNBytesCompat(max: Int): ByteArray {
         val out = java.io.ByteArrayOutputStream()
         val chunk = ByteArray(64 * 1024)
         while (out.size() < max) {

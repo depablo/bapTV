@@ -22,25 +22,27 @@ import android.widget.Toast
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
-import androidx.media3.datasource.DefaultHttpDataSource
+import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.ui.PlayerView
-import java.io.ByteArrayOutputStream
 import java.io.IOException
-import java.io.InputStream
 
 /**
  * The phone's own screen for internet channels (IPTV): a touch list with search, a player under it and adding of
  * M3U playlists by address. Plays the same streams as the TV ([IptvInputService]), with the same headers, but
- * straight into a [PlayerView] – there is no TV input on a phone.
+ * straight into a [PlayerView] – there is no TV input on a phone. Files are read and written on workers: a
+ * playlist can have tens of thousands of channels.
  */
+@androidx.annotation.OptIn(UnstableApi::class)
 class PhoneActivity : Activity() {
 
     override fun attachBaseContext(base: Context) = super.attachBaseContext(AppLanguage.wrap(base))
 
     private val io = BackgroundWorker("phone-iptv")
+    /** The guide download takes minutes – adding or removing channels must not wait for it. */
+    private val guideIo = BackgroundWorker("phone-epg")
     private val handler = Handler(Looper.getMainLooper())
     private lateinit var store: PhoneIptvStore
     private lateinit var epg: PhoneEpg
@@ -53,9 +55,24 @@ class PhoneActivity : Activity() {
     private var streams: List<Iptv.Stream> = emptyList()
     /** The streams the list shows – all of them, or the ones matching the search. */
     private var shown: List<Iptv.Stream> = emptyList()
+    /** Started from a TV launcher: sent on to the TV player, the views below are never created. */
+    private var redirected = false
+    private var guideRunning = false
+    /** A refresh was asked for while one was running (new playlist) – run again after it. */
+    private var guideAgain = false
+
+    /** Redraws the "now" lines when the first programme on screen ends. */
+    private val redrawNow = Runnable { applyFilter(); scheduleRedraw() }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Launchers that list LAUNCHER activities (also on TV boxes) start this one: a TV gets its own player.
+        if (DeviceCapabilities.isTelevision(this)) {
+            redirected = true
+            startActivity(Intent(this, MainActivity::class.java))
+            finish()
+            return
+        }
         setContentView(R.layout.activity_phone)
         playerView = findViewById(R.id.phone_player)
         status = findViewById(R.id.phone_status)
@@ -76,24 +93,58 @@ class PhoneActivity : Activity() {
         findViewById<Button>(R.id.phone_add).setOnClickListener { askForPlaylist() }
         findViewById<Button>(R.id.phone_remote).setOnClickListener { startActivity(Intent(this, RemoteActivity::class.java)) }
 
-        streams = store.load()
-        applyFilter()
+        reloadList()
     }
 
     override fun onStart() {
         super.onStart()
-        // Refreshes the guide when it is older than 12 hours; otherwise only redraws the "now" lines.
-        if (epg.isStale(System.currentTimeMillis())) refreshGuide() else applyFilter()
+        if (redirected) return
+        // Refreshes the guide when it is stale (see PhoneEpg.isStale); otherwise only redraws the "now" lines.
+        guideIo.execute {
+            epg.load()
+            val stale = epg.isStale(System.currentTimeMillis())
+            handler.post {
+                if (isDestroyed) return@post
+                if (stale) refreshGuide()
+                applyFilter()
+                scheduleRedraw()
+            }
+        }
     }
 
     override fun onStop() {
-        releasePlayer()
+        if (!redirected) {
+            handler.removeCallbacks(redrawNow)
+            releasePlayer()
+        }
         super.onStop()
     }
 
     override fun onDestroy() {
         io.shutdownNow()
+        guideIo.shutdownNow()
         super.onDestroy()
+    }
+
+    /** Reads the channel list on the worker and shows it. */
+    private fun reloadList(message: String? = null, refreshGuide: Boolean = false) {
+        io.execute {
+            val list = store.load()
+            handler.post {
+                if (isDestroyed) return@post
+                message?.let { Toast.makeText(this, it, Toast.LENGTH_LONG).show() }
+                streams = list
+                applyFilter()
+                if (refreshGuide) refreshGuide()
+            }
+        }
+    }
+
+    private fun scheduleRedraw() {
+        handler.removeCallbacks(redrawNow)
+        val now = System.currentTimeMillis()
+        val next = epg.nextChangeMs(now) ?: return
+        handler.postDelayed(redrawNow, (next - now + 1_000).coerceIn(REDRAW_MIN_MS, REDRAW_MAX_MS))
     }
 
     private fun applyFilter() {
@@ -111,14 +162,8 @@ class PhoneActivity : Activity() {
         }
         releasePlayer()
         status.text = stream.name
-        val http = DefaultHttpDataSource.Factory()
-            .setUserAgent(stream.userAgent ?: Iptv.USER_AGENT)
-            .setAllowCrossProtocolRedirects(true)
-            .setConnectTimeoutMs(CONNECT_TIMEOUT_MS)
-            .setReadTimeoutMs(READ_TIMEOUT_MS)
-        stream.referrer?.let { http.setDefaultRequestProperties(mapOf("Referer" to it)) }
         player = ExoPlayer.Builder(this)
-            .setMediaSourceFactory(DefaultMediaSourceFactory(http))
+            .setMediaSourceFactory(DefaultMediaSourceFactory(IptvInputService.httpFactory(stream)))
             // A phone has less memory than the TV, so the buffer is smaller.
             .setLoadControl(DefaultLoadControl.Builder()
                 .setBufferDurationsMs(MIN_BUFFER_MS, MAX_BUFFER_MS, START_BUFFER_MS, REBUFFER_MS).build())
@@ -166,12 +211,12 @@ class PhoneActivity : Activity() {
         }
         Toast.makeText(this, R.string.phone_add_loading, Toast.LENGTH_SHORT).show()
         io.execute {
-            showResult(try {
+            try {
                 addText(Iptv.download(address, MAX_PLAYLIST), source = address)
-            } catch (e: IOException) {
+            } catch (e: Exception) {
                 DebugLog.warn("PhoneIptv", "cannot load playlist", e)
-                getString(R.string.phone_add_error, e.message ?: e.javaClass.simpleName)
-            })
+                reloadList(getString(R.string.phone_add_error, e.message ?: e.javaClass.simpleName))
+            }
         }
     }
 
@@ -188,43 +233,47 @@ class PhoneActivity : Activity() {
     private fun addFile(uri: Uri) {
         Toast.makeText(this, R.string.phone_add_loading, Toast.LENGTH_SHORT).show()
         io.execute {
-            showResult(try {
-                val text = contentResolver.openInputStream(uri)?.use { readLimited(it, MAX_PLAYLIST) }
+            // Not only IOException: a document provider may also refuse the address (SecurityException).
+            try {
+                val bytes = contentResolver.openInputStream(uri)?.use { with(Iptv) { it.readNBytesCompat(MAX_PLAYLIST + 1) } }
                     ?: throw IOException("cannot open the file")
-                addText(text, source = displayName(uri))
-            } catch (e: IOException) {
+                // A bigger file is refused rather than cut.
+                if (bytes.size > MAX_PLAYLIST) throw IOException("playlist too large")
+                addText(String(bytes, Charsets.UTF_8), source = displayName(uri))
+            } catch (e: Exception) {
                 DebugLog.warn("PhoneIptv", "cannot read playlist file", e)
-                getString(R.string.phone_add_error, e.message ?: e.javaClass.simpleName)
-            })
+                reloadList(getString(R.string.phone_add_error, e.message ?: e.javaClass.simpleName))
+            }
         }
     }
 
-    /** Stores the channels of a playlist text; returns the message for the user. Runs on the worker. */
-    private fun addText(text: String, source: String): String {
+    /** Stores the channels of a playlist text and shows the result. Runs on the worker. */
+    private fun addText(text: String, source: String) {
         val playlist = Iptv.parseM3u(text)
-        if (playlist.streams.isEmpty()) return getString(R.string.phone_add_empty)
+        if (playlist.streams.isEmpty()) return reloadList(getString(R.string.phone_add_empty))
         // Kept with each channel, as the TV keeps the address or file it was added from.
         val added = store.add(playlist.streams.map { it.copy(source = source) })
         // The playlist's guide addresses are fetched now, so the new channels get their programmes at once.
         epg.addSources(playlist.epgUrls)
-        if (added > 0) refreshGuide()
-        return getString(R.string.phone_added, added)
+        reloadList(getString(R.string.phone_added, added), refreshGuide = added > 0)
     }
 
-    /** Downloads the XMLTV guide in the background and redraws the list when it is ready. */
+    /** Downloads the XMLTV guide in the background and redraws the list when it is ready. Main thread. */
     private fun refreshGuide() {
-        io.execute {
-            epg.refresh(store.load())
-            handler.post { if (!isDestroyed) applyFilter() }
-        }
-    }
-
-    private fun showResult(message: String) {
-        handler.post {
-            if (isDestroyed) return@post
-            Toast.makeText(this, message, Toast.LENGTH_LONG).show()
-            streams = store.load()
-            applyFilter()
+        if (guideRunning) { guideAgain = true; return }
+        guideRunning = true
+        guideIo.execute {
+            try {
+                epg.refresh(store.load())
+            } finally {
+                handler.post {
+                    guideRunning = false
+                    if (isDestroyed) return@post
+                    applyFilter()
+                    scheduleRedraw()
+                    if (guideAgain) { guideAgain = false; refreshGuide() }
+                }
+            }
         }
     }
 
@@ -233,26 +282,14 @@ class PhoneActivity : Activity() {
             if (it.moveToFirst()) it.getString(0) else null
         } ?: uri.lastPathSegment.orEmpty()
 
-    /** Reads at most [max] bytes as UTF-8 text; a bigger file is refused rather than cut. */
-    private fun readLimited(input: InputStream, max: Int): String {
-        val out = ByteArrayOutputStream()
-        val chunk = ByteArray(64 * 1024)
-        while (out.size() <= max) {
-            val n = input.read(chunk)
-            if (n < 0) break
-            out.write(chunk, 0, n)
-        }
-        if (out.size() > max) throw IOException("playlist too large")
-        return String(out.toByteArray(), Charsets.UTF_8)
-    }
-
     private fun confirmRemove(stream: Iptv.Stream) {
         AlertDialog.Builder(this)
             .setTitle(getString(R.string.phone_remove_title, stream.name))
             .setPositiveButton(R.string.phone_remove) { _, _ ->
-                store.remove(stream.url)
-                streams = store.load()
-                applyFilter()
+                io.execute {
+                    store.remove(stream.url)
+                    reloadList()
+                }
             }
             .setNegativeButton(R.string.phone_cancel, null)
             .show()
@@ -267,7 +304,7 @@ class PhoneActivity : Activity() {
             val stream = shown[position]
             view.findViewById<TextView>(R.id.phone_item_name).text = stream.name.ifBlank { stream.url }
             view.findViewById<TextView>(R.id.phone_item_now).apply {
-                val now = epg.nowAndNext(stream.url, System.currentTimeMillis()).first
+                val now = epg.now(stream.url, System.currentTimeMillis())
                 text = now?.let { getString(R.string.phone_now, it.title) }.orEmpty()
                 visibility = if (now == null) View.GONE else View.VISIBLE
             }
@@ -281,12 +318,12 @@ class PhoneActivity : Activity() {
 
     private companion object {
         const val REQUEST_FILE = 1
-        const val CONNECT_TIMEOUT_MS = 10_000
-        const val READ_TIMEOUT_MS = 15_000
         const val MIN_BUFFER_MS = 10_000
         const val MAX_BUFFER_MS = 30_000
         const val START_BUFFER_MS = 2_500
         const val REBUFFER_MS = 6_000
         const val MAX_PLAYLIST = 30 * 1024 * 1024
+        const val REDRAW_MIN_MS = 30_000L
+        const val REDRAW_MAX_MS = 15 * 60_000L
     }
 }

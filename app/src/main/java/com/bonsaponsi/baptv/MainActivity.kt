@@ -207,7 +207,7 @@ class MainActivity : Activity() {
         // Phones have no TV screen. A shortcut or icon made by an older version still starts this activity there,
         // so it is sent on to the phone screen. The lifecycle goes on after finish(), so the overrides below
         // check [redirected] before they touch the views.
-        if (!packageManager.hasSystemFeature(PackageManager.FEATURE_LEANBACK)) {
+        if (!DeviceCapabilities.isTelevision(this)) {
             redirected = true
             startActivity(Intent(this, PhoneActivity::class.java))
             finish()
