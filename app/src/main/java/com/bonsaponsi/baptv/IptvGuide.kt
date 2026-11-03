@@ -44,6 +44,7 @@ object IptvGuide {
     }.getOrDefault(emptyList())
 
     /** Adds guide addresses (http/https only); returns true when the list changed. */
+    @Synchronized
     fun addSources(context: Context, urls: Collection<String>): Boolean {
         val current = sources(context)
         val new = urls.map { it.trim() }.filter { (it.startsWith("http://") || it.startsWith("https://")) && it !in current }.distinct()
@@ -53,6 +54,7 @@ object IptvGuide {
         return true
     }
 
+    @Synchronized
     fun removeSource(context: Context, url: String) {
         setSources(context, sources(context).filter { it != url })
         DebugLog.log("Guide", "guide source removed: $url")
@@ -68,15 +70,23 @@ object IptvGuide {
         Status(o.getLong("at"), o.optInt("channels"), o.optInt("matched"), o.optInt("programmes"), error)
     }.getOrNull()
 
-    /** Refresh in the background when there are sources and the last refresh is older than [REFRESH_AFTER_MS]. */
+    /**
+     * Refresh in the background when there are sources and the last full refresh is older than [REFRESH_AFTER_MS].
+     * After a failed attempt the next one waits [RETRY_AFTER_MS]: one dead source must not download all the others
+     * again at every player start.
+     */
     fun refreshIfStale(context: Context) {
         val app = context.applicationContext
         worker.execute {
             if (sources(app).isEmpty() || Iptv.streams(app).isEmpty()) return@execute
-            val last = status(app)?.atMs ?: 0
-            if (System.currentTimeMillis() - last >= REFRESH_AFTER_MS) refresh(app)
+            val now = System.currentTimeMillis()
+            if (isStale(now, status(app)?.atMs ?: 0, prefs(app).getLong(KEY_TRIED, 0))) refresh(app)
         }
     }
+
+    /** The last full success is old and the last attempt (of any result) is not too recent. */
+    fun isStale(nowMs: Long, successMs: Long, triedMs: Long): Boolean =
+        nowMs - successMs >= REFRESH_AFTER_MS && nowMs - triedMs >= RETRY_AFTER_MS
 
     fun refreshInBackground(context: Context, onDone: (() -> Unit)? = null) {
         val app = context.applicationContext
@@ -92,6 +102,7 @@ object IptvGuide {
         try {
             val channels = Iptv.streams(context)
             val now = System.currentTimeMillis()
+            prefs(context).edit().putLong(KEY_TRIED, now).apply()
             val matcher = Matcher(channels.map { (c, s) -> Matcher.Target(c.id, c.name, s.tvgId) })
             val programmes = HashMap<Long, MutableList<Programme>>()
             val errors = ArrayList<String>()
@@ -111,22 +122,45 @@ object IptvGuide {
             // A failed source must not wipe the guide it provided before: then only channels with fresh data are
             // rewritten, and the time of the last full success stays, so the next player start tries again.
             val rewrite = if (errors.isEmpty()) channels.map { it.first.id } else programmes.keys.toList()
-            val written = write(context, rewrite, programmes)
+            // Channels removed during the (minutes long) download are left out – their rows would fail the batch.
+            val existing = Iptv.streams(context).mapTo(HashSet()) { it.first.id }
+            val written = write(context, rewrite.filter { it in existing }, programmes, errors)
             ChannelRepository.clearProgrammeCache()
             val at = if (errors.isEmpty()) now else status(context)?.atMs ?: 0
-            val status = Status(at, channels.size, programmes.count { it.value.isNotEmpty() }, written, errors.joinToString("; ").ifEmpty { null })
+            // After a partial failure the older guide of the other channels stays, so it is counted from the provider.
+            val (matched, total) = if (errors.isEmpty()) programmes.count { it.value.isNotEmpty() } to written
+            else stored(context, existing)
+            val status = Status(at, channels.size, matched, total, errors.joinToString("; ").ifEmpty { null })
             prefs(context).edit().putString(KEY_STATUS, status.toJson().toString()).apply()
-            DebugLog.log("Guide", "internet channels with a guide: ${status.matched}/${status.channels}, programmes $written")
+            DebugLog.log("Guide", "internet channels with a guide: ${status.matched}/${status.channels}, programmes written $written")
             return status
         } finally {
             running.set(false)
         }
     }
 
-    /** Replaces the programmes of all internet channels (those without a guide are cleared too). */
-    private fun write(context: Context, channelIds: List<Long>, programmes: Map<Long, List<Programme>>): Int {
+    /**
+     * Replaces the programmes of the given channels (those without a guide are cleared too). A batch that fails is
+     * logged and added to [errors]; the following ones are still written. Returns how many programmes were written.
+     */
+    private fun write(context: Context, channelIds: List<Long>, programmes: Map<Long, List<Programme>>, errors: MutableList<String>): Int {
         val ops = ArrayList<ContentProviderOperation>()
+        var pending = 0
+        var bytes = 0L
         var count = 0
+        fun flush() {
+            if (ops.isEmpty()) return
+            try {
+                context.contentResolver.applyBatch(TvContract.AUTHORITY, ops)
+                count += pending
+            } catch (e: Exception) {
+                DebugLog.warn("Guide", "writing ${ops.size} guide rows failed", e)
+                errors += "write: ${e.message ?: e.javaClass.simpleName}"
+            }
+            ops.clear()
+            pending = 0
+            bytes = 0
+        }
         for (id in channelIds) {
             ops += ContentProviderOperation.newDelete(TvContract.buildProgramsUriForChannel(id)).build()
             programmes[id].orEmpty().forEach { p ->
@@ -139,13 +173,31 @@ object IptvGuide {
                     .withValue(Programs.COLUMN_END_TIME_UTC_MILLIS, p.endMs)
                     .withValue(Programs.COLUMN_CANONICAL_GENRE, canonicalGenre(p.genre))
                     .build()
-                count++
+                pending++
+                // Strings travel as UTF-16; the description goes in up to two columns.
+                bytes += ROW_OVERHEAD + 2L * (p.title.length + 2 * p.description.length)
+                // Flushed per batch – one transaction for thousands of rows would hold the provider for long, and
+                // a Binder transaction is limited to about 1 MB.
+                if (ops.size >= BATCH || bytes >= MAX_BATCH_BYTES) flush()
             }
-            // Flushed per batch – one transaction for thousands of rows would hold the provider for long.
-            if (ops.size >= BATCH) { context.contentResolver.applyBatch(TvContract.AUTHORITY, ops); ops.clear() }
         }
-        if (ops.isNotEmpty()) context.contentResolver.applyBatch(TvContract.AUTHORITY, ops)
+        flush()
         return count
+    }
+
+    /** Channels with a guide and their programmes, as stored in the provider. */
+    private fun stored(context: Context, channelIds: Collection<Long>): Pair<Int, Int> {
+        var channels = 0
+        var programmes = 0
+        for (id in channelIds) {
+            val n = runCatching {
+                context.contentResolver.query(TvContract.buildProgramsUriForChannel(id), arrayOf(Programs._ID), null, null, null)
+                    ?.use { it.count } ?: 0
+            }.getOrDefault(0)
+            if (n > 0) channels++
+            programmes += n
+        }
+        return channels to programmes
     }
 
     /** General category ([ChannelCategory], the same as DVB genres) → TvContract genre. */
@@ -179,7 +231,12 @@ object IptvGuide {
                     return@repeat
                 }
                 if (code !in 200..299) throw IOException("HTTP $code")
-                return c.inputStream.use { read(unpack(LimitedInputStream(it, MAX_DOWNLOAD))) }
+                // Both the download and the unpacked data are limited, in size and time: a gzip bomb or a server
+                // sending a byte now and then must not keep the worker (and further refreshes) busy for hours.
+                val deadline = android.os.SystemClock.elapsedRealtime() + MAX_DOWNLOAD_TIME_MS
+                return c.inputStream.use {
+                    read(LimitedInputStream(unpack(LimitedInputStream(it, MAX_DOWNLOAD, deadline)), MAX_UNPACKED, deadline))
+                }
             } finally {
                 c.disconnect()
             }
@@ -205,7 +262,8 @@ object IptvGuide {
      * Streamed (SAX): guide files of a whole country are tens of megabytes.
      */
     fun parse(input: InputStream, matcher: Matcher, fromMs: Long, toMs: Long): Map<Long, List<Programme>> {
-        val result = HashMap<Long, MutableList<Programme>>()
+        // By XMLTV channel first: which one an app channel takes is decided at the end ([Matcher.resolve]).
+        val result = LinkedHashMap<String, MutableList<Programme>>()
         val handler = object : DefaultHandler() {
             private val text = StringBuilder()
             private var collecting = false
@@ -213,7 +271,7 @@ object IptvGuide {
             private var channelId: String? = null
             private val names = ArrayList<String>()
             // <programme>
-            private var targets: List<Long> = emptyList()
+            private var key: String? = null
             private var start = 0L
             private var stop = 0L
             private var title: String? = null
@@ -224,13 +282,14 @@ object IptvGuide {
                 when (qName) {
                     "channel" -> { channelId = attributes.getValue("id"); names.clear() }
                     "programme" -> {
-                        targets = matcher.channelsFor(attributes.getValue("channel"))
+                        key = matcher.keyFor(attributes.getValue("channel"))
                         // Times only for the matched channels: a country's file has 100k+ programmes, mostly not ours.
-                        start = if (targets.isEmpty()) 0 else attributes.getValue("start")?.let(::parseTime) ?: 0
-                        stop = if (targets.isEmpty()) 0 else attributes.getValue("stop")?.let(::parseTime) ?: 0
+                        start = if (key == null) 0 else attributes.getValue("start")?.let(::parseTime) ?: 0
+                        // "stop" is optional in XMLTV (0 – taken from the next programme later).
+                        stop = if (key == null) 0 else attributes.getValue("stop")?.let(::parseTime)?.takeIf { it > start } ?: 0
                         title = null; description = null; category = ChannelCategory.NONE
                     }
-                    "display-name", "title", "desc", "category" -> if (channelId != null || targets.isNotEmpty()) { text.setLength(0); collecting = true }
+                    "display-name", "title", "desc", "category" -> if (channelId != null || key != null) { text.setLength(0); collecting = true }
                 }
             }
 
@@ -250,11 +309,12 @@ object IptvGuide {
                     "category" -> if (category == ChannelCategory.NONE) category = ChannelCategory.guess(value)
                     "programme" -> {
                         val t = title
-                        if (targets.isNotEmpty() && t != null && stop > start && stop > fromMs && start < toMs) {
-                            val p = Programme(t, description.orEmpty(), start, stop, category)
-                            targets.forEach { result.getOrPut(it) { ArrayList() } += p }
+                        val k = key
+                        // A start that did not parse would put the programme in 1970, covering "now" for ever.
+                        if (k != null && t != null && start > 0 && start < toMs && (stop == 0L || stop > fromMs)) {
+                            result.getOrPut(k) { ArrayList() } += Programme(t, description.orEmpty(), start, stop, category)
                         }
-                        targets = emptyList()
+                        key = null
                     }
                 }
             }
@@ -263,31 +323,52 @@ object IptvGuide {
         factory.isNamespaceAware = false
         runCatching { factory.setFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd", false) }
         factory.newSAXParser().parse(input, handler)
-        return result.mapValues { (_, list) -> list.sortedBy { it.startMs }.distinctBy { it.startMs } }
+        return matcher.resolve(result.mapValues { (_, list) -> complete(list, fromMs) }.filterValues { it.isNotEmpty() })
+    }
+
+    /** Sorted programmes of one channel; a missing end is the next programme's start ([DEFAULT_LENGTH_MS] for the last). */
+    private fun complete(list: List<Programme>, fromMs: Long): List<Programme> {
+        val sorted = list.sortedBy { it.startMs }.distinctBy { it.startMs }
+        return sorted.mapIndexed { i, p ->
+            if (p.endMs > 0) p else p.copy(endMs = sorted.getOrNull(i + 1)?.startMs ?: (p.startMs + DEFAULT_LENGTH_MS))
+        }.filter { it.endMs > fromMs }
     }
 
     /**
      * App channels by XMLTV channel: `tvg-id` equal to the XMLTV id (case-insensitive), otherwise a `<display-name>`
-     * equal to the channel name (normalised as for categories, without "HD"). Several app channels may share one guide.
+     * equal to the channel name (normalised as for categories, without "HD"). Several app channels may share one
+     * guide, but an app channel takes only one XMLTV channel: the one its `tvg-id` names, otherwise the first one
+     * with its name – so variants with the same name (SD, "+1") do not mix into its guide.
      */
     class Matcher(targets: List<Target>) {
         class Target(val channelId: Long, val name: String, val tvgId: String)
 
         private val byTvgId = targets.filter { it.tvgId.isNotBlank() }.groupBy({ it.tvgId.trim().lowercase() }, { it.channelId })
         private val byName = targets.groupBy({ ChannelCategory.normalize(it.name) }, { it.channelId })
-        private val declared = HashMap<String, List<Long>>()
+        private val declaredByName = HashMap<String, List<Long>>()
 
         /** A `<channel>` element: its id and display names. */
         fun declare(xmltvId: String, displayNames: List<String>) {
             val key = xmltvId.trim().lowercase()
-            val ids = (byTvgId[key].orEmpty() + displayNames.flatMap { byName[ChannelCategory.normalize(it)].orEmpty() }).distinct()
-            if (ids.isNotEmpty()) declared[key] = ids
+            val ids = displayNames.flatMap { byName[ChannelCategory.normalize(it)].orEmpty() }.distinct()
+            if (ids.isNotEmpty()) declaredByName[key] = ids
         }
 
-        /** App channels for a `<programme channel="…">` – also when the file has no `<channel>` element for it. */
-        fun channelsFor(xmltvId: String?): List<Long> {
-            val key = xmltvId?.trim()?.lowercase() ?: return emptyList()
-            return declared[key] ?: byTvgId[key].orEmpty()
+        /**
+         * The key under which the programmes of a `<programme channel="…">` are collected, null when no app channel
+         * can take them – also matched by `tvg-id` when the file has no `<channel>` element for it.
+         */
+        fun keyFor(xmltvId: String?): String? {
+            val key = xmltvId?.trim()?.lowercase() ?: return null
+            return key.takeIf { byTvgId.containsKey(it) || declaredByName.containsKey(it) }
+        }
+
+        /** Programmes by XMLTV channel (document order) → programmes by app channel. */
+        fun resolve(byKey: Map<String, List<Programme>>): Map<Long, List<Programme>> {
+            val result = HashMap<Long, List<Programme>>()
+            byKey.forEach { (key, list) -> byTvgId[key]?.forEach { result[it] = list } }
+            byKey.forEach { (key, list) -> declaredByName[key]?.forEach { id -> result.putIfAbsent(id, list) } }
+            return result
         }
     }
 
@@ -312,12 +393,24 @@ object IptvGuide {
 
     private val TIME_OFFSET = Regex("[+-]\\d{4}")
 
-    /** Stops reading after [limit] bytes – a misbehaving server must not fill the memory or run forever. */
-    private class LimitedInputStream(private val input: InputStream, private val limit: Long) : InputStream() {
+    /**
+     * Stops reading after [limit] bytes or at [deadlineMs] (elapsed realtime) – a misbehaving server must not fill
+     * the memory or run forever.
+     */
+    internal class LimitedInputStream(
+        private val input: InputStream,
+        private val limit: Long,
+        private val deadlineMs: Long = Long.MAX_VALUE,
+        private val clock: () -> Long = android.os.SystemClock::elapsedRealtime,
+    ) : InputStream() {
         private var count = 0L
-        override fun read(): Int = if (count >= limit) throw IOException("guide too large") else input.read().also { if (it >= 0) count++ }
-        override fun read(b: ByteArray, off: Int, len: Int): Int {
+        private fun check() {
             if (count >= limit) throw IOException("guide too large")
+            if (deadlineMs != Long.MAX_VALUE && clock() > deadlineMs) throw IOException("guide download too slow")
+        }
+        override fun read(): Int { check(); return input.read().also { if (it >= 0) count++ } }
+        override fun read(b: ByteArray, off: Int, len: Int): Int {
+            check()
             return input.read(b, off, minOf(len.toLong(), limit - count).toInt()).also { if (it > 0) count += it }
         }
         override fun close() = input.close()
@@ -327,12 +420,21 @@ object IptvGuide {
 
     private const val KEY_SOURCES = "sources"
     private const val KEY_STATUS = "status"
+    /** Time of the last refresh attempt, successful or not. */
+    private const val KEY_TRIED = "tried"
     private const val MAX_SOURCES = 5
     const val REFRESH_AFTER_MS = 12 * 3600_000L
+    const val RETRY_AFTER_MS = 3600_000L
     private const val KEEP_PAST_MS = 6 * 3600_000L
     private const val KEEP_AHEAD_MS = 4 * 24 * 3600_000L
     private const val MAX_DOWNLOAD = 300L * 1024 * 1024
+    private const val MAX_UNPACKED = 1024L * 1024 * 1024
+    private const val MAX_DOWNLOAD_TIME_MS = 20 * 60_000L
+    /** Length of the last programme of a channel when the file gives no end. */
+    private const val DEFAULT_LENGTH_MS = 3600_000L
     private const val MAX_TEXT = 4000
     private const val MAX_SHORT_DESCRIPTION = 250
     private const val BATCH = 400
+    private const val MAX_BATCH_BYTES = 256 * 1024L
+    private const val ROW_OVERHEAD = 300L
 }

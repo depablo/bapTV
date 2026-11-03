@@ -48,6 +48,8 @@ class IptvInputService : TvInputService() {
         private var asHls = false
         /** The address says HLS/DASH but the server sends a plain stream (e.g. a .m3u8 that redirects to .ts). */
         private var asProgressive = false
+        /** Why the manifest failed before [asProgressive] was tried – shown if the plain stream fails as well. */
+        private var manifestError: String? = null
         private var firstFrame = false
         /** Buffering after the picture appeared – READY then means the picture is back. */
         private var stalled = false
@@ -96,6 +98,7 @@ class IptvInputService : TvInputService() {
             retries = 0
             asHls = false
             asProgressive = false
+            manifestError = null
             stalls.clear()
             start()
             return true
@@ -111,12 +114,7 @@ class IptvInputService : TvInputService() {
             bufferingShown = false
             lastError = null
             notifyVideoUnavailable(TvInputManager.VIDEO_UNAVAILABLE_REASON_TUNING)
-            val http = DefaultHttpDataSource.Factory()
-                .setUserAgent(s.userAgent ?: Iptv.USER_AGENT)
-                .setAllowCrossProtocolRedirects(true)
-                .setConnectTimeoutMs(CONNECT_TIMEOUT_MS)
-                .setReadTimeoutMs(READ_TIMEOUT_MS)
-            s.referrer?.let { http.setDefaultRequestProperties(mapOf("Referer" to it)) }
+            val http = httpFactory(s)
             // Any non-adaptive type makes the player use the progressive source, whose extractors detect the format.
             val mime = if (asProgressive) MimeTypes.VIDEO_MP2T else mimeType(s.url) ?: MimeTypes.APPLICATION_M3U8.takeIf { asHls }
             DebugLog.log("Iptv", "play \"${s.name}\" ${s.url}${mime?.let { " as $it" } ?: ""}")
@@ -214,6 +212,7 @@ class IptvInputService : TvInputService() {
                     !asProgressive && mimeType(stream?.url.orEmpty()) != null && error.errorCode in MANIFEST_ERRORS -> {
                         DebugLog.log("Iptv", "no manifest behind the address – playing it as a plain stream")
                         asProgressive = true
+                        manifestError = lastError
                         start()
                     }
                     !asHls && mimeType(stream?.url.orEmpty()) == null && error.errorCode in PARSING_ERRORS -> {
@@ -221,6 +220,13 @@ class IptvInputService : TvInputService() {
                         start()
                     }
                     else -> {
+                        if (asProgressive && !firstFrame) {
+                            // The plain stream did not play either: the manifest was probably cut short for a
+                            // moment, so the retries try it again and the status shows its error, not the container's.
+                            lastError = manifestError ?: lastError
+                            asProgressive = false
+                            manifestError = null
+                        }
                         notifyVideoUnavailable(TvInputManager.VIDEO_UNAVAILABLE_REASON_UNKNOWN)
                         // A refused or missing stream does not come back by retrying.
                         if (httpStatus(error) !in 400..499) retry(error.errorCodeName)
@@ -319,6 +325,14 @@ class IptvInputService : TvInputService() {
             PlaybackException.ERROR_CODE_PARSING_CONTAINER_UNSUPPORTED,
             PlaybackException.ERROR_CODE_PARSING_CONTAINER_MALFORMED,
         )
+
+        /** HTTP source with the stream's own headers (user agent, referrer) – the same on the TV and the phone. */
+        fun httpFactory(stream: Iptv.Stream): DefaultHttpDataSource.Factory = DefaultHttpDataSource.Factory()
+            .setUserAgent(stream.userAgent ?: Iptv.USER_AGENT)
+            .setAllowCrossProtocolRedirects(true)
+            .setConnectTimeoutMs(CONNECT_TIMEOUT_MS)
+            .setReadTimeoutMs(READ_TIMEOUT_MS)
+            .apply { stream.referrer?.let { setDefaultRequestProperties(mapOf("Referer" to it)) } }
 
         /** Stream type from the address; null – let the player detect it. */
         fun mimeType(url: String): String? {
