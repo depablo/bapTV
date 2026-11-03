@@ -159,7 +159,7 @@ class GuideActivity : Activity() {
     private fun programmeAction(channel: Channel, p: Programme?) {
         val canRecord = p != null && p.endMs > System.currentTimeMillis() && !channel.scrambled && !channel.virtual && !channel.iptv &&
             DeviceCapabilities.get(this).streamAnalysis
-        if (!canRecord || p == null) { watch(channel); return }
+        if (!canRecord) { watch(channel); return }
         val planned = RecordingScheduler.find(this, channel.id, p)
         val options = listOf(getString(R.string.guide_watch), getString(if (planned != null) R.string.schedule_cancel else R.string.guide_record))
         TvDialog.choose(this, p.title, options.map { TvDialog.Option(it) }) { which ->

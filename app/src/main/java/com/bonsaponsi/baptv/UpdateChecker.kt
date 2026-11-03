@@ -96,8 +96,14 @@ object UpdateChecker {
         val apk = SelfUpdater.updateFile(context)
         // Streamed to the file with the hash computed on the way – the APK is never held in memory.
         val digest = MessageDigest.getInstance("SHA-256")
-        open(release.apkUrl) { input ->
-            java.security.DigestOutputStream(apk.outputStream(), digest).use { out -> copyLimited(input, out, MAX_APK_BYTES) }
+        try {
+            open(release.apkUrl) { input ->
+                java.security.DigestOutputStream(apk.outputStream(), digest).use { out -> copyLimited(input, out, MAX_APK_BYTES) }
+            }
+        } catch (e: Exception) {
+            // A broken or too large download must not leave up to MAX_APK_BYTES in the cache.
+            apk.delete()
+            throw e
         }
         val actual = digest.digest().joinToString("") { "%02x".format(it) }
         if (actual != expected) {

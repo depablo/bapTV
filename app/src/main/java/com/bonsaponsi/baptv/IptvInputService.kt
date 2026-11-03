@@ -180,6 +180,8 @@ class IptvInputService : TvInputService() {
                     }
                     // A live stream should not end – reconnect.
                     Player.STATE_ENDED -> retry("stream ended")
+                    // Errors come through onPlayerError.
+                    Player.STATE_IDLE -> Unit
                 }
             }
 

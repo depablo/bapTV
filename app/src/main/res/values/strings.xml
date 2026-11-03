@@ -59,7 +59,10 @@
     <string name="scan_dvbt2">DVB-T2 mode (also receives DVB-T)</string>
     <string name="scan_lna">Antenna amplifier in the tuner (LNA)</string>
     <string name="scan_lna_unknown">default setting</string>
-    <string name="scan_no_lock">No signal found on any of %1$d frequencies. Check that the antenna is connected to the set-top box and pointed well. You can also turn on the amplifier in the advanced settings.</string>
+    <plurals name="scan_no_lock">
+        <item quantity="one">No signal found on the %1$d frequency checked. Check that the antenna is connected to the set-top box and pointed well. You can also turn on the amplifier in the advanced settings.</item>
+        <item quantity="other">No signal found on any of %1$d frequencies. Check that the antenna is connected to the set-top box and pointed well. You can also turn on the amplifier in the advanced settings.</item>
+    </plurals>
     <string name="scan_cancel">Stop</string>
     <string name="scan_background">Continue in the background</string>
     <string name="scan_background_hint">You can leave this screen – the scan continues in the background and its progress shows at the top of the player.</string>
@@ -136,7 +139,10 @@
     <string name="setup_stage2">Found %1$d of %2$d · %3$s left in total</string>
     <string name="setup_stage3">%1$d/%2$d – %3$s · %4$s left</string>
     <string name="identify_progress_eta">%1$d/%2$d – %3$s · %4$s left</string>
-    <string name="setup_done">Done: identified %1$d of %2$d channels, whole setup %3$s</string>
+    <plurals name="setup_done">
+        <item quantity="one">Done: identified %1$d of %2$d channel, whole setup %3$s</item>
+        <item quantity="other">Done: identified %1$d of %2$d channels, whole setup %3$s</item>
+    </plurals>
     <string name="info_hint_1">▼ more about the programme</string>
     <string name="info_hint_2">▼ audio and subtitles · ▲ less</string>
     <string name="info_hint_3">◀ ▶ select · OK – change · ▼ technical data · ▲ less</string>
@@ -211,7 +217,6 @@
     <string name="info_record_stop">■ Stop recording</string>
     <string name="diag_server_token">Access key (recordings, control): %1$s – e.g. /recordings?format=html&amp;token=%1$s</string>
     <string name="diag_no_ip">no IP address</string>
-    <string name="value_unavailable">unavailable</string>
     <string name="ts_interrupt_title">Live pause</string>
     <string name="ts_interrupt_message">Changing the channel ends the pause – the buffered part (%1$s) will be lost. Switch to %2$s?</string>
     <string name="ts_interrupt_confirm">End pause and switch</string>
@@ -268,7 +273,10 @@
     <string name="about_title">bapTV %1$s</string>
     <string name="about_message">Terrestrial TV (DVB-T/T2) player for Android TV.\n\nContact: %1$s\nSource code, issues and new versions: scan the code or open the address below.\nLicense: Apache License 2.0</string>
     <string name="menu_publish">Publish channels to the system</string>
-    <string name="publish_running">Publishing %1$d channels to the system… the picture comes back in a minute</string>
+    <plurals name="publish_running">
+        <item quantity="one">Publishing %1$d channel to the system… the picture comes back in a minute</item>
+        <item quantity="other">Publishing %1$d channels to the system… the picture comes back in a minute</item>
+    </plurals>
     <string name="publish_done">Channels published: %1$d. They are now visible in the system with names and numbers.</string>
     <string name="publish_failed">The tuner did not accept the channels – the detected list stays in use.</string>
     <string name="publish_nothing">No identified channels to publish – run channel identification first.</string>

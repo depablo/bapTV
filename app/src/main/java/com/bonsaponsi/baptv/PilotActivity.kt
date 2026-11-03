@@ -39,6 +39,7 @@ class PilotActivity : Activity() {
 
     private enum class Check { VERIFIED, NOT_ACCEPTED, OLD_BOX, UNREACHABLE }
 
+    @android.annotation.SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_pilot)
@@ -58,6 +59,7 @@ class PilotActivity : Activity() {
         url = "http://$host:$port/"
         title = tv.name
 
+        // The box's own page; no JavaScript interface is added, so it can do no more than in a browser.
         web.settings.javaScriptEnabled = true
         web.settings.domStorageEnabled = true
         web.webViewClient = object : WebViewClient() {

@@ -8,6 +8,8 @@ object PlayerRemote {
     @Volatile var hbb: HbbTvBrowser? = null
     /** Closes the tuner session before installing an update (main thread). */
     @Volatile var releaseTuner: (() -> Unit)? = null
+    /** Tunes the channel again when the update did not install after [releaseTuner] (main thread). */
+    @Volatile var restoreTuner: (() -> Unit)? = null
     /** dtvinput timeshift experiments (action: tune|pause|resume|seek|speed|live, arg: value). */
     @Volatile var timeshift: ((String, String?) -> String)? = null
     @Volatile var timeshiftState: (() -> org.json.JSONObject)? = null

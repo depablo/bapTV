@@ -23,7 +23,14 @@ object Illustrations {
     /** Cached files are fetched again after a week – screenshots follow the current interface. */
     private const val MAX_AGE_MS = 7 * 24 * 3600_000L
 
+    /** Downloads are not tried again sooner after a failure – offline, every tip would wait for the timeout. */
+    private const val RETRY_AFTER_MS = 30 * 60_000L
+    /** Shown at most this wide (the files are 960×540) – a bigger picture would only cost memory. */
+    private const val MAX_WIDTH = 960
+
     private val handler = Handler(Looper.getMainLooper())
+    /** Failed downloads by file name, with their time. */
+    private val failedAt = java.util.concurrent.ConcurrentHashMap<String, Long>()
 
     /** Screenshots exist in Polish and English; other languages see the English ones. */
     private fun language(context: Context) =
@@ -35,13 +42,21 @@ object Illustrations {
         view.tag = name
         val context = view.context
         val lang = language(context)
-        val file = File(File(context.cacheDir, "illustrations").apply { mkdirs() }, "$lang-$name.webp")
+        val dir = File(context.cacheDir, "illustrations")
+        val file = File(dir, "$lang-$name.webp")
         BackgroundWorker.start("illustration") {
-            val fresh = file.exists() && System.currentTimeMillis() - file.lastModified() < MAX_AGE_MS
-            if (!fresh) runCatching { download("$BASE_URL/$lang/$name.webp", file) }
-                .onFailure { DebugLog.log("Tour", "illustration $lang/$name not available: ${it.message}") }
+            dir.mkdirs()
+            val now = System.currentTimeMillis()
+            val fresh = file.exists() && now - file.lastModified() < MAX_AGE_MS
+            val recentlyFailed = failedAt[file.name]?.let { now - it < RETRY_AFTER_MS } == true
+            if (!fresh && !recentlyFailed) runCatching { download("$BASE_URL/$lang/$name.webp", file) }
+                .onSuccess { failedAt.remove(file.name) }
+                .onFailure {
+                    failedAt[file.name] = now
+                    DebugLog.log("Tour", "illustration $lang/$name not available: ${it.message}")
+                }
             // A stale copy is better than none when the download failed.
-            val bitmap = if (file.exists()) BitmapFactory.decodeFile(file.path) else null
+            val bitmap = if (file.exists()) decode(file) else null
             if (bitmap != null) handler.post {
                 // The view may show another illustration by now (next page of the same dialog).
                 if (view.tag == name) {
@@ -50,6 +65,15 @@ object Illustrations {
                 }
             }
         }
+    }
+
+    /** Decodes the file scaled down to at most [MAX_WIDTH] pixels wide. */
+    private fun decode(file: File): android.graphics.Bitmap? {
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        BitmapFactory.decodeFile(file.path, bounds)
+        var sample = 1
+        while (bounds.outWidth / (sample * 2) >= MAX_WIDTH) sample *= 2
+        return BitmapFactory.decodeFile(file.path, BitmapFactory.Options().apply { inSampleSize = sample })
     }
 
     private fun download(url: String, target: File) {
@@ -69,9 +93,14 @@ object Illustrations {
                 }
                 out.toByteArray()
             }
-            val tmp = File(target.path + ".tmp")
-            tmp.writeBytes(bytes)
-            if (!tmp.renameTo(target)) error("cannot store ${target.name}")
+            // A file of its own: the same illustration may be fetched by two views at once.
+            val tmp = File.createTempFile(target.name, ".tmp", target.parentFile)
+            try {
+                tmp.writeBytes(bytes)
+                if (!tmp.renameTo(target)) error("cannot store ${target.name}")
+            } finally {
+                tmp.delete()
+            }
         } finally {
             connection.disconnect()
         }

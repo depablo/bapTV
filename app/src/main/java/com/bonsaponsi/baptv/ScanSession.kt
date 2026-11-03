@@ -384,7 +384,7 @@ object ScanSession {
             )
         }
         val noLock = wasScanning && lockedFrequencies.isEmpty() && visitedFrequencies.size > 3 && progress == null
-        val status = if (noLock) message + "\n" + res().getString(R.string.scan_no_lock, visitedFrequencies.size) else message
+        val status = if (noLock) message + "\n" + res().resources.getQuantityString(R.plurals.scan_no_lock, visitedFrequencies.size, visitedFrequencies.size) else message
         publish(State(false, progress ?: state.progress, channels, status, outcome, openWizard, serviceRejected))
     }
 

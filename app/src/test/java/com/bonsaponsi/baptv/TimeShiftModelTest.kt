@@ -35,7 +35,6 @@ class TimeShiftModelTest {
         assertEquals(20_000, m.targetDelayAfterSeek(now, 30_000, 10_000))
         m.seekApplied(now, 20_000)
         assertEquals(20_000, m.delayMs(now + 5_000))
-        assertEquals(now + 5_000 - 20_000, m.positionMs(now + 5_000))
     }
 
     @Test

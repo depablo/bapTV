@@ -50,17 +50,26 @@ object SelfUpdater {
      * with a dtvinput session open, Android sometimes rebooted during the installation – closing the session
      * gracefully is meant to prevent that.
      */
+    /** The player released the tuner for an installation that has not finished yet. */
+    @Volatile private var tunerReleased = false
+
     private fun releaseTunerBeforeInstall() {
         val release = PlayerRemote.releaseTuner ?: return
-        val done = java.util.concurrent.CountDownLatch(1)
-        android.os.Handler(android.os.Looper.getMainLooper()).post {
-            runCatching { release() }.onFailure { DebugLog.warn(TAG, "releasing the tuner before installation", it) }
-            done.countDown()
-        }
-        done.await(3, java.util.concurrent.TimeUnit.SECONDS)
+        MainThread.call(3000) { release() }
+        tunerReleased = true
         DebugLog.log(TAG, "tuner released before installation")
         // A moment for dtvinput to close the session and the frontend.
         Thread.sleep(1500)
+    }
+
+    /** The installation failed: the player gets its channel back instead of a black screen. */
+    private fun restoreTunerAfterFailure() {
+        if (!tunerReleased) return
+        tunerReleased = false
+        val restore = PlayerRemote.restoreTuner ?: return
+        android.os.Handler(android.os.Looper.getMainLooper()).post {
+            runCatching { restore() }.onFailure { DebugLog.warn(TAG, "restoring the tuner after a failed installation", it) }
+        }
     }
 
     fun updateFile(context: Context) = File(context.cacheDir, "update.apk")
@@ -127,6 +136,7 @@ object SelfUpdater {
             if (sessionId >= 0) runCatching { installer.abandonSession(sessionId) }
             prefs(context).edit().remove(KEY_RELAUNCH_SINCE).apply()
             finish(context, "error: $e")
+            restoreTunerAfterFailure()
             throw Rejected("Installation could not start: ${e.message ?: e.javaClass.simpleName}", "500 Internal Server Error")
         }
         val desc = "${archive.versionName} (${archive.versionCodeCompat()}), ${apk.length()} B"
@@ -173,6 +183,7 @@ object SelfUpdater {
                 DebugLog.warn(TAG, "installation failed: status=$status $message")
                 prefs(context).edit().remove(KEY_RELAUNCH_SINCE).apply()
                 finish(context, "error: status=$status $message")
+                restoreTunerAfterFailure()
             }
         }
     }

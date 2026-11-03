@@ -108,7 +108,20 @@ object Recorder {
      */
     fun startLater(context: Context, channel: Channel, title: String, description: String, stopAtMs: Long?, delayMs: Long, onResult: (String?) -> Unit) {
         val app = context.applicationContext
-        main.postDelayed({ onResult(start(app, channel, title, description, stopAtMs)) }, delayMs)
+        // Outside the alarm receiver's runCatching: an exception here would end the process (and lose the failure).
+        main.postDelayed({
+            val error = try {
+                start(app, channel, title, description, stopAtMs)
+            } catch (e: Exception) {
+                DebugLog.error("Rec", "delayed recording start failed", e)
+                "start failed: $e"
+            }
+            try {
+                onResult(error)
+            } catch (e: Exception) {
+                DebugLog.error("Rec", "handling the recording start result", e)
+            }
+        }, delayMs)
     }
 
     /** Minimum free space – below it recording stops by itself so the set-top box storage does not fill up. */

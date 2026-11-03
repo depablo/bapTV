@@ -34,6 +34,8 @@ class ChannelsActivity : Activity() {
     /** Index of the channel being moved, or -1. */
     private var moving = -1
     private var orderChanged = false
+    /** The phone remote changed the channels while one was being moved – the drop merges instead of overwriting. */
+    private var changedMeanwhile = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -63,7 +65,7 @@ class ChannelsActivity : Activity() {
     override fun onStart() {
         super.onStart()
         // Changes made on the phone remote show up here at once (unless a channel is being moved).
-        PlayerRemote.manageChanged = { if (moving < 0) reload(keepSelection = true) }
+        PlayerRemote.manageChanged = { if (moving < 0) reload(keepSelection = true) else changedMeanwhile = true }
     }
 
     override fun onStop() {
@@ -146,6 +148,7 @@ class ChannelsActivity : Activity() {
     private fun startMoving(position: Int) {
         val channel = items.getOrNull(position) ?: return
         moving = position
+        changedMeanwhile = false
         hint.text = getString(R.string.manage_moving_hint, channel.name)
         (list.adapter as BaseAdapter).notifyDataSetChanged()
     }
@@ -167,9 +170,21 @@ class ChannelsActivity : Activity() {
     }
 
     private fun drop() {
+        val moved = items.getOrNull(moving)
+        val after = items.getOrNull(moving - 1)
         moving = -1
         hint.setText(R.string.manage_hint)
-        if (orderChanged) {
+        if (orderChanged && changedMeanwhile && moved != null) {
+            // Only this channel's move goes into the current order – the phone's changes stay.
+            orderChanged = false
+            changedMeanwhile = false
+            io.execute {
+                val current = repository.loadChannels(Dtv.findTunerInput(this)?.id, includeHidden = true).filter { it.id != moved.id }
+                val at = current.indexOfFirst { it.id == after?.id } + 1
+                store.setCustomOrder((current.take(at) + moved + current.drop(at)).map { store.settingsKey(it) })
+                handler.post { if (!isDestroyed) reload(keepSelection = true) }
+            }
+        } else if (orderChanged) {
             store.setCustomOrder(items.map { store.settingsKey(it) })
             orderChanged = false
             // Sequential numbers depend on the order – refresh.

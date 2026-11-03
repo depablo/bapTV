@@ -88,6 +88,7 @@ object Dtv {
      * Registers for dtvinput's scan broadcasts (sent by another app, so exported – required from Android 14), only
      * from a sender holding [eventSenderPermission] when dtvinput has it.
      */
+    @android.annotation.SuppressLint("UnspecifiedRegisterReceiverFlag") // the flag is passed where it exists (Android 13+)
     fun registerEvents(context: Context, receiver: android.content.BroadcastReceiver, filter: android.content.IntentFilter, handler: android.os.Handler? = null) {
         val permission = eventSenderPermission(context)
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
@@ -115,6 +116,7 @@ object Dtv {
     private fun simulateNoTuner(context: Context) =
         BuildConfig.DEBUG && context.getSharedPreferences("debug", Context.MODE_PRIVATE).getBoolean("no_tuner", false)
 
+    @android.annotation.SuppressLint("ApplySharedPref") // a restart (process kill) usually follows at once
     fun setSimulateNoTuner(context: Context, on: Boolean) {
         context.getSharedPreferences("debug", Context.MODE_PRIVATE).edit().putBoolean("no_tuner", on).commit()
     }

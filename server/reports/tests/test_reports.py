@@ -1,8 +1,10 @@
 import gzip
+import io
 import json
 import sys
 import tempfile
 import unittest
+import urllib.error
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -103,6 +105,36 @@ class ReportsTest(unittest.TestCase):
             def fail(*args, **kwargs):
                 raise error
             reports.urllib.request.urlopen = fail
+            try:
+                self.assertIsNone(github.create_issue("t", "b"))
+            finally:
+                reports.urllib.request.urlopen = original
+
+    def test_issue_bad_answers_do_not_fail_the_report(self):
+        cfg = reports.Config({"DATA_DIR": self.tmp.name, "GITHUB_REPO": "x/y", "GITHUB_TOKEN_FILE": __file__,
+                              "ADMIN_PASSWORD_FILE": "/nonexistent"})
+        github = reports.GitHub(cfg)
+        original = reports.urllib.request.urlopen
+
+        class Unreadable(io.BytesIO):
+            def read(self, *args):
+                raise ConnectionResetError("reset")
+
+        class Answer(io.BytesIO):
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *args):
+                return False
+
+        def http_error(*args, **kwargs):
+            raise urllib.error.HTTPError("u", 502, "Bad Gateway", {}, Unreadable())
+
+        def not_an_object(*args, **kwargs):
+            return Answer(b"[1, 2]")
+
+        for fake in (http_error, not_an_object):
+            reports.urllib.request.urlopen = fake
             try:
                 self.assertIsNone(github.create_issue("t", "b"))
             finally:

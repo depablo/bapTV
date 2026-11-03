@@ -187,10 +187,16 @@ class GitHub:
                 data = json.loads(resp.read())
                 return {"number": data["number"], "url": data["html_url"]}
         except urllib.error.HTTPError as e:
-            detail = e.read(500).decode("utf-8", "replace")
+            # Reading the error body may fail too (connection reset) – the report is stored already, so no
+            # exception may reach the client: it would send the report again and make a duplicate.
+            try:
+                detail = e.read(500).decode("utf-8", "replace")
+            except OSError:
+                detail = ""
             logging.warning("GitHub issue failed: HTTP %s %s", e.code, detail)
             return None
-        except (OSError, KeyError, ValueError) as e:  # URLError, socket timeouts and resets are all OSError
+        # URLError, socket timeouts and resets are all OSError; TypeError – a JSON answer that is not an object.
+        except (OSError, KeyError, TypeError, ValueError) as e:
             logging.warning("GitHub issue failed: %s", e)
             return None
 

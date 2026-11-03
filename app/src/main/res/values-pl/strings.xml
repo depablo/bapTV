@@ -58,7 +58,12 @@
     <string name="scan_dvbt2">Tryb DVB-T2 (odbiera też DVB-T)</string>
     <string name="scan_lna">Wzmacniacz antenowy w tunerze (LNA)</string>
     <string name="scan_lna_unknown">ustawienie domyślne</string>
-    <string name="scan_no_lock">Nie znaleziono sygnału na żadnej z %1$d częstotliwości. Sprawdź, czy antena jest podłączona do dekodera i dobrze ustawiona. Możesz też włączyć wzmacniacz w ustawieniach zaawansowanych.</string>
+    <plurals name="scan_no_lock">
+        <item quantity="one">Nie znaleziono sygnału na żadnej z %1$d częstotliwości. Sprawdź, czy antena jest podłączona do dekodera i dobrze ustawiona. Możesz też włączyć wzmacniacz w ustawieniach zaawansowanych.</item>
+        <item quantity="few">Nie znaleziono sygnału na żadnej z %1$d częstotliwości. Sprawdź, czy antena jest podłączona do dekodera i dobrze ustawiona. Możesz też włączyć wzmacniacz w ustawieniach zaawansowanych.</item>
+        <item quantity="many">Nie znaleziono sygnału na żadnej z %1$d częstotliwości. Sprawdź, czy antena jest podłączona do dekodera i dobrze ustawiona. Możesz też włączyć wzmacniacz w ustawieniach zaawansowanych.</item>
+        <item quantity="other">Nie znaleziono sygnału na żadnej z %1$d częstotliwości. Sprawdź, czy antena jest podłączona do dekodera i dobrze ustawiona. Możesz też włączyć wzmacniacz w ustawieniach zaawansowanych.</item>
+    </plurals>
     <string name="scan_cancel">Przerwij</string>
     <string name="scan_background">Szukaj w tle</string>
     <string name="scan_background_hint">Możesz wyjść z tego ekranu – wyszukiwanie trwa w tle, a jego postęp widać u góry odtwarzacza.</string>
@@ -135,7 +140,12 @@
     <string name="setup_stage2">Znaleziono %1$d z %2$d · do końca całości %3$s</string>
     <string name="setup_stage3">%1$d/%2$d – %3$s · do końca %4$s</string>
     <string name="identify_progress_eta">%1$d/%2$d – %3$s · do końca %4$s</string>
-    <string name="setup_done">Gotowe: rozpoznano %1$d z %2$d kanałów, cały przebieg %3$s</string>
+    <plurals name="setup_done">
+        <item quantity="one">Gotowe: rozpoznano %1$d z %2$d kanału, cały przebieg %3$s</item>
+        <item quantity="few">Gotowe: rozpoznano %1$d z %2$d kanałów, cały przebieg %3$s</item>
+        <item quantity="many">Gotowe: rozpoznano %1$d z %2$d kanałów, cały przebieg %3$s</item>
+        <item quantity="other">Gotowe: rozpoznano %1$d z %2$d kanałów, cały przebieg %3$s</item>
+    </plurals>
     <string name="info_hint_1">▼ więcej o programie</string>
     <string name="info_hint_2">▼ dźwięk i napisy · ▲ mniej</string>
     <string name="info_hint_3">◀ ▶ wybór · OK – zmień · ▼ dane techniczne · ▲ mniej</string>
@@ -212,7 +222,6 @@
     <string name="info_record_stop">■ Zatrzymaj nagrywanie</string>
     <string name="diag_server_token">Klucz dostępu (nagrania, sterowanie): %1$s – np. /recordings?format=html&amp;token=%1$s</string>
     <string name="diag_no_ip">brak adresu IP</string>
-    <string name="value_unavailable">niedostępny</string>
     <string name="ts_interrupt_title">Pauza na żywo</string>
     <string name="ts_interrupt_message">Zmiana kanału zakończy pauzę – zapamiętany fragment (%1$s) przepadnie. Przełączyć na %2$s?</string>
     <string name="ts_interrupt_confirm">Zakończ pauzę i przełącz</string>
@@ -269,7 +278,12 @@
     <string name="about_title">bapTV %1$s</string>
     <string name="about_message">Odtwarzacz telewizji naziemnej (DVB-T/T2) dla Android TV.\n\nKontakt: %1$s\nKod źródłowy, zgłoszenia i nowe wersje: zeskanuj kod albo otwórz adres poniżej.\nLicencja: Apache License 2.0</string>
     <string name="menu_publish">Opublikuj kanały w systemie</string>
-    <string name="publish_running">Publikowanie %1$d kanałów w systemie… obraz wróci za minutę</string>
+    <plurals name="publish_running">
+        <item quantity="one">Publikowanie %1$d kanału w systemie… obraz wróci za minutę</item>
+        <item quantity="few">Publikowanie %1$d kanałów w systemie… obraz wróci za minutę</item>
+        <item quantity="many">Publikowanie %1$d kanałów w systemie… obraz wróci za minutę</item>
+        <item quantity="other">Publikowanie %1$d kanałów w systemie… obraz wróci za minutę</item>
+    </plurals>
     <string name="publish_done">Opublikowano kanałów: %1$d. Są teraz widoczne w systemie z nazwami i numerami.</string>
     <string name="publish_failed">Tuner nie przyjął kanałów – nadal używana jest wykryta lista.</string>
     <string name="publish_nothing">Brak zidentyfikowanych kanałów do opublikowania – najpierw uruchom identyfikację kanałów.</string>

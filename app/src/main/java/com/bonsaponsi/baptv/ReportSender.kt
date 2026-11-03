@@ -122,6 +122,7 @@ object ReportSender {
     }
 
     /** Called from the uncaught exception handler: remembers the crash so the next start can offer a report. */
+    @android.annotation.SuppressLint("ApplySharedPref")
     fun rememberCrash(context: Context, error: Throwable) {
         val frame = error.stackTrace.firstOrNull { it.className.startsWith(BuildConfig.APPLICATION_ID) } ?: error.stackTrace.firstOrNull()
         val text = "${error.javaClass.simpleName}: ${error.message.orEmpty()}".take(200) + (frame?.let { " at ${it.className.substringAfterLast('.')}.${it.methodName}:${it.lineNumber}" } ?: "")

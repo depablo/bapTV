@@ -30,9 +30,6 @@ class TimeShiftModel {
 
     private fun effectiveBufferStart(nowMs: Long) = maxOf(bufferStartMs, nowMs - MAX_BUFFER_MS)
 
-    /** Moment of the content shown on screen (device clock) – for seeking and the slider label. */
-    fun positionMs(nowMs: Long) = nowMs - delayMs(nowMs)
-
     fun bufferStartMs(nowMs: Long) = if (active) effectiveBufferStart(nowMs) else nowMs
 
     fun pause(nowMs: Long) {

@@ -174,13 +174,15 @@ class ChannelRepository(private val context: Context) {
         val fromEit = epg.programmes(channel.onid, channel.tsid, channel.sid)
         if (fromEit.isNotEmpty() || channel.discovered) return fromEit
         val now = System.currentTimeMillis()
-        synchronized(providerProgrammes) {
+        val generation = synchronized(providerProgrammes) {
             val cached = providerProgrammes[channel.id]
             if (cachedOnly) return cached?.second.orEmpty()
             cached?.takeIf { now - it.first < PROVIDER_EPG_TTL_MS }?.let { return it.second }
+            cacheGeneration
         }
         val list = loadProgrammesFromProvider(channel.id, now - EpgSchedule.KEEP_PAST_MS, now + 8 * 24 * 3600_000L)
-        synchronized(providerProgrammes) { providerProgrammes[channel.id] = now to list }
+        // A list read before [clearProgrammeCache] is not cached: it may be the old guide.
+        synchronized(providerProgrammes) { if (cacheGeneration == generation) providerProgrammes[channel.id] = now to list }
         return list
     }
 
@@ -350,9 +352,14 @@ class ChannelRepository(private val context: Context) {
     companion object {
         /** Guide read from TvContract, by channel ID – shared by all repositories (player, guide, phone remote). */
         private val providerProgrammes = HashMap<Long, Pair<Long, List<Programme>>>()
+        /** Counts [clearProgrammeCache] calls (under the cache's lock). */
+        private var cacheGeneration = 0L
 
         /** After the guide in TvContract changed (e.g. [IptvGuide] wrote a new one). */
-        fun clearProgrammeCache() = synchronized(providerProgrammes) { providerProgrammes.clear() }
+        fun clearProgrammeCache() = synchronized(providerProgrammes) {
+            providerProgrammes.clear()
+            cacheGeneration++
+        }
 
         private const val PREF_LCN = "numbering_lcn"
         private const val PROVIDER_EPG_TTL_MS = 5 * 60_000L

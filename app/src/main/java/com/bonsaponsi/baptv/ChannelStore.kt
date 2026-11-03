@@ -114,7 +114,8 @@ class ChannelStore(context: Context) {
         (0 until a.length()).map { i -> a.get(i).let { if (it is Number) "id_${it.toLong()}" else it.toString() } }
     }.getOrDefault(emptyList())
 
-    fun setCustomOrder(keys: List<String>?) {
+    fun setCustomOrder(keys: List<String>?) = synchronized(LOCK) {
+        // Under the lock of [migrate]'s read-modify-write – otherwise one of the two changes could be lost.
         prefs.edit().apply { if (keys == null) remove(KEY_ORDER) else putString(KEY_ORDER, JSONArray(keys).toString()) }.apply()
         DebugLog.log("Store", if (keys == null) "default order" else "user order: ${keys.size} channels")
     }

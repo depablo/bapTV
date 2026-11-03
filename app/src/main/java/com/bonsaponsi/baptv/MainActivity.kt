@@ -327,6 +327,10 @@ class MainActivity : Activity() {
             hbb.stop()
             tvView.reset()
         }
+        PlayerRemote.restoreTuner = {
+            DebugLog.log("Player", "update not installed – tuning the channel again")
+            if (started && playingRecording == null && currentIndex in channels.indices) tuneTo(currentIndex)
+        }
         PlayerRemote.timeshiftState = { timeshift.json().put("status", tsStatus) }
         PlayerRemote.publish = { publishChannels(automatic = false) }
         PlayerRemote.colourKey = { event -> if (!isDestroyed) dispatchKeyEvent(event) }
@@ -487,6 +491,7 @@ class MainActivity : Activity() {
             PlayerRemote.timeshift = null
             PlayerRemote.recording = null
             PlayerRemote.releaseTuner = null
+            PlayerRemote.restoreTuner = null
             PlayerRemote.timeshiftState = null
             PlayerRemote.hbb = null
             PlayerRemote.publish = null
@@ -1049,7 +1054,7 @@ class MainActivity : Activity() {
         timeshift.reset()
         hbb.stop()
         tvView.reset()
-        showStatus(getString(R.string.publish_running, toPublish.size))
+        showStatus(resources.getQuantityString(R.plurals.publish_running, toPublish.size, toPublish.size))
         val p = ChannelPublisher(this)
         publisher = p
         // Hidden channels are published too – hiding is a player setting kept under the DVB key.
@@ -2131,7 +2136,7 @@ class MainActivity : Activity() {
                     SetupProgress.endPipeline(this)
                     SetupProgress.setLastChannelCount(this, total)
                     if (identifyCancelled) showStatusBriefly(getString(R.string.identify_cancelled))
-                    else showStatusFor(getString(R.string.setup_done, ok, total, whole), SETUP_DONE_MS)
+                    else showStatusFor(resources.getQuantityString(R.plurals.setup_done, total, ok, total, whole), SETUP_DONE_MS)
                 } else {
                     showStatusBriefly(getString(if (identifyCancelled) R.string.identify_cancelled else R.string.identify_done, ok, total))
                 }
@@ -2361,6 +2366,7 @@ class MainActivity : Activity() {
             applyPreferredTracks()
         }
 
+        @android.annotation.SuppressLint("SwitchIntDef") // VIDEO_UNAVAILABLE_REASON_NOT_CONNECTED is a local copy (public since API 31)
         override fun onVideoUnavailable(inputId: String, reason: Int) {
             val (label, text) = when (reason) {
                 TvInputManager.VIDEO_UNAVAILABLE_REASON_TUNING -> "TUNING" to R.string.status_tuning

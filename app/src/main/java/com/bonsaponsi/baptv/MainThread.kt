@@ -17,7 +17,8 @@ object MainThread {
     /**
      * Runs [block] on the main thread and waits for its result up to [timeoutMs]. Null when it throws (logged – an
      * exception posted to the main thread would end the process) or does not finish in time; a block still queued
-     * when the time is up is skipped, so the caller's "no response" does not tune a channel later.
+     * when the time is up is skipped, so the caller's "no response" does not tune a channel later. A block whose
+     * result can be null cannot tell these apart – return a non-null value where that matters.
      */
     fun <T> call(timeoutMs: Long = 5000, block: () -> T): T? {
         if (Looper.myLooper() == Looper.getMainLooper()) return guarded(block)
@@ -35,7 +36,8 @@ object MainThread {
 
     private fun <T> guarded(block: () -> T): T? = try {
         block()
-    } catch (e: Exception) {
+    } catch (e: Throwable) {
+        // Also Errors (NotImplementedError, StackOverflowError) – on the main thread they would end the process.
         DebugLog.error("Main", "error in a main thread call", e)
         null
     }
