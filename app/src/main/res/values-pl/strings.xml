@@ -395,4 +395,22 @@
     <string name="tip_remote_home">Pilota w telefonie możesz dodać do ekranu głównego telefonu – otworzysz go wtedy jak zwykłą aplikację.</string>
     <string name="tip_hbbtv">Na kanałach z usługami HbbTV (np. TVP) czerwony przycisk otwiera aplikację nadawcy.</string>
     <string name="tip_report">Coś nie działa? Menu → Diagnostyka → Wyślij raport do autora. Raport zawiera dziennik zdarzeń, który pomaga znaleźć przyczynę.</string>
+    <!-- Aplikacja na telefonie (PhoneActivity): kanały internetowe z dotykową listą. -->
+    <string name="phone_choose">Wybierz kanał</string>
+    <string name="phone_empty">Brak kanałów internetowych. Dodaj adres listy M3U przyciskiem powyżej.</string>
+    <string name="phone_search_hint">Szukaj kanałów</string>
+    <string name="phone_add">Dodaj listę</string>
+    <string name="phone_add_title">Adres listy (M3U)</string>
+    <string name="phone_add_hint">https://…</string>
+    <string name="phone_add_ok">Dodaj</string>
+    <string name="phone_cancel">Anuluj</string>
+    <string name="phone_add_bad_address">Adres musi zaczynać się od http:// lub https://</string>
+    <string name="phone_add_loading">Pobieranie listy…</string>
+    <string name="phone_add_empty">Lista nie zawiera kanałów</string>
+    <string name="phone_add_error">Nie udało się pobrać listy: %1$s</string>
+    <string name="phone_added">Dodano kanałów: %1$d</string>
+    <string name="phone_play_error">Nie można odtworzyć: %1$s</string>
+    <string name="phone_drm">%1$s jest chroniony DRM i nie da się go tu odtworzyć.</string>
+    <string name="phone_remove_title">Usunąć %1$s?</string>
+    <string name="phone_remove">Usuń</string>
 </resources>

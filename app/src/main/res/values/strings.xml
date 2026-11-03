@@ -395,4 +395,22 @@
     <string name="tip_remote_home">You can add the phone remote to your phone\'s home screen and open it like an app.</string>
     <string name="tip_hbbtv">On channels with HbbTV services (e.g. TVP) the red button opens the broadcaster\'s app.</string>
     <string name="tip_report">Something not working? Menu → Diagnostics → Send report to the developer. The report includes the event log, which helps find the cause.</string>
+    <!-- Phone app (PhoneActivity): internet channels with a touch list. -->
+    <string name="phone_choose">Choose a channel</string>
+    <string name="phone_empty">No internet channels yet. Add an M3U playlist address with the button above.</string>
+    <string name="phone_search_hint">Search channels</string>
+    <string name="phone_add">Add playlist</string>
+    <string name="phone_add_title">Playlist address (M3U)</string>
+    <string name="phone_add_hint">https://…</string>
+    <string name="phone_add_ok">Add</string>
+    <string name="phone_cancel">Cancel</string>
+    <string name="phone_add_bad_address">The address must start with http:// or https://</string>
+    <string name="phone_add_loading">Loading playlist…</string>
+    <string name="phone_add_empty">No channels in the playlist</string>
+    <string name="phone_add_error">Could not load the playlist: %1$s</string>
+    <string name="phone_added">Added channels: %1$d</string>
+    <string name="phone_play_error">Cannot play %1$s</string>
+    <string name="phone_drm">%1$s is DRM-protected and cannot be played here.</string>
+    <string name="phone_remove_title">Remove %1$s?</string>
+    <string name="phone_remove">Remove</string>
 </resources>
