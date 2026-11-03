@@ -432,6 +432,10 @@
     <string name="remote_pair_failed">Kod jest błędny albo wygasł. Sprawdź kod na telewizorze.</string>
     <string name="remote_not_paired_any">Ten dekoder nie jest jeszcze sparowany.</string>
     <string name="remote_pairing_lost">Dekoder nie przyjmuje już tego telefonu. Sparuj go ponownie.</string>
+    <string name="remote_unreachable">%1$s nie odpowiada. Otwórz bapTV na telewizorze i spróbuj ponownie.</string>
+    <string name="remote_cannot_verify">Dekoder ma nowy adres, a jego bapTV jest za stary, żeby potwierdzić, że to ten sam dekoder. Zaktualizuj bapTV na telewizorze albo zapomnij dekoder (długie przytrzymanie) i sparuj go ponownie.</string>
+    <string name="remote_forget_title">Zapomnieć %1$s?</string>
+    <string name="remote_forget">Zapomnij</string>
     <string name="remote_online">w sieci</string>
     <string name="remote_offline">teraz nie widać</string>
     <string name="remote_paired">sparowany</string>

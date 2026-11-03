@@ -28,7 +28,10 @@ class PhoneRemoteTvs(context: Context) {
     @Synchronized
     fun get(id: String): Tv? = all().firstOrNull { it.id == id }
 
-    /** Keeps the name and the last address of a box, as seen on the network or after pairing. */
+    /**
+     * Keeps the name and the address of a paired box – after pairing, or after the box at a new address proved it
+     * knows the token ([PilotActivity]). Addresses only announced on the network are not stored.
+     */
     @Synchronized
     fun remember(id: String, name: String, host: String, port: Int, token: String? = get(id)?.token) {
         val json = load()
@@ -41,6 +44,14 @@ class PhoneRemoteTvs(context: Context) {
     fun forgetToken(id: String) {
         val tv = get(id) ?: return
         remember(id, tv.name, tv.host.orEmpty(), tv.port, token = null)
+    }
+
+    /** Removes a box from the list (long press in [RemoteActivity]). */
+    @Synchronized
+    fun forget(id: String) {
+        val json = load()
+        json.remove(id)
+        save(json)
     }
 
     private fun load(): JSONObject = runCatching { JSONObject(prefs.getString(KEY_TVS, "{}").orEmpty()) }.getOrElse { JSONObject() }

@@ -28,8 +28,10 @@ object PhoneRemote {
     private const val MAX_DEVICES = 20
     /** Grace period after the last app screen closes – moving between screens must not restart the server. */
     private const val STOP_DELAY_MS = 60_000L
+    private const val USED_UPDATE_MS = 3600_000L
 
-    class Device(val name: String, val tokenHash: String, val addedMs: Long)
+    /** A paired phone; [lastUsedMs] is updated at most every [USED_UPDATE_MS], for evicting the least used one. */
+    class Device(val name: String, val tokenHash: String, val addedMs: Long, val lastUsedMs: Long = addedMs)
 
     private val handler = Handler(Looper.getMainLooper())
     private val random = SecureRandom()
@@ -140,23 +142,52 @@ object PhoneRemote {
         pairingCode = null
         shortCode = null
         val token = randomHex(16)
-        // Bounded: each pairing adds an entry; beyond the limit the oldest phone has to pair again.
-        saveDevices(context, (devices(context) + Device(name, sha256(token), System.currentTimeMillis())).takeLast(MAX_DEVICES))
+        // Bounded: each pairing adds an entry; beyond the limit the phone used longest ago has to pair again.
+        val devices = devices(context) + Device(name, sha256(token), System.currentTimeMillis())
+        saveDevices(context, devices.sortedByDescending { it.lastUsedMs }.take(MAX_DEVICES))
         DebugLog.log("Remote", "phone paired: $name")
         handler.post { onPaired?.invoke(name) }
         return token
     }
 
+    @Synchronized
     fun isPaired(context: Context, token: String?): Boolean {
         if (token.isNullOrEmpty()) return false
         val hash = sha256(token).toByteArray()
-        return devices(context).any { MessageDigest.isEqual(it.tokenHash.toByteArray(), hash) }
+        val devices = devices(context)
+        val device = devices.firstOrNull { MessageDigest.isEqual(it.tokenHash.toByteArray(), hash) } ?: return false
+        val now = System.currentTimeMillis()
+        if (now - device.lastUsedMs >= USED_UPDATE_MS) {
+            saveDevices(context, devices.map { if (it === device) Device(it.name, it.tokenHash, it.addedMs, now) else it })
+        }
+        return true
     }
+
+    /**
+     * Answers for `GET /whoami?nonce=…`: one [proof] per paired phone. A phone checks that one of them is made with
+     * its own token before it sends the token to an address that claims to be this box – the box's ID is public.
+     */
+    fun proofs(context: Context, nonce: String): List<String> = devices(context).map { proof(it.tokenHash, nonce) }
+
+    /** HMAC-SHA256 of [nonce] keyed with the token's hash – what the box stores, and what the phone can compute. */
+    fun proof(tokenHash: String, nonce: String): String {
+        val mac = javax.crypto.Mac.getInstance("HmacSHA256")
+        mac.init(javax.crypto.spec.SecretKeySpec(tokenHash.toByteArray(), "HmacSHA256"))
+        return mac.doFinal(nonce.toByteArray()).joinToString("") { "%02x".format(it) }
+    }
+
+    fun tokenHash(token: String): String = sha256(token)
+
+    /** A random challenge for [proofs]. */
+    fun nonce(): String = randomHex(16)
 
     fun devices(context: Context): List<Device> = runCatching {
         val array = JSONArray(prefs(context).getString(KEY_DEVICES, "[]"))
         (0 until array.length()).map { i ->
-            array.getJSONObject(i).let { Device(it.getString("name"), it.getString("hash"), it.optLong("added")) }
+            array.getJSONObject(i).let {
+                val added = it.optLong("added")
+                Device(it.getString("name"), it.getString("hash"), added, it.optLong("used", added))
+            }
         }
     }.getOrDefault(emptyList())
 
@@ -167,7 +198,7 @@ object PhoneRemote {
 
     private fun saveDevices(context: Context, devices: List<Device>) {
         val array = JSONArray()
-        devices.forEach { array.put(JSONObject().put("name", it.name).put("hash", it.tokenHash).put("added", it.addedMs)) }
+        devices.forEach { array.put(JSONObject().put("name", it.name).put("hash", it.tokenHash).put("added", it.addedMs).put("used", it.lastUsedMs)) }
         prefs(context).edit().putString(KEY_DEVICES, array.toString()).apply()
     }
 

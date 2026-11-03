@@ -13,6 +13,8 @@ import java.net.Socket
  * HTTP server of the phone remote ([PhoneRemote]). Unlike [DebugHttpServer] it runs in release builds, so it
  * exposes only what the remote page needs:
  * - `GET /` – the page (static, no data); `GET /pair?code=…` – pairing from the QR code, sets the device cookie,
+ * - `GET /whoami?nonce=…` – proofs that this box knows the paired tokens ([PhoneRemote.proofs]), checked by the
+ *   phone app before it sends its token,
  * - `GET /api/state`, `GET /api/channels`, `POST /api/key?name=…`, `POST /api/tune?id=…` – paired devices only,
  * - `GET /api/manage` and `POST /api/manage/{order,hidden,name,category,hide-scrambled,reset}` – channel organisation,
  *   as on the Manage channels screen (paired devices only),
@@ -117,6 +119,11 @@ class PhoneRemoteServer(private val context: Context, val port: Int) {
         when (request.method to request.path) {
             "GET" to "/" -> return Response("200 OK", HTML, context.assets.open("remote.html").use { it.readBytes() })
             "GET" to "/pair" -> return pair(request)
+            "GET" to "/whoami" -> {
+                val nonce = request.query["nonce"].orEmpty()
+                if (!NONCE.matches(nonce)) return error("400 Bad Request", "bad nonce")
+                return json(JSONObject().put("proofs", JSONArray(PhoneRemote.proofs(context, nonce))))
+            }
             // Home-screen shortcut (fetched without cookies, so before the pairing check). Without HTTPS – which a
             // set-top box in a home network cannot offer – browsers do not install it as an app: Android opens the
             // shortcut in a browser tab, iOS as a standalone web app with its own cookies (paired with the short code).
@@ -374,6 +381,7 @@ class PhoneRemoteServer(private val context: Context, val port: Int) {
     companion object {
         /** Parallel connections – a few phones polling the state need far fewer. */
         private const val MAX_CLIENTS = 16
+        private val NONCE = Regex("[0-9a-f]{16,64}")
         private const val TEXT = "text/plain; charset=utf-8"
         private const val HTML = "text/html; charset=utf-8"
         private const val JSON = "application/json; charset=utf-8"

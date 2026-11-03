@@ -18,11 +18,14 @@ import android.widget.ListView
 import android.widget.TextView
 import android.widget.Toast
 import java.net.HttpURLConnection
+import java.net.Inet4Address
 import java.net.URL
+import java.net.URLEncoder
 
 /**
  * The phone's remote control screen: finds the bapTV boxes on the Wi-Fi network, lists them with the ones paired
- * before, and pairs a new one with the 6-digit code shown on the box. A paired box opens [PilotActivity].
+ * before, and pairs a new one with the 6-digit code shown on the box. A paired box opens [PilotActivity]. Only
+ * paired boxes are stored; a long press forgets one.
  */
 class RemoteActivity : Activity() {
 
@@ -41,6 +44,8 @@ class RemoteActivity : Activity() {
     private val toResolve = ArrayDeque<NsdServiceInfo>()
     private var resolving = false
     private var discovering = false
+    /** What the list shows: boxes seen now, then the stored ones not seen ([shown]). */
+    private var items: List<PhoneRemoteTvs.Tv> = emptyList()
 
     private val discoveryListener = object : NsdManager.DiscoveryListener {
         override fun onDiscoveryStarted(serviceType: String) = Unit
@@ -72,7 +77,8 @@ class RemoteActivity : Activity() {
         nsd = getSystemService(Context.NSD_SERVICE) as NsdManager
         list.adapter = Adapter()
         list.emptyView = findViewById(R.id.remote_empty)
-        list.setOnItemClickListener { _, _, position, _ -> open(shown()[position]) }
+        list.setOnItemClickListener { _, _, position, _ -> open(items[position]) }
+        list.setOnItemLongClickListener { _, _, position, _ -> confirmForget(items[position]) }
         applyList()
     }
 
@@ -83,6 +89,10 @@ class RemoteActivity : Activity() {
 
     override fun onStop() {
         stopDiscovery()
+        // Boxes switched off in the meantime must not stay "on the network" when the screen comes back.
+        online.clear()
+        toResolve.clear()
+        applyList()
         super.onStop()
     }
 
@@ -120,15 +130,13 @@ class RemoteActivity : Activity() {
             }
             override fun onServiceResolved(serviceInfo: NsdServiceInfo) {
                 val id = serviceInfo.attributes["id"]?.toString(Charsets.UTF_8).orEmpty()
-                val host = serviceInfo.host?.hostAddress
+                val host = ipv4(serviceInfo)
                 handler.post {
                     resolving = false
-                    if (id.isNotEmpty() && host != null) {
-                        val known = tvs.get(id)
-                        val tv = PhoneRemoteTvs.Tv(id, serviceInfo.serviceName, host, serviceInfo.port, known?.token)
-                        online[id] = tv
-                        // The address changed, or the box is new: the pairing is kept, under the same ID.
-                        tvs.remember(id, tv.name, host, tv.port, known?.token)
+                    if (id.isNotEmpty() && host != null && discovering) {
+                        // Not stored: anyone on the network can announce a box ID. A paired box is stored again
+                        // under its new address only after it proves it knows the token ([PilotActivity]).
+                        online[id] = PhoneRemoteTvs.Tv(id, serviceInfo.serviceName, host, serviceInfo.port, tvs.get(id)?.token)
                         applyList()
                     }
                     resolveNext()
@@ -136,6 +144,15 @@ class RemoteActivity : Activity() {
             }
         })
     }
+
+    /** The box's IPv4 address – the box's server accepts only those in Host, and a bare IPv6 breaks the URL. */
+    private fun ipv4(info: NsdServiceInfo): String? {
+        val addresses = if (android.os.Build.VERSION.SDK_INT >= 34) info.hostAddresses else listOfNotNull(hostOf(info))
+        return addresses.filterIsInstance<Inet4Address>().firstOrNull()?.hostAddress
+    }
+
+    @Suppress("DEPRECATION")
+    private fun hostOf(info: NsdServiceInfo) = info.host
 
     /** Boxes seen now, then the paired ones that are not on the network at the moment. */
     private fun shown(): List<PhoneRemoteTvs.Tv> {
@@ -145,13 +162,24 @@ class RemoteActivity : Activity() {
     }
 
     private fun applyList() {
+        items = shown()
         hint.setText(if (online.isEmpty()) R.string.remote_searching else R.string.remote_pick)
         (list.adapter as BaseAdapter).notifyDataSetChanged()
     }
 
+    private fun confirmForget(tv: PhoneRemoteTvs.Tv): Boolean {
+        if (tvs.get(tv.id) == null) return false
+        AlertDialog.Builder(this)
+            .setTitle(getString(R.string.remote_forget_title, tv.name))
+            .setPositiveButton(R.string.remote_forget) { _, _ -> tvs.forget(tv.id); applyList() }
+            .setNegativeButton(R.string.phone_cancel, null)
+            .show()
+        return true
+    }
+
     private fun open(tv: PhoneRemoteTvs.Tv) {
         if (tv.token != null && tv.host != null) {
-            startActivity(Intent(this, PilotActivity::class.java).putExtra(PilotActivity.EXTRA_ID, tv.id))
+            startActivity(PilotActivity.intent(this, tv))
             return
         }
         if (tv.host == null) {
@@ -192,19 +220,19 @@ class RemoteActivity : Activity() {
                 } else {
                     tvs.remember(tv.id, tv.name, host, tv.port, token)
                     applyList()
-                    startActivity(Intent(this, PilotActivity::class.java).putExtra(PilotActivity.EXTRA_ID, tv.id))
+                    startActivity(PilotActivity.intent(this, PhoneRemoteTvs.Tv(tv.id, tv.name, host, tv.port, token)))
                 }
             }
         }
     }
 
     private inner class Adapter : BaseAdapter() {
-        override fun getCount() = shown().size
-        override fun getItem(position: Int) = shown()[position]
+        override fun getCount() = items.size
+        override fun getItem(position: Int) = items[position]
         override fun getItemId(position: Int) = position.toLong()
         override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
             val view = convertView ?: layoutInflater.inflate(R.layout.item_phone_channel, parent, false)
-            val tv = shown()[position]
+            val tv = items[position]
             val isOnline = online.containsKey(tv.id)
             view.findViewById<TextView>(R.id.phone_item_name).text = tv.name
             view.findViewById<TextView>(R.id.phone_item_group).text = listOfNotNull(
@@ -223,7 +251,8 @@ class RemoteActivity : Activity() {
          * right, and without one when it is not. Returns the token, or null.
          */
         fun requestToken(host: String, port: Int, code: String): String? {
-            val connection = URL("http://$host:$port/pair?code=$code").openConnection() as HttpURLConnection
+            val query = URLEncoder.encode(code, "UTF-8")
+            val connection = URL("http://$host:$port/pair?code=$query").openConnection() as HttpURLConnection
             try {
                 connection.instanceFollowRedirects = false
                 connection.connectTimeout = 5_000
