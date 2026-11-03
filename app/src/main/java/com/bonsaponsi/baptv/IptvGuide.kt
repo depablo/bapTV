@@ -163,7 +163,7 @@ object IptvGuide {
     }?.let { Programs.Genres.encode(it) }
 
     /** Opens the address (following redirects), unpacks gzip (by the magic bytes) and hands the stream over. */
-    private fun <T> download(address: String, read: (InputStream) -> T): T {
+    internal fun <T> download(address: String, read: (InputStream) -> T): T {
         var url = java.net.URL(address)
         repeat(5) {
             val c = url.openConnection() as java.net.HttpURLConnection

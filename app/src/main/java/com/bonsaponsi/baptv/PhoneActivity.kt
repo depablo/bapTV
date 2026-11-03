@@ -43,6 +43,7 @@ class PhoneActivity : Activity() {
     private val io = BackgroundWorker("phone-iptv")
     private val handler = Handler(Looper.getMainLooper())
     private lateinit var store: PhoneIptvStore
+    private lateinit var epg: PhoneEpg
     private lateinit var playerView: PlayerView
     private lateinit var status: TextView
     private lateinit var search: EditText
@@ -61,6 +62,7 @@ class PhoneActivity : Activity() {
         search = findViewById(R.id.phone_search)
         list = findViewById(R.id.phone_list)
         store = PhoneIptvStore(this)
+        epg = PhoneEpg(this)
 
         list.adapter = Adapter()
         list.emptyView = findViewById(R.id.phone_empty)
@@ -75,6 +77,12 @@ class PhoneActivity : Activity() {
 
         streams = store.load()
         applyFilter()
+    }
+
+    override fun onStart() {
+        super.onStart()
+        // Refreshes the guide when it is older than 12 hours; otherwise only redraws the "now" lines.
+        if (epg.isStale(System.currentTimeMillis())) refreshGuide() else applyFilter()
     }
 
     override fun onStop() {
@@ -196,7 +204,18 @@ class PhoneActivity : Activity() {
         if (playlist.streams.isEmpty()) return getString(R.string.phone_add_empty)
         // Kept with each channel, as the TV keeps the address or file it was added from.
         val added = store.add(playlist.streams.map { it.copy(source = source) })
+        // The playlist's guide addresses are fetched now, so the new channels get their programmes at once.
+        epg.addSources(playlist.epgUrls)
+        if (added > 0) refreshGuide()
         return getString(R.string.phone_added, added)
+    }
+
+    /** Downloads the XMLTV guide in the background and redraws the list when it is ready. */
+    private fun refreshGuide() {
+        io.execute {
+            epg.refresh(store.load())
+            handler.post { if (!isDestroyed) applyFilter() }
+        }
     }
 
     private fun showResult(message: String) {
@@ -246,6 +265,11 @@ class PhoneActivity : Activity() {
             val view = convertView ?: layoutInflater.inflate(R.layout.item_phone_channel, parent, false)
             val stream = shown[position]
             view.findViewById<TextView>(R.id.phone_item_name).text = stream.name.ifBlank { stream.url }
+            view.findViewById<TextView>(R.id.phone_item_now).apply {
+                val now = epg.nowAndNext(stream.url, System.currentTimeMillis()).first
+                text = now?.let { getString(R.string.phone_now, it.title) }.orEmpty()
+                visibility = if (now == null) View.GONE else View.VISIBLE
+            }
             view.findViewById<TextView>(R.id.phone_item_group).apply {
                 text = stream.group
                 visibility = if (stream.group.isEmpty()) View.GONE else View.VISIBLE

@@ -297,7 +297,10 @@ Recording, live pause, HbbTV and channel identification are for broadcast channe
 the buttons to add a playlist: by address (http or https) or from a file on the phone. Channels are
 kept in the app's own file on the phone, not in `TvContract` (the phones tested had no TV provider), so
 the TV and the phone keep separate lists. Playback uses the same headers as on the TV; a long press on a
-channel removes it. The phone app has no TV guide, recording or broadcast channels yet.
+channel removes it. Each channel shows the programme on now when the playlist names an XMLTV guide (its
+header `x-tvg-url` or `url-tvg`). The guide is downloaded when a playlist is added and again when it is more
+than 12 hours old, and the phone keeps only 2 hours back and a day ahead. The phone app has no full guide
+view, recording or broadcast channels yet.
 
 **TV guide for internet channels.** The IPTV tab's "TV guide (XMLTV)" section takes addresses of XMLTV
 files (`.xml` or `.xml.gz`); the guide addresses in a playlist's header (`x-tvg-url`, `url-tvg`) are added

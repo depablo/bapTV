@@ -403,6 +403,7 @@
     <string name="phone_add_title">Playlist address (M3U)</string>
     <string name="phone_add_hint">https://…</string>
     <string name="phone_add_file">From file</string>
+    <string name="phone_now">Now: %1$s</string>
     <string name="phone_add_ok">Add</string>
     <string name="phone_cancel">Cancel</string>
     <string name="phone_add_bad_address">The address must start with http:// or https://</string>

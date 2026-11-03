@@ -403,6 +403,7 @@
     <string name="phone_add_title">Adres listy (M3U)</string>
     <string name="phone_add_hint">https://…</string>
     <string name="phone_add_file">Z pliku</string>
+    <string name="phone_now">Teraz: %1$s</string>
     <string name="phone_add_ok">Dodaj</string>
     <string name="phone_cancel">Anuluj</string>
     <string name="phone_add_bad_address">Adres musi zaczynać się od http:// lub https://</string>
