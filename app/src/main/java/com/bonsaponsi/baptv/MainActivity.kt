@@ -30,6 +30,8 @@ class MainActivity : Activity() {
 
     override fun attachBaseContext(base: android.content.Context) = super.attachBaseContext(AppLanguage.wrap(base))
 
+    /** Set when a phone was sent on to [PhoneActivity]; this activity then has no views and no player. */
+    private var redirected = false
     private lateinit var tvView: TvView
     private lateinit var status: TextView
     private lateinit var setupBanner: View
@@ -202,6 +204,15 @@ class MainActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Phones have no TV screen. A shortcut or icon made by an older version still starts this activity there,
+        // so it is sent on to the phone screen. The lifecycle goes on after finish(), so the overrides below
+        // check [redirected] before they touch the views.
+        if (!packageManager.hasSystemFeature(PackageManager.FEATURE_LEANBACK)) {
+            redirected = true
+            startActivity(Intent(this, PhoneActivity::class.java))
+            finish()
+            return
+        }
         current = java.lang.ref.WeakReference(this)
         // Emulator / tests: `am start -n …/.MainActivity --ez enable_server true` enables the server without a remote (debug only).
         if (BuildConfig.DEBUG && intent.getBooleanExtra(DiagnosticsActivity.EXTRA_ENABLE_SERVER, false) && !DebugServerService.isEnabled(this)) {
@@ -337,12 +348,14 @@ class MainActivity : Activity() {
 
     override fun onResume() {
         super.onResume()
+        if (redirected) return
         // Returning from a screen opened from the menu (Manage channels, Diagnostics…) – menu at the same position.
         menu.returned()
     }
 
     override fun onStart() {
         super.onStart()
+        if (redirected) return
         started = true
         // Pause badge and bar (the handler was cleared in onStop).
         timeshift.startTicking()
@@ -381,6 +394,7 @@ class MainActivity : Activity() {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
+        if (redirected) return
         maybeRequestStorage(intent)
     }
 
@@ -415,6 +429,7 @@ class MainActivity : Activity() {
 
     @Deprecated("Activity result API requires AndroidX – the app uses no libraries")
     override fun startActivityForResult(intent: Intent, requestCode: Int, options: Bundle?) {
+        if (redirected) return super.startActivityForResult(intent, requestCode, options)
         if (timeshift.active && intent.component?.packageName == packageName) {
             DebugLog.log("Timeshift", "app screen during live pause – tuner session kept")
             keepSessionOnStop = true
@@ -423,6 +438,7 @@ class MainActivity : Activity() {
     }
 
     override fun onStop() {
+        if (redirected) return super.onStop()
         started = false
         val keepSession = keepSessionOnStop && timeshift.active
         keepSessionOnStop = false
@@ -455,6 +471,7 @@ class MainActivity : Activity() {
     }
 
     override fun onDestroy() {
+        if (redirected) return super.onDestroy()
         // Clear the static hooks only if they belong to this instance – a new one (e.g. after recreate) may have set them already.
         if (current?.get() === this) {
             current = null
