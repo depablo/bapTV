@@ -1,0 +1,1 @@
+Pilot na Androida: aplikacja na telefonie znajduje dekodery bapTV w sieci Wi-Fi, paruje się kodem z ekranu telewizora i otwiera pilota. Aplikacja na telefon: stara ikona na ekranie głównym otwiera teraz ekran telefonu.

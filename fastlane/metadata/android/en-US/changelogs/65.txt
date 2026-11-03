@@ -1,0 +1,1 @@
+Android remote: the phone app finds bapTV boxes on the Wi-Fi network, pairs with the code on the TV screen and opens the remote control. Phone app: the old home-screen icon now opens the phone screen.

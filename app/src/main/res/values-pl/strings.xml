@@ -379,6 +379,7 @@
     <string name="whats_new_background_scan">Wyszukiwanie kanałów działa w tle – w tym czasie działają menu i kanały internetowe, a postęp widać u góry odtwarzacza.</string>
     <string name="whats_new_phone_app">Na telefonie bapTV otwiera własny ekran kanałów internetowych: dotykową listę z wyszukiwaniem, odtwarzacz i listy dodane z adresu albo z pliku.</string>
     <string name="whats_new_phone_guide">Na telefonie każdy kanał internetowy pokazuje program na teraz, gdy jego lista podaje przewodnik.</string>
+    <string name="whats_new_phone_remote">Pilotem może być aplikacja na telefonie: znajduje dekoder w sieci Wi-Fi i paruje się kodem z ekranu telewizora.</string>
     <string name="whats_new_tips">Ciekawostki „Czy wiesz, że…?” o mniej znanych funkcjach, od czasu do czasu przy starcie (Menu → Ustawienia → Ciekawostki przy starcie).</string>
 
     <!-- "Did you know?" tips (Tips). -->

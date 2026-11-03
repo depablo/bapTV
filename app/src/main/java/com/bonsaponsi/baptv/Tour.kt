@@ -23,6 +23,7 @@ object Tour {
         62 to listOf(R.string.whats_new_categories, R.string.whats_new_iptv_guide, R.string.whats_new_remote_home),
         63 to listOf(R.string.whats_new_background_scan, R.string.whats_new_tips),
         64 to listOf(R.string.whats_new_phone_app, R.string.whats_new_phone_guide),
+        65 to listOf(R.string.whats_new_phone_remote),
     )
 
     /** [image] – name of the screenshot in [Illustrations]. */
