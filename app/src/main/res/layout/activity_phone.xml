@@ -6,6 +6,8 @@
     android:background="#FF0B0F14"
     android:orientation="vertical">
 
+    <include layout="@layout/phone_header" />
+
     <androidx.media3.ui.PlayerView
         android:id="@+id/phone_player"
         android:layout_width="match_parent"
@@ -81,8 +83,8 @@
         android:layout_margin="12dp"
         android:layout_weight="1"
         android:background="@drawable/panel_bg"
-        android:divider="@null"
-        android:dividerHeight="0dp" />
+        android:divider="#14FFFFFF"
+        android:dividerHeight="1dp" />
 
     <TextView
         android:id="@+id/phone_empty"
