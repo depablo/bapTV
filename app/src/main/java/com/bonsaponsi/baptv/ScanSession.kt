@@ -87,16 +87,37 @@ object ScanSession {
         }
     }
 
-    /** Warning when dtvinput goes silent – e.g. it rejected the parameters ("Setup not found" is not broadcast). */
+    /**
+     * Warning when dtvinput goes silent – e.g. it rejected the parameters ("Setup not found" is not broadcast) or
+     * its InstallerService died. After [SILENCE_FAIL_SECONDS] the scan ends as failed: a session that never ends
+     * would keep the tuner from the player, discovery and identification until the process restarts.
+     */
     private val watchdog = object : Runnable {
         override fun run() {
             if (!running) return
             val silentFor = (System.currentTimeMillis() - lastEventAt) / 1000
+            if (silentFor >= SILENCE_FAIL_SECONDS) {
+                DebugLog.warn("Scan", "no events from dtvinput for $silentFor s – giving up")
+                val message = res().getString(R.string.scan_no_response, silentFor)
+                pendingReport = message
+                end(Outcome.FAILED, message)
+                return
+            }
             if (silentFor >= WATCHDOG_SECONDS) {
                 DebugLog.warn("Scan", "no events from dtvinput for $silentFor s (started ${(System.currentTimeMillis() - startedAt) / 1000} s ago)")
                 update(status = res().getString(R.string.scan_no_response, silentFor))
             }
             handler.postDelayed(this, WATCHDOG_SECONDS * 1000L)
+        }
+    }
+
+    /** The retry after a rejection with a busy tuner ([onRejected]) – removed when the scan ends. */
+    private val busyRetry = Runnable {
+        if (running && method == Method.SERVICE) {
+            // A new request from the remembered variant, as from the button.
+            val variants = paramsVariants()
+            paramsVariant = prefs().getInt(PREF_PARAMS_VARIANT, 0).takeIf { it in variants.indices } ?: 0
+            sendRequest(variants[paramsVariant])
         }
     }
 
@@ -118,7 +139,16 @@ object ScanSession {
 
     /** Starts a scan with the remembered request variant; false when the request could not be sent. */
     fun start(context: Context, method: Method, includeVhf: Boolean, dvbT2: Boolean): Boolean {
+        // A second OK (or another screen) while scanning must not send a second request.
+        if (running) return true
         app = context.applicationContext
+        // A report of an earlier scan must not show up after this one.
+        pendingReport = null
+        if (ChannelPublisher.active) {
+            // Publishing sends its own requests to InstallerService – a scan would break both.
+            end(Outcome.FAILED, res().getString(R.string.scan_publishing))
+            return false
+        }
         vhf = includeVhf
         t2 = dvbT2
         val variants = paramsVariants()
@@ -142,6 +172,8 @@ object ScanSession {
             return false
         }
         this.method = method
+        // Kept over a process death: the next start clears the discovered list the new scan made stale.
+        prefs().edit().putBoolean(PREF_INTERRUPTED, true).apply()
         SetupProgress.markScanned(app)
         visitedFrequencies.clear()
         lockedFrequencies.clear()
@@ -167,6 +199,18 @@ object ScanSession {
             DebugLog.log("Scan", "-> stopService(InstallerService) = $stopped")
         }
         end(Outcome.CANCELLED, res().getString(R.string.scan_cancelled))
+    }
+
+    /**
+     * The process died during a scan (state is kept only in memory): channel IDs may have changed, so the
+     * discovered list is cleared as after a finished scan. Called at process start.
+     */
+    fun recoverInterrupted(context: Context) {
+        val prefs = context.getSharedPreferences(ScanActivity.PREFS, Context.MODE_PRIVATE)
+        if (!prefs.getBoolean(PREF_INTERRUPTED, false)) return
+        DebugLog.warn("Scan", "the process ended during a scan – clearing the discovered channels")
+        ChannelStore(context).clearDiscovered()
+        prefs.edit().remove(PREF_INTERRUPTED).apply()
     }
 
     /** The finished scan was shown – the next screen starts from a clean state. */
@@ -254,13 +298,8 @@ object ScanSession {
         if (method == Method.SERVICE && paramsVariant + 1 < variants.size) {
             paramsVariant++
             DebugLog.warn("Scan", "dtvinput rejected the request at once – trying params ${variants[paramsVariant]}")
-            startedAt = System.currentTimeMillis()
-            lastEventAt = startedAt
             update(progress = 0)
-            runCatching { startInstallerService(variants[paramsVariant]) }.onFailure {
-                DebugLog.error("Scan", "failed to request the scan", it)
-                end(Outcome.FAILED, res().getString(R.string.scan_send_failed, it.toString()))
-            }
+            sendRequest(variants[paramsVariant])
             return
         }
         val wasService = method == Method.SERVICE
@@ -281,19 +320,7 @@ object ScanSession {
             busyRetried = true
             DebugLog.warn("Scan", "rejected while the frontend is busy (${frontend?.describe()}) – retrying in ${BUSY_RETRY_MS / 1000} s")
             update(status = r.getString(R.string.scan_tuner_busy_retry, BUSY_RETRY_MS / 1000))
-            handler.postDelayed({
-                if (running && method == Method.SERVICE) {
-                    // A new request from the remembered variant, as from the button.
-                    val variants = paramsVariants()
-                    paramsVariant = prefs().getInt(PREF_PARAMS_VARIANT, 0).takeIf { it in variants.indices } ?: 0
-                    startedAt = System.currentTimeMillis()
-                    lastEventAt = startedAt
-                    runCatching { startInstallerService(variants[paramsVariant]) }.onFailure {
-                        DebugLog.error("Scan", "failed to request the scan", it)
-                        end(Outcome.FAILED, r.getString(R.string.scan_send_failed, it.toString()))
-                    }
-                }
-            }, BUSY_RETRY_MS)
+            handler.postDelayed(busyRetry, BUSY_RETRY_MS)
             return
         }
         prefs().edit().remove(PREF_PARAMS_VARIANT).apply()
@@ -311,6 +338,16 @@ object ScanSession {
         // a report is offered only if the wizard brings no channels either.
         end(Outcome.REJECTED, message + "\n" + r.getString(R.string.scan_opening_setup, WIZARD_DELAY_MS / 1000),
             openWizard = true, serviceRejected = wasService)
+    }
+
+    /** A further request of the running scan (another variant, a retry): timing restarts with it. */
+    private fun sendRequest(params: String) {
+        startedAt = System.currentTimeMillis()
+        lastEventAt = startedAt
+        runCatching { startInstallerService(params) }.onFailure {
+            DebugLog.error("Scan", "failed to request the scan", it)
+            end(Outcome.FAILED, res().getString(R.string.scan_send_failed, it.toString()))
+        }
     }
 
     private fun onFrontend(fe: TunerSettings.Frontend?) {
@@ -334,6 +371,8 @@ object ScanSession {
         val wasScanning = running
         handler.removeCallbacks(watchdog)
         handler.removeCallbacks(frontendPoll)
+        handler.removeCallbacks(busyRetry)
+        if (wasScanning) prefs().edit().remove(PREF_INTERRUPTED).apply()
         io?.shutdownNow()
         io = null
         method = null
@@ -401,9 +440,12 @@ object ScanSession {
         .put("bandwidth", b.bandwidthKhz)
 
     private const val WATCHDOG_SECONDS = 20
+    /** Silence after which the scan is given up – dtvinput reports every frequency it tunes. */
+    private const val SILENCE_FAIL_SECONDS = 150
     /** A failure this soon after the request means rejected parameters, not an empty band. */
     private const val REJECTED_MS = 3000L
     private const val PREF_PARAMS_VARIANT = "params_variant"
+    private const val PREF_INTERRUPTED = "scan_in_progress"
     const val WIZARD_DELAY_MS = 3000L
     /** Wait before retrying a scan rejected while another client held the tuner. */
     private const val BUSY_RETRY_MS = 5000L

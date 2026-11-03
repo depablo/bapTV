@@ -88,6 +88,7 @@ class ScanActivity : Activity() {
         findViewById<Button>(R.id.scan_setup).setOnClickListener { openSystemSetup() }
         findViewById<Button>(R.id.scan_diag).setOnClickListener {
             handler.removeCallbacks(openWizard)
+            wizardPending = false
             startActivity(Intent(this, DiagnosticsActivity::class.java))
         }
         findViewById<Button>(R.id.scan_close).setOnClickListener { finish() }
@@ -160,6 +161,7 @@ class ScanActivity : Activity() {
 
     private fun startScan(method: ScanSession.Method) {
         handler.removeCallbacks(openWizard)
+        wizardPending = false
         ScanSession.start(this, method, vhfCheck.isChecked, t2Check.isChecked)
     }
 
@@ -241,6 +243,7 @@ class ScanActivity : Activity() {
     @Suppress("DEPRECATION")
     private fun openSystemSetup() {
         handler.removeCallbacks(openWizard)
+        wizardPending = false
         val input = Dtv.findTunerInput(this)
         val setupIntent = input?.createSetupIntent()
         DebugLog.log("Scan", "system setup wizard: input=${input?.id}, intent=$setupIntent")
@@ -256,7 +259,30 @@ class ScanActivity : Activity() {
         }
     }
 
-    private val openWizard = Runnable { if (!isFinishing) openSystemSetup() }
+    /**
+     * Under HOME the screen cannot start the wizard (Android 10+ blocks activity starts from the background), and
+     * the rejected state is already acknowledged – so the wizard waits for the screen to come back.
+     */
+    private val openWizard = Runnable {
+        if (isFinishing) return@Runnable
+        if (isResumedNow) openSystemSetup() else wizardPending = true
+    }
+    private var isResumedNow = false
+    private var wizardPending = false
+
+    override fun onResume() {
+        super.onResume()
+        isResumedNow = true
+        if (wizardPending) {
+            wizardPending = false
+            handler.postDelayed(openWizard, ScanSession.WIZARD_DELAY_MS)
+        }
+    }
+
+    override fun onPause() {
+        isResumedNow = false
+        super.onPause()
+    }
 
     companion object {
         private const val REQUEST_SETUP = 1
@@ -274,8 +300,12 @@ class ScanActivity : Activity() {
             if (rejected == rejected(context)) return
             context.applicationContext.getSharedPreferences(PREFS, MODE_PRIVATE).edit().putBoolean(rejectedKey(context), rejected).apply()
             DebugLog.log("Scan", if (rejected) "this dtvinput rejects in-app scans – the system wizard from now on" else "in-app scan works again")
-            DeviceCapabilities.refresh(context)
+            // Queries the TV provider and the packages – off the main thread, which calls this from the scan.
+            val app = context.applicationContext
+            capabilitiesWorker.execute { DeviceCapabilities.refresh(app) }
         }
+
+        private val capabilitiesWorker by lazy { BackgroundWorker("capabilities") }
 
         private fun rejectedKey(context: Context): String {
             val version = runCatching { context.packageManager.getPackageInfo(Dtv.DTV_INPUT_PACKAGE, 0).versionName }.getOrNull()

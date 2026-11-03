@@ -67,6 +67,7 @@
     <string name="scan_waiting">Starting the tuner…</string>
     <string name="scan_tuner_ready">Tuner ready, starting the search…</string>
     <string name="scan_no_response">The tuner has not responded for %1$d s. Try again, or use the system wizard in the advanced settings.</string>
+    <string name="scan_publishing">Channels are being published to the system. Start the scan again in a few minutes.</string>
     <string name="scan_progress">Searching… %1$d%% · found: %2$d</string>
     <string name="scan_complete">Finished. Channels found: %1$d</string>
     <string name="scan_failed">No channels found. Check the antenna and try again.</string>

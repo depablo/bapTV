@@ -39,6 +39,7 @@ class App : Application() {
         // Both write files: a full storage must not crash every process start before any screen shows.
         runCatching { Recorder.recoverInterrupted(this) }.onFailure { DebugLog.error("App", "recovering interrupted recordings", it) }
         runCatching { RecordingScheduler.rearm(this) }.onFailure { DebugLog.error("App", "re-arming recording alarms", it) }
+        runCatching { ScanSession.recoverInterrupted(this) }.onFailure { DebugLog.error("App", "recovering an interrupted scan", it) }
     }
 
     companion object {

@@ -29,8 +29,8 @@ class ChannelPublisher(private val context: Context) {
     private var receiver: BroadcastReceiver? = null
     private var queue: List<Mux> = emptyList()
     private var index = 0
-    /** Multiplex whose installation already ended – dtvinput may send several terminal events (progress=100, completed). */
-    private var endedIndex = -1
+    /** Which end events belong to the current multiplex – see [MuxEventFilter]. */
+    private val events = MuxEventFilter(SETTLE_MS)
     private var onDone: ((Result) -> Unit)? = null
     private var failedMuxes = 0
     private var startedAt = 0L
@@ -38,7 +38,7 @@ class ChannelPublisher(private val context: Context) {
     data class Result(val muxes: Int, val failedMuxes: Int, val visibleChannels: Int)
 
     private val timeout = Runnable {
-        endedIndex = index
+        events.timedOut()
         DebugLog.warn(TAG, "no completion event for multiplex ${queue.getOrNull(index)?.frequencyMhz} MHz within ${MUX_TIMEOUT_MS / 1000} s")
         failedMuxes++
         next()
@@ -53,8 +53,8 @@ class ChannelPublisher(private val context: Context) {
             return
         }
         onDone = done
+        active = true
         index = -1
-        endedIndex = -1
         failedMuxes = 0
         startedAt = System.currentTimeMillis()
         DebugLog.log(TAG, "publishing ${queue.sumOf { it.services.size }} services on ${queue.size} multiplexes: " +
@@ -68,10 +68,15 @@ class ChannelPublisher(private val context: Context) {
         handler.removeCallbacksAndMessages(null)
         unregister()
         onDone = null
+        active = false
     }
+
+    /** A deferred end event stands: nothing showed that the multiplex is still being installed. */
+    private val settle = Runnable { events.settle()?.let { ended(it) } }
 
     private fun next() {
         handler.removeCallbacks(timeout)
+        handler.removeCallbacks(settle)
         index++
         val mux = queue.getOrNull(index)
         if (mux == null) {
@@ -93,30 +98,36 @@ class ChannelPublisher(private val context: Context) {
             handler.post { next() }
             return
         }
+        events.started(System.currentTimeMillis())
         handler.postDelayed(timeout, MUX_TIMEOUT_MS)
     }
 
     private fun onEvent(intent: Intent) {
         val status = intent.getStringExtra(Dtv.EXTRA_STATUS).orEmpty().lowercase(Locale.ROOT)
         DebugLog.log(TAG, "<- status=$status nb=${intent.getIntExtra(Dtv.EXTRA_CHANNEL_COUNT, -1)} progress=${intent.getIntExtra(Dtv.EXTRA_PROGRESS, -1)}")
-        val terminal = "complete" in status || "fail" in status || "cancel" in status
-        if (terminal) {
-            // A repeated end event (or one after the timeout moved on) must not skip the next multiplex.
-            if (endedIndex == index) return
-            endedIndex = index
-        }
-        when {
-            "complete" in status -> handler.postDelayed({ next() }, BETWEEN_MUXES_MS)
-            "fail" in status || "cancel" in status -> {
-                failedMuxes++
-                handler.postDelayed({ next() }, BETWEEN_MUXES_MS)
+        val now = System.currentTimeMillis()
+        when (events.onEvent(status, now)) {
+            MuxEventFilter.Verdict.END -> ended(status)
+            MuxEventFilter.Verdict.DEFER -> {
+                DebugLog.log(TAG, "end event right after the request – waiting to see whether it belongs to this multiplex")
+                handler.removeCallbacks(settle)
+                handler.postDelayed(settle, (events.settleAtMs - now).coerceAtLeast(0))
             }
+            MuxEventFilter.Verdict.IGNORE -> Unit
         }
-        if (terminal) handler.removeCallbacks(timeout)
+    }
+
+    /** The current multiplex ended with [status]; the next one follows after a pause. */
+    private fun ended(status: String) {
+        handler.removeCallbacks(timeout)
+        handler.removeCallbacks(settle)
+        if (!MuxEventFilter.isComplete(status)) failedMuxes++
+        handler.postDelayed({ next() }, BETWEEN_MUXES_MS)
     }
 
     private fun finish() {
         unregister()
+        active = false
         val visible = visibleChannels()
         val result = Result(queue.size, failedMuxes, visible)
         val ok = visible > 0
@@ -152,6 +163,12 @@ class ChannelPublisher(private val context: Context) {
         private const val TUNER_RELEASE_DELAY_MS = 3000L
         private const val BETWEEN_MUXES_MS = 1500L
         private const val MUX_TIMEOUT_MS = 120_000L
+        /** An end event sooner than this after a request, with no progress before it, is probably a late one. */
+        private const val SETTLE_MS = 5000L
+
+        /** Publishing is running – a channel scan must not start meanwhile (both use InstallerService). */
+        @Volatile var active = false
+            private set
 
         private fun fmt(mhz: Double) = if (mhz % 1.0 == 0.0) mhz.toLong().toString() else String.format(Locale.US, "%.1f", mhz)
 
@@ -187,5 +204,66 @@ class ChannelPublisher(private val context: Context) {
                 .put("country", Region.countryName(Region.country()))
                 .put("services", services)
         }
+    }
+}
+
+/**
+ * Decides which install events end the current multiplex. dtvinput may send several end events for one
+ * multiplex (progress=100, completed), and one may come only after the timeout moved on: counted for the next
+ * multiplex, it would skip that one, and each skipped one would push the error further. So an end event counts
+ * once per multiplex, and one right after the request ([settleMs], with no progress event before it) is
+ * deferred: it stands only if no progress event follows in that time. No Android dependencies (unit tests).
+ */
+internal class MuxEventFilter(private val settleMs: Long) {
+    enum class Verdict { IGNORE, END, DEFER }
+
+    private var startedMs = 0L
+    private var progressSeen = false
+    private var ended = true
+    private var deferred: String? = null
+
+    /** When a [Verdict.DEFER]red event is decided ([settle]). */
+    val settleAtMs get() = startedMs + settleMs
+
+    fun started(nowMs: Long) {
+        startedMs = nowMs
+        progressSeen = false
+        ended = false
+        deferred = null
+    }
+
+    fun timedOut() {
+        ended = true
+        deferred = null
+    }
+
+    fun onEvent(status: String, nowMs: Long): Verdict {
+        if (ended) return Verdict.IGNORE
+        if (!isTerminal(status)) {
+            progressSeen = true
+            deferred = null
+            return Verdict.IGNORE
+        }
+        if (progressSeen || nowMs - startedMs >= settleMs) {
+            ended = true
+            deferred = null
+            return Verdict.END
+        }
+        deferred = status
+        return Verdict.DEFER
+    }
+
+    /** The deferred end event's status when it stands, otherwise null. */
+    fun settle(): String? {
+        val status = deferred ?: return null
+        if (ended) return null
+        ended = true
+        deferred = null
+        return status
+    }
+
+    companion object {
+        fun isTerminal(status: String) = isComplete(status) || "fail" in status || "cancel" in status
+        fun isComplete(status: String) = "complete" in status
     }
 }

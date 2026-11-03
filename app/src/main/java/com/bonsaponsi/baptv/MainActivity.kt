@@ -366,6 +366,8 @@ class MainActivity : Activity() {
         Recorder.listeners += recorderListener
         RecordingScheduler.player = schedulerPlayer
         ScanSession.addListener(scanListener)
+        // The tips stop with the screen (onStop); the banner may still be up, e.g. during a background scan.
+        if (setupBanner.visibility == View.VISIBLE) setupTips.start()
         updateRecBadge()
         if (debugOverlay.visibility == View.VISIBLE) handler.post(refreshOverlay)
         // READ_EPG_DATA is enough on the set-top box (granted at install). READ_TV_LISTINGS (dangerous,
@@ -378,8 +380,9 @@ class MainActivity : Activity() {
             return
         }
         loadChannelsAndPlay()
-        // A scan left running in the background (or one that ended meanwhile) – its banner or its result.
-        ScanSession.state.let { if (it.running || it.outcome != null) onScanState(it) }
+        // A scan left running in the background (or one that ended meanwhile) – its banner or its result. The
+        // channel list was just loaded, so the finished scan does not load it a second time.
+        ScanSession.state.let { if (it.running || it.outcome != null) onScanState(it, reload = false) }
         maybeRequestStorage(intent)
         handler.postDelayed({ if (started) Tour.showWhatsNew(this) }, WHATS_NEW_DELAY_MS)
         // The previous run crashed: offer a report once the player is on screen.
@@ -430,7 +433,8 @@ class MainActivity : Activity() {
     @Deprecated("Activity result API requires AndroidX – the app uses no libraries")
     override fun startActivityForResult(intent: Intent, requestCode: Int, options: Bundle?) {
         if (redirected) return super.startActivityForResult(intent, requestCode, options)
-        if (timeshift.active && intent.component?.packageName == packageName) {
+        // Not for the scan screen: a scan needs the tuner the kept session would hold.
+        if (timeshift.active && intent.component?.packageName == packageName && intent.component?.className != ScanActivity::class.java.name) {
             DebugLog.log("Timeshift", "app screen during live pause – tuner session kept")
             keepSessionOnStop = true
         }
@@ -455,6 +459,9 @@ class MainActivity : Activity() {
         upcomingDialog = null
         Recorder.listeners -= recorderListener
         ScanSession.removeListener(scanListener)
+        // The rotator has its own handler: left running it would fetch pictures in the background and keep this
+        // activity alive after onDestroy.
+        setupTips.stop()
         if (RecordingScheduler.player === schedulerPlayer) RecordingScheduler.player = null
         prober?.cancel("activity stopped")
         if (keepSession) {
@@ -766,8 +773,11 @@ class MainActivity : Activity() {
 
     private val scanListener: (ScanSession.State) -> Unit = { state -> postIfActive { onScanState(state) } }
 
-    /** Banner while the scan runs; when it ends – the new channel list, or the scan screen with the result. */
-    private fun onScanState(state: ScanSession.State) {
+    /**
+     * Banner while the scan runs; when it ends – the new channel list, or the scan screen with the result.
+     * [reload] false – the caller has just loaded the channel list.
+     */
+    private fun onScanState(state: ScanSession.State, reload: Boolean = true) {
         if (state.running) {
             showSetupBanner(getString(R.string.banner_setup_stage1), state.status.substringBefore('\n'),
                 getString(R.string.banner_hint_scan), state.progress)
@@ -781,7 +791,7 @@ class MainActivity : Activity() {
             outcome == ScanSession.Outcome.COMPLETE && state.channels > 0 -> {
                 ScanSession.acknowledge()
                 TvDialog.toast(this, state.status, long = true)
-                loadChannelsAndPlay()
+                if (reload) loadChannelsAndPlay()
             }
             // The system wizard is next, or a failure worth a report – both are on the scan screen.
             state.openWizard || outcome == ScanSession.Outcome.FAILED || outcome == ScanSession.Outcome.REJECTED ||
@@ -789,7 +799,7 @@ class MainActivity : Activity() {
             else -> {
                 ScanSession.acknowledge()
                 showStatusBriefly(state.status)
-                loadChannelsAndPlay()
+                if (reload) loadChannelsAndPlay()
             }
         }
     }
@@ -1023,6 +1033,8 @@ class MainActivity : Activity() {
      */
     private fun publishChannels(automatic: Boolean): String {
         if (publisher != null) return "publishing already running"
+        // Its install requests would interrupt the scan, which would then end as complete with one multiplex.
+        if (ScanSession.running) return "channel scan running – try later"
         if (identifying) return "identification running – try later"
         if (Recorder.active != null) return "recording running – try later"
         val tuner = input ?: return "no tuner input"
@@ -1107,6 +1119,8 @@ class MainActivity : Activity() {
 
     private fun rediscover() {
         val tuner = input ?: return
+        // Discovery does not start during a scan – clearing the list now would leave it empty.
+        if (ScanSession.running) return showStatusBriefly(getString(R.string.banner_setup_stage1))
         store.clearDiscovered()
         channels = emptyList()
         currentIndex = -1
@@ -1475,10 +1489,11 @@ class MainActivity : Activity() {
                 ChannelRepository.setLcnNumbering(this, !lcn)
                 reloadChannels()
             },
-            MenuPanel.Entry(getString(R.string.menu_identify), after = leave) { identifyAll() }.takeIf { caps.streamAnalysis },
-            MenuPanel.Entry(getString(R.string.menu_rediscover), after = leave) { rediscover() }.takeIf { caps.channelDiscovery },
+            // Not during a background scan: each of these needs the tuner, and publishing would break the scan.
+            MenuPanel.Entry(getString(R.string.menu_identify), after = leave) { identifyAll() }.takeIf { caps.streamAnalysis && !ScanSession.running },
+            MenuPanel.Entry(getString(R.string.menu_rediscover), after = leave) { rediscover() }.takeIf { caps.channelDiscovery && !ScanSession.running },
             MenuPanel.Entry(getString(R.string.menu_publish)) { confirmPublish(menu::returned) }
-                .takeIf { caps.inAppScan && channels.any { it.discovered && it.identified } },
+                .takeIf { caps.inAppScan && !ScanSession.running && channels.any { it.discovered && it.identified } },
         )
         val settings = listOfNotNull(
             MenuPanel.Entry(getString(R.string.menu_about), BuildConfig.VERSION_NAME) { showAbout(menu::returned) },
@@ -2013,6 +2028,7 @@ class MainActivity : Activity() {
             val loaded = repository.loadChannels(tunerId)
             loaded.forEach { repository.programmes(it) } // load EPG into memory off the main thread
             handler.post {
+                if (isDestroyed) return@post
                 channels = loaded
                 currentIndex = loaded.indexOfFirst { it.id == currentId }
                 adapter.notifyDataSetChanged()
