@@ -10,4 +10,8 @@
     <!-- Brand (logo): navy ground and the amber "on air" colour. -->
     <color name="brand_navy">#FF0B1F33</color>
     <color name="brand_amber">#FFFFB21E</color>
+    <!-- Result of a channel check: works, works with a warning, does not work. -->
+    <color name="status_ok">#FF7BD389</color>
+    <color name="status_warn">#FFFFB21E</color>
+    <color name="status_bad">#FFFF6B6B</color>
 </resources>

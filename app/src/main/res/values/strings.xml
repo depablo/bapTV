@@ -429,6 +429,20 @@
     <string name="phone_remove">Remove</string>
     <!-- Phone remote (RemoteActivity, PilotActivity). -->
     <string name="phone_remote">Remote</string>
+    <string name="phone_check_all">Check</string>
+    <string name="phone_check_one">Check channel</string>
+    <string name="phone_check_running">Checking %1$d channels…</string>
+    <string name="phone_check_done">Checked %1$d: %2$d work, %3$d with a problem. Checked over this phone\'s connection, not the set-top box\'s.</string>
+    <string name="phone_check_limit">Only the first %1$d of %2$d channels were checked.</string>
+    <string name="phone_check_failed">The check could not be run.</string>
+    <string name="phone_check_row">%1$s · checked %2$s</string>
+    <string name="phone_check_ok">works</string>
+    <string name="phone_check_slow">too slow</string>
+    <string name="phone_check_blocked">blocked</string>
+    <string name="phone_check_dead">dead</string>
+    <string name="phone_check_timeout">no response</string>
+    <string name="phone_check_drm">DRM</string>
+    <string name="phone_check_error">error</string>
     <string name="remote_searching">Looking for bapTV boxes on this Wi-Fi network…</string>
     <string name="remote_pick">Choose a box. A new one asks for the code shown on its screen (Menu → Settings → Phone remote).</string>
     <string name="remote_discovery_failed">Cannot search the network. Check that the phone is on the same Wi-Fi as the box.</string>
@@ -437,6 +451,10 @@
     <string name="remote_code_title">Pair with %1$s</string>
     <string name="remote_code_message">Type the 6-digit code shown on the TV next to the QR code.</string>
     <string name="remote_code_hint">6 digits</string>
+    <string name="remote_scan">Scan the code on the TV</string>
+    <string name="remote_scan_prompt">Point the camera at the QR code on the TV</string>
+    <string name="remote_scan_bad">This QR code is not a bapTV pairing code.</string>
+    <string name="remote_camera_denied">The camera is needed to scan the code. Type the code from the TV instead.</string>
     <string name="remote_pair">Pair</string>
     <string name="remote_pair_failed">The code is wrong or has expired. Check the code on the TV.</string>
     <string name="remote_not_paired_any">This box is not paired yet.</string>

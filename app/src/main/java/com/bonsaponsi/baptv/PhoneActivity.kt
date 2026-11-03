@@ -43,8 +43,11 @@ class PhoneActivity : Activity() {
     private val io = BackgroundWorker("phone-iptv")
     /** The guide download takes minutes – adding or removing channels must not wait for it. */
     private val guideIo = BackgroundWorker("phone-epg")
+    /** Checks take seconds per channel – they run apart from the list and the guide. */
+    private val checkIo = BackgroundWorker("phone-check")
     private val handler = Handler(Looper.getMainLooper())
     private lateinit var store: PhoneIptvStore
+    private lateinit var checks: PhoneIptvChecks
     private lateinit var epg: PhoneEpg
     private lateinit var playerView: PlayerView
     private lateinit var status: TextView
@@ -60,6 +63,7 @@ class PhoneActivity : Activity() {
     private var guideRunning = false
     /** A refresh was asked for while one was running (new playlist) – run again after it. */
     private var guideAgain = false
+    private var checking = false
 
     /** Redraws the "now" lines when the first programme on screen ends. */
     private val redrawNow = Runnable { applyFilter(); scheduleRedraw() }
@@ -79,18 +83,20 @@ class PhoneActivity : Activity() {
         search = findViewById(R.id.phone_search)
         list = findViewById(R.id.phone_list)
         store = PhoneIptvStore(this)
+        checks = PhoneIptvChecks(this)
         epg = PhoneEpg(this)
 
         list.adapter = Adapter()
         list.emptyView = findViewById(R.id.phone_empty)
         list.setOnItemClickListener { _, _, position, _ -> play(shown[position]) }
-        list.setOnItemLongClickListener { _, _, position, _ -> confirmRemove(shown[position]); true }
+        list.setOnItemLongClickListener { _, _, position, _ -> channelMenu(shown[position]); true }
         search.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) = Unit
             override fun afterTextChanged(s: Editable?) = applyFilter()
         })
         findViewById<Button>(R.id.phone_add).setOnClickListener { askForPlaylist() }
+        findViewById<Button>(R.id.phone_check_all).setOnClickListener { checkShown() }
         findViewById<Button>(R.id.phone_remote).setOnClickListener { startActivity(Intent(this, RemoteActivity::class.java)) }
 
         reloadList()
@@ -123,6 +129,7 @@ class PhoneActivity : Activity() {
     override fun onDestroy() {
         io.shutdownNow()
         guideIo.shutdownNow()
+        checkIo.shutdownNow()
         super.onDestroy()
     }
 
@@ -130,6 +137,8 @@ class PhoneActivity : Activity() {
     private fun reloadList(message: String? = null, refreshGuide: Boolean = false) {
         io.execute {
             val list = store.load()
+            // Read here, not in the list's getView on the main thread.
+            checks.load()
             handler.post {
                 if (isDestroyed) return@post
                 message?.let { Toast.makeText(this, it, Toast.LENGTH_LONG).show() }
@@ -282,17 +291,73 @@ class PhoneActivity : Activity() {
             if (it.moveToFirst()) it.getString(0) else null
         } ?: uri.lastPathSegment.orEmpty()
 
+    /** Long press on a channel: check it, or remove it. */
+    private fun channelMenu(stream: Iptv.Stream) {
+        AlertDialog.Builder(this)
+            .setTitle(stream.name.ifBlank { stream.url })
+            .setItems(arrayOf(getString(R.string.phone_check_one), getString(R.string.phone_remove))) { _, which ->
+                if (which == 0) checkShown(listOf(stream)) else confirmRemove(stream)
+            }
+            .setNegativeButton(R.string.phone_cancel, null)
+            .show()
+    }
+
     private fun confirmRemove(stream: Iptv.Stream) {
         AlertDialog.Builder(this)
             .setTitle(getString(R.string.phone_remove_title, stream.name))
             .setPositiveButton(R.string.phone_remove) { _, _ ->
                 io.execute {
                     store.remove(stream.url)
+                    checks.remove(stream.url)
                     reloadList()
                 }
             }
             .setNegativeButton(R.string.phone_cancel, null)
             .show()
+    }
+
+    /** Checks the channels on screen (the first [CHECK_LIMIT] when there are more); one check at a time. */
+    private fun checkShown(channels: List<Iptv.Stream> = shown) {
+        if (checking || channels.isEmpty()) return
+        val batch = channels.take(CHECK_LIMIT)
+        checking = true
+        status.text = getString(R.string.phone_check_running, batch.size)
+        checkIo.execute {
+            var results: List<IptvProbe.Result> = emptyList()
+            try {
+                results = IptvProbe.probeAll(batch)
+                checks.put(batch.map { it.url }.zip(results), System.currentTimeMillis())
+            } finally {
+                handler.post {
+                    checking = false
+                    if (isDestroyed) return@post
+                    status.text = when {
+                        results.isEmpty() -> getString(R.string.phone_check_failed)
+                        else -> {
+                            val ok = results.count { it.status == IptvProbe.Status.OK }
+                            val done = getString(R.string.phone_check_done, results.size, ok, results.size - ok)
+                            if (channels.size > batch.size) done + " " + getString(R.string.phone_check_limit, batch.size, channels.size) else done
+                        }
+                    }
+                    applyFilter()
+                }
+            }
+        }
+    }
+
+    /** Label and colour of a check result, for the row. */
+    private fun checkLabel(entry: PhoneIptvChecks.Entry): Pair<String, Int> {
+        val (text, color) = when (entry.status) {
+            IptvProbe.Status.OK -> R.string.phone_check_ok to R.color.status_ok
+            IptvProbe.Status.SLOW -> R.string.phone_check_slow to R.color.status_warn
+            IptvProbe.Status.BLOCKED -> R.string.phone_check_blocked to R.color.status_bad
+            IptvProbe.Status.DEAD -> R.string.phone_check_dead to R.color.status_bad
+            IptvProbe.Status.TIMEOUT -> R.string.phone_check_timeout to R.color.status_bad
+            IptvProbe.Status.DRM -> R.string.phone_check_drm to R.color.status_warn
+            IptvProbe.Status.ERROR -> R.string.phone_check_error to R.color.status_bad
+        }
+        val date = java.text.SimpleDateFormat("d.MM HH:mm", java.util.Locale.getDefault()).format(java.util.Date(entry.checkedAt))
+        return getString(R.string.phone_check_row, getString(text), date) to getColor(color)
     }
 
     private inner class Adapter : BaseAdapter() {
@@ -312,6 +377,17 @@ class PhoneActivity : Activity() {
                 text = stream.group
                 visibility = if (stream.group.isEmpty()) View.GONE else View.VISIBLE
             }
+            view.findViewById<TextView>(R.id.phone_item_check).apply {
+                val entry = checks.load()[stream.url]
+                if (entry == null) {
+                    visibility = View.GONE
+                } else {
+                    val (label, color) = checkLabel(entry)
+                    text = label
+                    setTextColor(color)
+                    visibility = View.VISIBLE
+                }
+            }
             return view
         }
     }
@@ -325,5 +401,7 @@ class PhoneActivity : Activity() {
         const val MAX_PLAYLIST = 30 * 1024 * 1024
         const val REDRAW_MIN_MS = 30_000L
         const val REDRAW_MAX_MS = 15 * 60_000L
+        /** Each check can take up to several seconds; more channels than this would keep the phone busy for minutes. */
+        const val CHECK_LIMIT = 50
     }
 }

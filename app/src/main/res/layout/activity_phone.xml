@@ -59,6 +59,21 @@
             android:text="@string/phone_add" />
     </LinearLayout>
 
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="end"
+        android:orientation="horizontal"
+        android:paddingStart="12dp"
+        android:paddingEnd="12dp">
+
+        <Button
+            android:id="@+id/phone_check_all"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/phone_check_all" />
+    </LinearLayout>
+
     <ListView
         android:id="@+id/phone_list"
         android:layout_width="match_parent"

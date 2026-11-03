@@ -435,6 +435,20 @@
     <string name="phone_remove">Usuń</string>
     <!-- Pilot w telefonie (RemoteActivity, PilotActivity). -->
     <string name="phone_remote">Pilot</string>
+    <string name="phone_check_all">Sprawdź</string>
+    <string name="phone_check_one">Sprawdź kanał</string>
+    <string name="phone_check_running">Sprawdzanie kanałów: %1$d…</string>
+    <string name="phone_check_done">Sprawdzono %1$d: %2$d działa, %3$d z problemem. Sprawdzone połączeniem tego telefonu, nie dekodera.</string>
+    <string name="phone_check_limit">Sprawdzono tylko pierwsze %1$d z %2$d kanałów.</string>
+    <string name="phone_check_failed">Nie udało się przeprowadzić sprawdzenia.</string>
+    <string name="phone_check_row">%1$s · sprawdzono %2$s</string>
+    <string name="phone_check_ok">działa</string>
+    <string name="phone_check_slow">za wolny</string>
+    <string name="phone_check_blocked">zablokowany</string>
+    <string name="phone_check_dead">martwy</string>
+    <string name="phone_check_timeout">brak odpowiedzi</string>
+    <string name="phone_check_drm">DRM</string>
+    <string name="phone_check_error">błąd</string>
     <string name="remote_searching">Szukam dekoderów bapTV w tej sieci Wi-Fi…</string>
     <string name="remote_pick">Wybierz dekoder. Nowy poprosi o kod z ekranu telewizora (Menu → Ustawienia → Pilot w telefonie).</string>
     <string name="remote_discovery_failed">Nie można przeszukać sieci. Sprawdź, czy telefon jest w tej samej sieci Wi-Fi co dekoder.</string>
@@ -443,6 +457,10 @@
     <string name="remote_code_title">Parowanie z: %1$s</string>
     <string name="remote_code_message">Wpisz 6-cyfrowy kod z ekranu telewizora, obok kodu QR.</string>
     <string name="remote_code_hint">6 cyfr</string>
+    <string name="remote_scan">Zeskanuj kod z telewizora</string>
+    <string name="remote_scan_prompt">Skieruj aparat na kod QR na ekranie telewizora</string>
+    <string name="remote_scan_bad">To nie jest kod parowania bapTV.</string>
+    <string name="remote_camera_denied">Do skanowania potrzebny jest aparat. Wpisz kod z telewizora.</string>
     <string name="remote_pair">Paruj</string>
     <string name="remote_pair_failed">Kod jest błędny albo wygasł. Sprawdź kod na telewizorze.</string>
     <string name="remote_not_paired_any">Ten dekoder nie jest jeszcze sparowany.</string>

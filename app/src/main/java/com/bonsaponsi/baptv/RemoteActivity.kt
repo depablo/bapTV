@@ -1,9 +1,11 @@
 package com.bonsaponsi.baptv
 
+import android.Manifest
 import android.app.Activity
 import android.app.AlertDialog
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.nsd.NsdManager
 import android.net.nsd.NsdServiceInfo
 import android.os.Bundle
@@ -13,12 +15,16 @@ import android.text.InputType
 import android.view.View
 import android.view.ViewGroup
 import android.widget.BaseAdapter
+import android.widget.Button
 import android.widget.EditText
 import android.widget.ListView
 import android.widget.TextView
 import android.widget.Toast
+import com.google.zxing.integration.android.IntentIntegrator
 import java.net.HttpURLConnection
 import java.net.Inet4Address
+import java.net.URI
+import java.net.URISyntaxException
 import java.net.URL
 import java.net.URLEncoder
 
@@ -79,6 +85,7 @@ class RemoteActivity : Activity() {
         list.emptyView = findViewById(R.id.remote_empty)
         list.setOnItemClickListener { _, _, position, _ -> open(items[position]) }
         list.setOnItemLongClickListener { _, _, position, _ -> confirmForget(items[position]) }
+        findViewById<Button>(R.id.remote_scan).setOnClickListener { startScan() }
         applyList()
     }
 
@@ -200,8 +207,57 @@ class RemoteActivity : Activity() {
             .setMessage(R.string.remote_code_message)
             .setView(input)
             .setPositiveButton(R.string.remote_pair) { _, _ -> pair(tv, input.text.toString().trim()) }
+            .setNeutralButton(R.string.remote_scan) { _, _ -> startScan() }
             .setNegativeButton(R.string.phone_cancel, null)
             .show()
+    }
+
+    /** Opens the camera to read the pairing QR code on the TV; the code is not typed. */
+    private fun startScan() {
+        if (checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(arrayOf(Manifest.permission.CAMERA), REQUEST_CAMERA)
+            return
+        }
+        IntentIntegrator(this)
+            .setDesiredBarcodeFormats(IntentIntegrator.QR_CODE)
+            .setPrompt(getString(R.string.remote_scan_prompt))
+            .setBeepEnabled(false)
+            .setOrientationLocked(false)
+            .initiateScan()
+    }
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode != REQUEST_CAMERA) return
+        if (grantResults.firstOrNull() == PackageManager.PERMISSION_GRANTED) {
+            startScan()
+        } else {
+            Toast.makeText(this, R.string.remote_camera_denied, Toast.LENGTH_LONG).show()
+        }
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        val scan = IntentIntegrator.parseActivityResult(requestCode, resultCode, data)
+        if (scan == null) {
+            super.onActivityResult(requestCode, resultCode, data)
+            return
+        }
+        scan.contents?.let { scanned(it) }
+    }
+
+    /** A code read from the TV's QR: pairs with the box at the address it names, when that box is on the network now. */
+    private fun scanned(text: String) {
+        val link = parsePairingLink(text)
+        if (link == null) {
+            Toast.makeText(this, R.string.remote_scan_bad, Toast.LENGTH_LONG).show()
+            return
+        }
+        val tv = online.values.firstOrNull { it.host == link.host && it.port == link.port }
+        if (tv == null) {
+            Toast.makeText(this, R.string.remote_not_found, Toast.LENGTH_LONG).show()
+            return
+        }
+        pair(tv, link.code)
     }
 
     private fun pair(tv: PhoneRemoteTvs.Tv, code: String) {
@@ -245,7 +301,25 @@ class RemoteActivity : Activity() {
         }
     }
 
+    /** A pairing address read from the TV's QR code: the box's address and the code shown next to it. */
+    class PairingLink(val host: String, val port: Int, val code: String)
+
     companion object {
+        private const val REQUEST_CAMERA = 2
+
+        /** Reads `http://<host>:<port>/pair?code=<6 digits>` (what the TV's QR code holds); null for anything else. */
+        fun parsePairingLink(text: String): PairingLink? {
+            val uri = try {
+                URI(text.trim())
+            } catch (e: URISyntaxException) {
+                return null
+            }
+            if (uri.scheme != "http" || uri.path != "/pair" || uri.host == null) return null
+            val code = uri.query?.split('&')?.firstOrNull { it.startsWith("code=") }?.removePrefix("code=") ?: return null
+            if (!Regex("""\d{6}""").matches(code)) return null
+            return PairingLink(uri.host, if (uri.port == -1) 80 else uri.port, code)
+        }
+
         /**
          * Asks the box for a token with the code on its screen. The box answers 303 with a cookie when the code is
          * right, and without one when it is not. Returns the token, or null.
