@@ -78,6 +78,7 @@ object PhoneRemote {
             s.start()
             server = s
             lastError = null
+            RemoteAdvertiser.start(context, PORT)
         } catch (e: java.io.IOException) {
             lastError = e.message ?: e.javaClass.simpleName
             DebugLog.error("Remote", "phone remote server failed to start", e)
@@ -86,6 +87,7 @@ object PhoneRemote {
 
     @Synchronized
     private fun stop() {
+        RemoteAdvertiser.stop()
         server?.stop()
         server = null
         pairingCode = null

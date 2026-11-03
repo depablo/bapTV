@@ -77,6 +77,18 @@
         </activity>
 
 
+        <!-- Phone remote: finds boxes on the network and pairs with them; the pilot page is shown in PilotActivity. -->
+        <activity
+            android:name=".RemoteActivity"
+            android:exported="false"
+            android:screenOrientation="portrait" />
+
+        <activity
+            android:name=".PilotActivity"
+            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|smallestScreenSize"
+            android:exported="false"
+            android:screenOrientation="portrait" />
+
         <!-- The phone app (touch list of internet channels). Phones start here; on TV the launcher starts MainActivity. -->
         <activity
             android:name=".PhoneActivity"

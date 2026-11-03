@@ -74,6 +74,7 @@ class PhoneActivity : Activity() {
             override fun afterTextChanged(s: Editable?) = applyFilter()
         })
         findViewById<Button>(R.id.phone_add).setOnClickListener { askForPlaylist() }
+        findViewById<Button>(R.id.phone_remote).setOnClickListener { startActivity(Intent(this, RemoteActivity::class.java)) }
 
         streams = store.load()
         applyFilter()

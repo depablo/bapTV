@@ -417,4 +417,22 @@
     <string name="phone_drm">%1$s jest chroniony DRM i nie da się go tu odtworzyć.</string>
     <string name="phone_remove_title">Usunąć %1$s?</string>
     <string name="phone_remove">Usuń</string>
+    <!-- Pilot w telefonie (RemoteActivity, PilotActivity). -->
+    <string name="phone_remote">Pilot</string>
+    <string name="remote_searching">Szukam dekoderów bapTV w tej sieci Wi-Fi…</string>
+    <string name="remote_pick">Wybierz dekoder. Nowy poprosi o kod z ekranu telewizora (Menu → Ustawienia → Pilot w telefonie).</string>
+    <string name="remote_discovery_failed">Nie można przeszukać sieci. Sprawdź, czy telefon jest w tej samej sieci Wi-Fi co dekoder.</string>
+    <string name="remote_empty">Brak dekoderów. Otwórz Pilot w telefonie na dekoderze i wróć tutaj.</string>
+    <string name="remote_not_found">Tego dekodera jeszcze nie widziano w sieci.</string>
+    <string name="remote_code_title">Parowanie z: %1$s</string>
+    <string name="remote_code_message">Wpisz 6-cyfrowy kod z ekranu telewizora, obok kodu QR.</string>
+    <string name="remote_code_hint">6 cyfr</string>
+    <string name="remote_pair">Paruj</string>
+    <string name="remote_pair_failed">Kod jest błędny albo wygasł. Sprawdź kod na telewizorze.</string>
+    <string name="remote_not_paired_any">Ten dekoder nie jest jeszcze sparowany.</string>
+    <string name="remote_pairing_lost">Dekoder nie przyjmuje już tego telefonu. Sparuj go ponownie.</string>
+    <string name="remote_online">w sieci</string>
+    <string name="remote_offline">teraz nie widać</string>
+    <string name="remote_paired">sparowany</string>
+    <string name="remote_not_paired">niesparowany</string>
 </resources>
