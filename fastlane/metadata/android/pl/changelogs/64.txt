@@ -1,0 +1,1 @@
+Aplikacja na telefon: kanały internetowe na telefonie mają własny ekran z dotykową listą, wyszukiwaniem i odtwarzaczem. Listy można dodać z adresu albo z pliku, a lista kanałów pokazuje program na teraz.

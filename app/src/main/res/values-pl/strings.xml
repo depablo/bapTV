@@ -377,6 +377,8 @@
     <string name="whats_new_iptv_guide">Program TV dla kanałów internetowych: dodaj adres przewodnika (XMLTV) w pilocie w telefonie, zakładka IPTV – listy, które go podają, dodają go same.</string>
     <string name="whats_new_remote_home">Pilota w telefonie można dodać do ekranu głównego telefonu.</string>
     <string name="whats_new_background_scan">Wyszukiwanie kanałów działa w tle – w tym czasie działają menu i kanały internetowe, a postęp widać u góry odtwarzacza.</string>
+    <string name="whats_new_phone_app">Na telefonie bapTV otwiera własny ekran kanałów internetowych: dotykową listę z wyszukiwaniem, odtwarzacz i listy dodane z adresu albo z pliku.</string>
+    <string name="whats_new_phone_guide">Na telefonie każdy kanał internetowy pokazuje program na teraz, gdy jego lista podaje przewodnik.</string>
     <string name="whats_new_tips">Ciekawostki „Czy wiesz, że…?” o mniej znanych funkcjach, od czasu do czasu przy starcie (Menu → Ustawienia → Ciekawostki przy starcie).</string>
 
     <!-- "Did you know?" tips (Tips). -->

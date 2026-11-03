@@ -1,0 +1,1 @@
+Phone app: internet channels on the phone have their own screen with a touch list, search and a player. Playlists can be added by address or from a file, and the channel list shows the programme on now.
