@@ -448,7 +448,9 @@ function showApp() {
 
 // ---- Home screen ----
 
-const standalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+// Inside the bapTV phone app (its WebView adds "bapTV-app" to the user agent) the remote is already an app.
+const standalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone === true
+  || / bapTV-app$/.test(navigator.userAgent);
 const ios = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
 
 /** Once, in the browser only: how to put the remote on the home screen (no install prompt without HTTPS). */

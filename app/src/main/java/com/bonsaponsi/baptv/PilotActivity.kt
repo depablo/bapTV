@@ -62,6 +62,8 @@ class PilotActivity : Activity() {
         // The box's own page; no JavaScript interface is added, so it can do no more than in a browser.
         web.settings.javaScriptEnabled = true
         web.settings.domStorageEnabled = true
+        // Lets the page know it runs inside the app (no "add to home screen" tip).
+        web.settings.userAgentString = web.settings.userAgentString + " $APP_AGENT"
         web.webViewClient = object : WebViewClient() {
             override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {
                 // The remote server runs only while bapTV is on the TV screen (and a minute after).
@@ -176,6 +178,8 @@ class PilotActivity : Activity() {
         const val EXTRA_PORT = "tv_port"
         /** Cookie name the box uses for its phone pairing ([PhoneRemoteServer]). */
         private const val COOKIE = "baptv_remote"
+        /** Added to the WebView user agent; `remote.html` looks for it. */
+        private const val APP_AGENT = "bapTV-app"
         private const val MAX_ANSWER = 64 * 1024
 
         fun intent(context: Context, tv: PhoneRemoteTvs.Tv): Intent = Intent(context, PilotActivity::class.java)
