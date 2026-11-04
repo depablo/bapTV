@@ -395,6 +395,8 @@
     <string name="whats_new_phone_app">Na telefonie bapTV otwiera własny ekran kanałów internetowych: dotykową listę z wyszukiwaniem, odtwarzacz i listy dodane z adresu albo z pliku.</string>
     <string name="whats_new_phone_guide">Na telefonie każdy kanał internetowy pokazuje program na teraz, gdy jego lista podaje przewodnik.</string>
     <string name="whats_new_phone_remote">Pilotem może być aplikacja na telefonie: znajduje dekoder w sieci Wi-Fi i paruje się kodem z ekranu telewizora.</string>
+    <string name="whats_new_phone_checks">Na telefonie przycisk „Sprawdź” sprawdza, czy kanały internetowe działają i czy łącze nadąża; wynik z datą widać przy kanale.</string>
+    <string name="whats_new_qr_pairing">Aplikacja na telefonie paruje się z dekoderem także przez zeskanowanie kodu QR z ekranu telewizora.</string>
     <string name="whats_new_tips">Ciekawostki „Czy wiesz, że…?” o mniej znanych funkcjach, od czasu do czasu przy starcie (Menu → Ustawienia → Ciekawostki przy starcie).</string>
 
     <!-- "Did you know?" tips (Tips). -->

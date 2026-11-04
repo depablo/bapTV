@@ -1,0 +1,1 @@
+Aplikacja na telefon: sprawdzanie, czy kanały internetowe działają, parowanie z TV przez kod QR, wygląd jak w aplikacji na TV. Poprawki po przeglądzie kodu: przewodniki bez godzin końca, skan w tle, który się nie kończył, bezpieczniejsze parowanie pilota w telefonie.

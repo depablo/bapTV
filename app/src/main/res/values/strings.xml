@@ -389,6 +389,8 @@
     <string name="whats_new_phone_app">On a phone bapTV opens its own screen for internet channels: a touch list with search, a player, and playlists added by address or from a file.</string>
     <string name="whats_new_phone_guide">On the phone each internet channel shows the programme on now when its playlist names a TV guide.</string>
     <string name="whats_new_phone_remote">The remote control can be an Android app on the phone: it finds the set-top box on the Wi-Fi network and pairs with the code from the TV screen.</string>
+    <string name="whats_new_phone_checks">On the phone the Check button tests whether internet channels work and the connection keeps up; the result and its date show next to each channel.</string>
+    <string name="whats_new_qr_pairing">The phone app can also pair with the set-top box by scanning the QR code on the TV screen.</string>
     <string name="whats_new_tips">“Did you know?” tips about lesser-known features, now and then at start (Menu → Settings → Tips at start).</string>
 
     <!-- "Did you know?" tips (Tips). -->

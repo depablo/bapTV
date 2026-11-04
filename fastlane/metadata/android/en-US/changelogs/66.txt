@@ -1,0 +1,1 @@
+Phone app: check whether internet channels work, pair with the TV by scanning its QR code, a look matching the TV app. Fixes from a code review: guide files without stop times, background scan that never ended, safer pairing with the phone remote.
