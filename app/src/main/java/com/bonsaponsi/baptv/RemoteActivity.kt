@@ -290,13 +290,19 @@ class RemoteActivity : Activity() {
             val view = convertView ?: layoutInflater.inflate(R.layout.item_phone_channel, parent, false)
             val tv = items[position]
             val isOnline = online.containsKey(tv.id)
+            // The channel row: the badge shows the box's initial, the group line its state; no check result.
+            view.findViewById<TextView>(R.id.phone_item_avatar).text = initial(tv.name.removePrefix("bapTV-"))
             view.findViewById<TextView>(R.id.phone_item_name).text = tv.name
-            view.findViewById<TextView>(R.id.phone_item_group).text = listOfNotNull(
-                getString(if (isOnline) R.string.remote_online else R.string.remote_offline),
-                tv.host,
-                getString(if (tv.token != null) R.string.remote_paired else R.string.remote_not_paired),
-            ).joinToString(" · ")
+            view.findViewById<TextView>(R.id.phone_item_group).apply {
+                maxWidth = Int.MAX_VALUE
+                text = listOfNotNull(
+                    getString(if (isOnline) R.string.remote_online else R.string.remote_offline),
+                    tv.host,
+                    getString(if (tv.token != null) R.string.remote_paired else R.string.remote_not_paired),
+                ).joinToString(" · ")
+            }
             view.findViewById<TextView>(R.id.phone_item_now).visibility = View.GONE
+            view.findViewById<TextView>(R.id.phone_item_check).visibility = View.GONE
             return view
         }
     }

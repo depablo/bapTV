@@ -81,25 +81,42 @@
         <activity
             android:name=".RemoteActivity"
             android:exported="false"
-            android:screenOrientation="portrait" />
+            android:screenOrientation="portrait"
+            android:theme="@style/PhoneTheme" />
 
         <activity
             android:name=".PilotActivity"
             android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|smallestScreenSize"
             android:exported="false"
-            android:screenOrientation="portrait" />
+            android:screenOrientation="portrait"
+            android:theme="@style/PhoneTheme" />
 
         <!-- The phone app (touch list of internet channels). Phones start here; on TV the launcher starts MainActivity. -->
         <activity
             android:name=".PhoneActivity"
             android:configChanges="keyboard|keyboardHidden|orientation|screenSize|screenLayout|smallestScreenSize"
             android:exported="true"
-            android:screenOrientation="portrait">
+            android:screenOrientation="portrait"
+            android:theme="@style/PhoneTheme">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- Phone: adding channels from a playlist (with a check first) and organising them. -->
+        <activity
+            android:name=".PhoneImportActivity"
+            android:exported="false"
+            android:screenOrientation="portrait"
+            android:theme="@style/PhoneTheme"
+            android:windowSoftInputMode="adjustResize" />
+
+        <activity
+            android:name=".PhoneChannelsActivity"
+            android:exported="false"
+            android:screenOrientation="portrait"
+            android:theme="@style/PhoneTheme" />
 
         <activity
             android:name=".ScanActivity"

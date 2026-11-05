@@ -3,97 +3,157 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#FF0B0F14"
     android:orientation="vertical">
 
     <include layout="@layout/phone_header" />
 
-    <androidx.media3.ui.PlayerView
-        android:id="@+id/phone_player"
+    <!-- 16:9 under the bar (height set in code); the whole screen in full-screen mode. -->
+    <FrameLayout
+        android:id="@+id/phone_player_box"
         android:layout_width="match_parent"
         android:layout_height="220dp"
-        android:background="#FF000000"
-        app:resize_mode="fit"
-        app:show_buffering="when_playing" />
+        android:background="#FF000000">
 
-    <TextView
-        android:id="@+id/phone_status"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:paddingStart="16dp"
-        android:paddingTop="10dp"
-        android:paddingEnd="16dp"
-        android:paddingBottom="6dp"
-        android:text="@string/phone_choose"
-        android:textColor="@color/text_secondary"
-        android:textSize="16sp" />
+        <LinearLayout
+            android:id="@+id/phone_player_hint"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:gravity="center_horizontal"
+            android:orientation="vertical">
+
+            <ImageView
+                android:layout_width="56dp"
+                android:layout_height="56dp"
+                android:alpha="0.5"
+                android:importantForAccessibility="no"
+                android:src="@drawable/ic_tv" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="@string/phone_choose"
+                android:textColor="@color/text_secondary"
+                android:textSize="15sp" />
+        </LinearLayout>
+
+        <androidx.media3.ui.PlayerView
+            android:id="@+id/phone_player"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:visibility="gone"
+            app:resize_mode="fit"
+            app:show_buffering="when_playing"
+            app:show_next_button="false"
+            app:show_previous_button="false" />
+    </FrameLayout>
 
     <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:gravity="center_vertical"
-        android:orientation="horizontal"
-        android:paddingStart="12dp"
-        android:paddingEnd="12dp">
-
-        <EditText
-            android:id="@+id/phone_search"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:hint="@string/phone_search_hint"
-            android:imeOptions="actionDone"
-            android:inputType="text"
-            android:singleLine="true"
-            android:textColor="@color/text_primary"
-            android:textColorHint="@color/text_secondary" />
-
-        <Button
-            android:id="@+id/phone_remote"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/phone_remote" />
-
-        <Button
-            android:id="@+id/phone_add"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/phone_add" />
-    </LinearLayout>
-
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:gravity="end"
-        android:orientation="horizontal"
-        android:paddingStart="12dp"
-        android:paddingEnd="12dp">
-
-        <Button
-            android:id="@+id/phone_check_all"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/phone_check_all" />
-    </LinearLayout>
-
-    <ListView
-        android:id="@+id/phone_list"
+        android:id="@+id/phone_body"
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_margin="12dp"
         android:layout_weight="1"
-        android:background="@drawable/panel_bg"
-        android:divider="#14FFFFFF"
-        android:dividerHeight="1dp" />
+        android:orientation="vertical">
 
-    <TextView
-        android:id="@+id/phone_empty"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:paddingStart="16dp"
-        android:paddingEnd="16dp"
-        android:paddingBottom="16dp"
-        android:text="@string/phone_empty"
-        android:textColor="@color/text_secondary"
-        android:textSize="16sp" />
+        <TextView
+            android:id="@+id/phone_title"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:paddingStart="16dp"
+            android:paddingTop="12dp"
+            android:paddingEnd="16dp"
+            android:singleLine="true"
+            android:textColor="@color/text_primary"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:visibility="gone" />
+
+        <TextView
+            android:id="@+id/phone_status"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingStart="16dp"
+            android:paddingTop="4dp"
+            android:paddingEnd="16dp"
+            android:textColor="@color/text_secondary"
+            android:textSize="14sp"
+            android:visibility="gone" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="44dp"
+            android:layout_marginStart="12dp"
+            android:layout_marginTop="12dp"
+            android:layout_marginEnd="12dp"
+            android:background="@drawable/phone_search_bg"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingStart="14dp"
+            android:paddingEnd="14dp">
+
+            <ImageView
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:importantForAccessibility="no"
+                android:src="@drawable/ic_search"
+                android:tint="@color/text_secondary" />
+
+            <EditText
+                android:id="@+id/phone_search"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_marginStart="10dp"
+                android:layout_weight="1"
+                android:background="@null"
+                android:hint="@string/phone_search_hint"
+                android:imeOptions="actionDone"
+                android:inputType="text"
+                android:singleLine="true"
+                android:textColor="@color/text_primary"
+                android:textColorHint="@color/text_secondary"
+                android:textSize="16sp" />
+        </LinearLayout>
+
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1">
+
+            <ListView
+                android:id="@+id/phone_list"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:clipToPadding="false"
+                android:divider="#14FFFFFF"
+                android:dividerHeight="1dp"
+                android:paddingTop="8dp"
+                android:paddingBottom="88dp" />
+
+            <TextView
+                android:id="@+id/phone_empty"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:gravity="center"
+                android:padding="32dp"
+                android:text="@string/phone_empty"
+                android:textColor="@color/text_secondary"
+                android:textSize="16sp" />
+
+            <ImageButton
+                android:id="@+id/phone_add"
+                android:layout_width="56dp"
+                android:layout_height="56dp"
+                android:layout_gravity="bottom|end"
+                android:layout_margin="16dp"
+                android:background="@drawable/phone_fab_bg"
+                android:contentDescription="@string/phone_add"
+                android:elevation="6dp"
+                android:padding="16dp"
+                android:scaleType="fitCenter"
+                android:src="@drawable/ic_add" />
+        </FrameLayout>
+    </LinearLayout>
 </LinearLayout>

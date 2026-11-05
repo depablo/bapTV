@@ -117,6 +117,8 @@ dependencies {
     implementation("androidx.media3:media3-exoplayer-hls:$media3")
     implementation("androidx.media3:media3-exoplayer-dash:$media3")
     implementation("androidx.media3:media3-ui:$media3")
+    // Already in the APK through media3-ui; named here because the phone screens use it directly.
+    implementation("androidx.recyclerview:recyclerview:1.3.0")
     // Phone remote: scans the pairing QR code on the TV (ZXing, Apache 2.0 – no Google services, so it fits F-Droid).
     implementation("com.journeyapps:zxing-android-embedded:4.3.0")
     testImplementation("junit:junit:4.13.2")

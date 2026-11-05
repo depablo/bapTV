@@ -410,8 +410,37 @@
     <string name="tip_hbbtv">On channels with HbbTV services (e.g. TVP) the red button opens the broadcaster\'s app.</string>
     <string name="tip_report">Something not working? Menu → Diagnostics → Send report to the developer. The report includes the event log, which helps find the cause.</string>
     <!-- Phone app (PhoneActivity): internet channels with a touch list. -->
+    <string name="phone_back">Back</string>
+    <string name="phone_menu">Menu</string>
+    <string name="phone_menu_manage">Manage channels</string>
+    <string name="phone_menu_check">Check channels</string>
+    <string name="phone_menu_remote">Set-top box remote</string>
+    <string name="phone_menu_language">Language: %1$s</string>
+    <string name="phone_about_message">Internet TV channels on the phone and a remote for the bapTV set-top box app.\n\nContact: %1$s\nSource code, issues and new versions: %2$s\nLicense: Apache License 2.0</string>
+    <string name="phone_about_open">Open project page</string>
+    <string name="phone_add_message">The channels are shown first: check them and add the ones that work.</string>
+    <string name="import_title">Add channels</string>
+    <string name="import_check">Check</string>
+    <string name="import_stop">Stop</string>
+    <string name="import_select_working">Select working</string>
+    <string name="import_select_all">Select all</string>
+    <string name="import_select_none">Clear</string>
+    <string name="import_add">Add selected (%1$d)</string>
+    <string name="import_add_none">Select channels to add</string>
+    <string name="import_known">already added</string>
+    <string name="import_summary">%1$d channels in the playlist, %2$d already added.</string>
+    <string name="import_checked">Checked %1$d, %2$d work.</string>
+    <string name="import_checking">Checking %1$d of %2$d… (over this phone\'s connection)</string>
+    <string name="phone_manage_hint">Drag ≡ to move a channel. Hidden channels stay here but are left out of the list.</string>
+    <string name="phone_manage_move">Move</string>
+    <string name="phone_manage_hide">Hide</string>
+    <string name="phone_manage_show">Show</string>
+    <string name="phone_manage_hidden">hidden</string>
+    <string name="phone_manage_rename">Rename</string>
+    <string name="phone_manage_rename_message">Name in the playlist: %1$s. Leave it empty to use that name again.</string>
+    <string name="phone_manage_original">in the playlist: %1$s</string>
     <string name="phone_choose">Choose a channel</string>
-    <string name="phone_empty">No internet channels yet. Add an M3U playlist address with the button above.</string>
+    <string name="phone_empty">No internet channels yet. Tap + to add an M3U playlist from an address or a file.</string>
     <string name="phone_search_hint">Search channels</string>
     <string name="phone_add">Add playlist</string>
     <string name="phone_add_title">Playlist address (M3U)</string>
@@ -431,7 +460,6 @@
     <string name="phone_remove">Remove</string>
     <!-- Phone remote (RemoteActivity, PilotActivity). -->
     <string name="phone_remote">Remote</string>
-    <string name="phone_check_all">Check</string>
     <string name="phone_check_one">Check channel</string>
     <string name="phone_check_running">Checking %1$d channels…</string>
     <string name="phone_check_done">Checked %1$d: %2$d work, %3$d with a problem. Checked over this phone\'s connection, not the set-top box\'s.</string>

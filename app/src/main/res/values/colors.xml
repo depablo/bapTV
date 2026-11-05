@@ -14,4 +14,7 @@
     <color name="status_ok">#FF7BD389</color>
     <color name="status_warn">#FFFFB21E</color>
     <color name="status_bad">#FFFF6B6B</color>
+    <!-- Phone screens: page and raised elements (search field, avatar). -->
+    <color name="phone_bg">#FF0B0F14</color>
+    <color name="phone_surface_high">#FF1F2833</color>
 </resources>

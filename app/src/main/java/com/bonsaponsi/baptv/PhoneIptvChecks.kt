@@ -10,7 +10,7 @@ import java.io.File
  * the check. The check runs over the phone's connection, not the set-top box's, so the screen says so. Kept in a
  * file of its own: the channel records stay as they are. Call from a worker.
  */
-class PhoneIptvChecks(context: Context) {
+class PhoneIptvChecks private constructor(context: Context) {
 
     class Entry(val status: IptvProbe.Status, val detail: String, val speed: Double?, val checkedAt: Long)
 
@@ -51,7 +51,13 @@ class PhoneIptvChecks(context: Context) {
         cached = checks
     }
 
-    private companion object {
-        const val FILE_NAME = "iptv_phone_checks.json"
+    companion object {
+        @Volatile private var instance: PhoneIptvChecks? = null
+
+        /** One copy for the process: the phone screens share the cached list. */
+        fun get(context: Context): PhoneIptvChecks =
+            instance ?: synchronized(this) { instance ?: PhoneIptvChecks(context.applicationContext).also { instance = it } }
+
+        private const val FILE_NAME = "iptv_phone_checks.json"
     }
 }

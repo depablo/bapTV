@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Row on the management screen: drag handle, name (dimmed when hidden) and the actions. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@color/phone_bg"
+    android:gravity="center_vertical"
+    android:minHeight="56dp"
+    android:orientation="horizontal"
+    android:paddingStart="4dp"
+    android:paddingEnd="4dp">
+
+    <ImageView
+        android:id="@+id/manage_item_handle"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:contentDescription="@string/phone_manage_move"
+        android:padding="12dp"
+        android:src="@drawable/ic_drag"
+        android:tint="@color/text_secondary" />
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/manage_item_name"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:singleLine="true"
+            android:textColor="@color/text_primary"
+            android:textSize="16sp" />
+
+        <TextView
+            android:id="@+id/manage_item_detail"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:singleLine="true"
+            android:textColor="@color/text_secondary"
+            android:textSize="12sp" />
+    </LinearLayout>
+
+    <ImageButton
+        android:id="@+id/manage_item_hide"
+        style="@style/PhoneIconButton"
+        android:contentDescription="@string/phone_manage_hide" />
+
+    <ImageButton
+        android:id="@+id/manage_item_rename"
+        style="@style/PhoneIconButton"
+        android:contentDescription="@string/phone_manage_rename"
+        android:src="@drawable/ic_edit" />
+
+    <ImageButton
+        android:id="@+id/manage_item_remove"
+        style="@style/PhoneIconButton"
+        android:contentDescription="@string/phone_remove"
+        android:src="@drawable/ic_delete" />
+</LinearLayout>

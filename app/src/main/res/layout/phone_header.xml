@@ -1,21 +1,47 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Top bar of the phone screens: the logo's navy ground with the app name in the logo's amber. -->
+<!-- Top bar of the phone screens: the logo's navy ground with the app name in the logo's amber.
+     Screens show the back arrow and the action icons they need (all hidden by default). -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/phone_header"
     android:layout_width="match_parent"
-    android:layout_height="wrap_content"
+    android:layout_height="56dp"
     android:background="@color/brand_navy"
     android:gravity="center_vertical"
     android:orientation="horizontal"
-    android:paddingStart="16dp"
-    android:paddingTop="12dp"
-    android:paddingEnd="16dp"
-    android:paddingBottom="12dp">
+    android:paddingStart="4dp"
+    android:paddingEnd="4dp">
+
+    <ImageButton
+        android:id="@+id/phone_header_back"
+        style="@style/PhoneIconButton"
+        android:contentDescription="@string/phone_back"
+        android:src="@drawable/ic_back"
+        android:visibility="gone" />
 
     <TextView
-        android:layout_width="wrap_content"
+        android:id="@+id/phone_header_title"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
+        android:layout_marginStart="12dp"
+        android:layout_weight="1"
+        android:ellipsize="end"
+        android:singleLine="true"
         android:text="@string/app_name"
         android:textColor="@color/brand_amber"
         android:textSize="22sp"
         android:textStyle="bold" />
+
+    <ImageButton
+        android:id="@+id/phone_header_remote"
+        style="@style/PhoneIconButton"
+        android:contentDescription="@string/phone_remote"
+        android:src="@drawable/ic_remote"
+        android:visibility="gone" />
+
+    <ImageButton
+        android:id="@+id/phone_header_menu"
+        style="@style/PhoneIconButton"
+        android:contentDescription="@string/phone_menu"
+        android:src="@drawable/ic_more_vert"
+        android:visibility="gone" />
 </LinearLayout>
