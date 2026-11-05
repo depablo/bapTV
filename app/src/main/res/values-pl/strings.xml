@@ -439,6 +439,7 @@
     <string name="import_checking">Sprawdzanie %1$d z %2$d… (przez łącze tego telefonu)</string>
     <string name="phone_manage_hint">Przeciągnij ≡, aby przesunąć kanał. Ukryte kanały zostają tutaj, ale znikają z listy.</string>
     <string name="phone_manage_move">Przesuń</string>
+    <string name="phone_manage_empty">Brak kanałów internetowych. Dodaj listę przyciskiem + na liście kanałów.</string>
     <string name="phone_manage_hide">Ukryj</string>
     <string name="phone_manage_show">Pokaż</string>
     <string name="phone_manage_hidden">ukryty</string>

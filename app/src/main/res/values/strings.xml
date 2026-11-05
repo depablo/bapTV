@@ -433,6 +433,7 @@
     <string name="import_checking">Checking %1$d of %2$d… (over this phone\'s connection)</string>
     <string name="phone_manage_hint">Drag ≡ to move a channel. Hidden channels stay here but are left out of the list.</string>
     <string name="phone_manage_move">Move</string>
+    <string name="phone_manage_empty">No internet channels yet. Add a playlist with + on the channel list.</string>
     <string name="phone_manage_hide">Hide</string>
     <string name="phone_manage_show">Show</string>
     <string name="phone_manage_hidden">hidden</string>
