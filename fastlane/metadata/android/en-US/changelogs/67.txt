@@ -1,0 +1,1 @@
+Phone app: new look, full-screen playback, a playlist's channels can be checked before adding (add only the working ones), channel management (reorder, hide, rename, remove), a menu, and updates from GitHub on the phone.

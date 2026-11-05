@@ -293,14 +293,26 @@ why, e.g. "Stream unavailable (HTTP 403)". Dropped live streams reconnect by the
 Recording, live pause, HbbTV and channel identification are for broadcast channels only.
 
 **Phone app.** On a phone bapTV opens its own screen for internet channels instead of the TV screen
-(the TV is recognised by its leanback feature). It has a touch list with search, a player above it and
-the buttons to add a playlist: by address (http or https) or from a file on the phone. Channels are
-kept in the app's own file on the phone, not in `TvContract` (the phones tested had no TV provider), so
-the TV and the phone keep separate lists. Playback uses the same headers as on the TV; a long press on a
-channel removes it. Each channel shows the programme on now when the playlist names an XMLTV guide (its
-header `x-tvg-url` or `url-tvg`). The guide is downloaded when a playlist is added and again when it is more
-than 12 hours old, and the phone keeps only 2 hours back and a day ahead. The phone app has no full guide
-view, recording or broadcast channels yet.
+(the TV is recognised by its leanback feature). It has a touch list with search and a player above it;
+the player's full-screen button turns the phone to landscape without system bars, and Back returns.
+Channels are kept in the app's own file on the phone, not in `TvContract` (the phones tested had no TV
+provider), so the TV and the phone keep separate lists. Playback uses the same headers as on the TV.
+
+- **Adding.** The + button takes a playlist address (http or https) or a file on the phone and opens the
+  playlist's channels first. "Check" tests the channels on screen in batches, with progress and Stop, over
+  the phone's connection (the same check as on the TV, see above); "Select working" ticks the ones that
+  passed, "Add selected" adds only the ticked ones. Channels already on the list are marked.
+- **Managing.** Menu → Manage channels: drag ≡ to change the order, hide a channel (it stays there but is
+  left out of the list), rename it (an empty name brings back the playlist's one, which also stays the key
+  for the guide) or remove it. A long press on a channel in the list offers the same plus a check.
+- **Menu.** Manage channels, add a playlist, check the channels on screen, the set-top box remote,
+  updates (check now, automatic daily check), language and About.
+- **Updates.** From GitHub releases, as on the TV (Menu → Settings → Check for updates); on the phone the
+  system installer always asks for confirmation.
+- **Guide.** Each channel shows the programme on now when the playlist names an XMLTV guide (its header
+  `x-tvg-url` or `url-tvg`). The guide is downloaded when a playlist is added and again when it is more
+  than 12 hours old, and the phone keeps only 2 hours back and a day ahead. The phone app has no full guide
+  view, recording or broadcast channels yet.
 
 **TV guide for internet channels.** The IPTV tab's "TV guide (XMLTV)" section takes addresses of XMLTV
 files (`.xml` or `.xml.gz`); the guide addresses in a playlist's header (`x-tvg-url`, `url-tvg`) are added
@@ -703,6 +715,8 @@ Debug builds additionally offer a local HTTP server; see
 | `DebugLog` | App event log in memory and in a rotating file |
 | `StoredFile`, `BackgroundWorker` | Atomic file writes; background work that does not crash the process |
 | `DebugHttpServer`, `DebugServerService`, `ServerAccess`, `PlayerRemote` | Debug-only HTTP server, its foreground service, access control, and player hooks used by it |
+| `PhoneActivity`, `PhoneImportActivity`, `PhoneChannelsActivity` | Phone app: internet channel list and player (full screen, menu), adding a playlist with a check first, managing channels |
+| `PhoneIptvStore`, `PhoneIptvChecks`, `PhoneEpg`, `PhoneUpdates` | Phone app data: channels with order, names and hidden flag; check results; the guide's "now"; updates with phone dialogs |
 | `PhoneRemote`, `PhoneRemoteServer` | Phone remote: QR pairing, paired devices, the server lifecycle; the release-build HTTP server for the remote page |
 | `Iptv`, `IptvInputService`, `IptvProbe` | Internet channels: M3U parsing and the channels stored in `TvContract`; the TV input that plays them with Media3; the stream check |
 | `SelfUpdater`, `UpdateReceiver`, `InstallClickService` | Debug-only remote APK install, restart after update, and the accessibility service that confirms installs |

@@ -35,6 +35,8 @@ of the HbbTV apps are blurred.</sub>
   and channel organisation
 - Internet channels (HLS, DASH) from M3U playlists, added and checked from the phone remote, with a TV guide
   from XMLTV (the playlist's own or any address)
+- Phone app: internet channels on an Android phone, with full-screen playback, checking channels before
+  adding them, channel management, updates, and the set-top box remote
 - In-app channel scan (DVB-T/T2, UHF with optional VHF) on devices with the Google DTV stack
 - Identified channels can be published back to the system, with names and LCN numbers, for other TV apps
 - Signal information (strength, SNR, BER) where the tuner reports it

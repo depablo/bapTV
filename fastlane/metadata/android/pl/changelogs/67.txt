@@ -1,0 +1,1 @@
+Aplikacja na telefon: nowy wygląd, odtwarzanie na pełnym ekranie, sprawdzanie kanałów z listy przed dodaniem (dodajesz tylko działające), zarządzanie kanałami (kolejność, ukrywanie, nazwa, usuwanie), menu i aktualizacje z GitHuba na telefonie.

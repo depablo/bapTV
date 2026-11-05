@@ -9,6 +9,7 @@
 <li>Aplikacje HbbTV nadawców (czerwony przycisk, „oglądaj od początku”, listy kanałów, kanały internetowe)</li>
 <li>Pilot w telefonie: zeskanuj kod QR z telewizora, a przeglądarka telefonu stanie się pilotem, listą kanałów, narzędziem do porządkowania kanałów i miernikiem sygnału przy ustawianiu anteny</li>
 <li>Kanały internetowe (IPTV) z list M3U dodawanych w telefonie; przed dodaniem strumienie są sprawdzane, również to, czy serwer jest wystarczająco szybki</li>
+<li>Na telefonie z Androidem: kanały internetowe z odtwarzaniem na pełnym ekranie, sprawdzaniem przed dodaniem (zostają tylko działające), zmianą kolejności, ukrywaniem i zmianą nazw oraz pilot do dekodera</li>
 <li>Wyszukiwanie kanałów w aplikacji na urządzeniach z tunerem Google DTV: jedno uruchomienie skanuje, wykrywa i rozpoznaje wszystkie kanały</li>
 <li>Informacje o sygnale, ekran diagnostyki i raport do zapisania lub wysłania</li>
 <li>Interfejs po polsku i po angielsku</li>
