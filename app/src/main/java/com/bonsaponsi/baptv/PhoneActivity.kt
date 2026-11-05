@@ -184,6 +184,7 @@ class PhoneActivity : Activity() {
     }
 
     private fun setFullScreen(on: Boolean) {
+        DebugLog.log("Phone", "full screen: $on")
         fullScreen = on
         header.visibility = if (on) View.GONE else View.VISIBLE
         body.visibility = if (on) View.GONE else View.VISIBLE
