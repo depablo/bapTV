@@ -297,6 +297,7 @@
     <string name="scan_advanced_hide">Hide advanced settings</string>
     <string name="hbbtv_offline">The channel\'s extra services (HbbTV) need the internet – check the connection.</string>
     <string name="hbbtv_unavailable">The channel\'s extra services (HbbTV) are unavailable right now.</string>
+    <string name="hbbtv_hold_back">Hold BACK to return to live TV</string>
     <string name="colour_keys_service">bapTV – remote colour keys</string>
     <string name="colour_keys_service_description">Passes the red, green, yellow and blue keys to bapTV while it is on screen, on devices that send them to another app. Reads no screen content.</string>
     <string name="menu_colour_keys">Remote colour keys</string>

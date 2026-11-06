@@ -64,6 +64,10 @@ class HbbTvBrowser(private val activity: Activity, private val container: ViewGr
      * in advance, which would take the arrows away from the info panel.
      */
     @Volatile private var engaged = false
+    /** The app plays its own internet video (reported by the compatibility layer). */
+    private var appVideo = false
+    /** A long BACK left the app – its remaining repeats and release must not reach the player. */
+    private var swallowBack = false
     /** WebView User-Agent – needed when fetching the page ourselves (network thread). */
     @Volatile private var userAgent: String = USER_AGENT_SUFFIX
     @Volatile var currentUrl: String? = null; private set
@@ -95,6 +99,7 @@ class HbbTvBrowser(private val activity: Activity, private val container: ViewGr
     fun stop() {
         currentUrl = null
         keyset = 0
+        appVideo = false
         webView?.let { wv ->
             wv.loadUrl("about:blank")
             wv.visibility = View.INVISIBLE
@@ -167,6 +172,7 @@ class HbbTvBrowser(private val activity: Activity, private val container: ViewGr
         val wv = ensureWebView()
         keyset = 0
         engaged = false
+        appVideo = false
         visible = true
         wv.visibility = View.VISIBLE
         currentUrl = url
@@ -178,20 +184,40 @@ class HbbTvBrowser(private val activity: Activity, private val container: ViewGr
      * Remote control key. Returns true when it went to the HbbTV app (belongs to its key set).
      */
     fun onKey(event: KeyEvent): Boolean {
+        if (swallowBack && event.keyCode == KeyEvent.KEYCODE_BACK) {
+            if (event.action == KeyEvent.ACTION_UP) swallowBack = false
+            return true
+        }
         val wv = webView ?: return false
         if (!isActive) return false
         val (vk, mask) = VK_MAP[event.keyCode] ?: return false
-        if (keyset and mask == 0) return false
+        // Playback keys go to the app's own video even outside its key set – in the player they would
+        // start live pause of a broadcast the app has stopped.
+        if (keyset and mask == 0 && !(mask == VCR && appVideo && engaged)) return false
         if (mask and COLOUR_KEYS != 0) {
             engaged = true
         } else if (!engaged) {
             return false
+        }
+        // A long BACK leaves the app (remotes have no EXIT key) – also when the app ignores BACK.
+        if (event.keyCode == KeyEvent.KEYCODE_BACK && event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 1) {
+            swallowBack = true
+            returnToAutostart("long BACK")
+            return true
         }
         if (event.action == KeyEvent.ACTION_DOWN) {
             DebugLog.log(TAG, "key ${KeyEvent.keyCodeToString(event.keyCode)} -> VK $vk")
             wv.evaluateJavascript("window.__dvbtHbb && window.__dvbtHbb.key($vk)", null)
         }
         return true
+    }
+
+    /** Closes the app: the TV picture comes back and so does the channel's AUTOSTART app (as on a TV). */
+    private fun returnToAutostart(reason: String) {
+        val url = autostartUrl
+        DebugLog.log(TAG, "$reason – returning to $url")
+        host.hbbBindBroadcast()
+        if (url != null) load(url) else stop()
     }
 
     /** The player changed channel at the app's request – notify the video/broadcast objects. */
@@ -220,13 +246,15 @@ class HbbTvBrowser(private val activity: Activity, private val container: ViewGr
         @JavascriptInterface fun show(n: String) { if (trusted(n)) main.post { visible = true; webView?.visibility = View.VISIBLE } }
         @JavascriptInterface fun hide(n: String) { if (trusted(n)) main.post { visible = false; webView?.visibility = View.INVISIBLE } }
         @JavascriptInterface fun destroyApplication(n: String) {
+            if (trusted(n)) main.post { returnToAutostart("destroyApplication") }
+        }
+        @JavascriptInterface fun videoActive(n: String, active: Boolean) {
             if (!trusted(n)) return
             main.post {
-                // After the app is closed, the channel's AUTOSTART app comes back (as on a TV).
-                val url = autostartUrl
-                DebugLog.log(TAG, "destroyApplication – returning to $url")
-                host.hbbBindBroadcast()
-                if (url != null) load(url) else stop()
+                if (appVideo == active) return@post
+                appVideo = active
+                DebugLog.log(TAG, if (active) "app plays its own video" else "app video ended")
+                if (active && engaged) TvDialog.toast(activity, activity.getString(R.string.hbbtv_hold_back), long = true)
             }
         }
         @JavascriptInterface fun createApplication(n: String, uri: String) {

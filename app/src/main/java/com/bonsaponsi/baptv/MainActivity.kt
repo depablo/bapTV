@@ -2227,6 +2227,8 @@ class MainActivity : Activity() {
             val channelInput = channel.inputId ?: input?.id ?: return
             DebugLog.log("HbbTV", "app resumes the broadcast video")
             tvView.tune(channelInput, channel.uri)
+            // The app's internet video took the audio focus – without asking again the TV stays silent.
+            audio.apply("tune")
         }
         override fun hbbBroadcastRect(rect: String) {
             val params = tvView.layoutParams as android.widget.FrameLayout.LayoutParams

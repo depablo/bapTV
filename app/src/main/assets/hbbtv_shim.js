@@ -10,7 +10,7 @@
   // ad frames from other domains also see window.HbbNative, but without the key their calls are rejected.
   var RAW = window.HbbNative, NONCE = '__DVBT_NONCE__', N = {};
   ['log', 'version', 'setKeyset', 'show', 'hide', 'destroyApplication', 'createApplication', 'channel', 'channels',
-   'setChannel', 'channelStep', 'stopBroadcast', 'releaseBroadcast', 'bindBroadcast', 'setFullScreen', 'broadcastRect']
+   'setChannel', 'channelStep', 'stopBroadcast', 'releaseBroadcast', 'bindBroadcast', 'setFullScreen', 'broadcastRect', 'videoActive']
     .forEach(function (m) {
       N[m] = function () { return RAW[m].apply(RAW, [NONCE].concat(Array.prototype.slice.call(arguments))); };
     });
@@ -385,8 +385,36 @@
     }
   })();
 
+  // ---- The app's own internet video (e.g. TVP "watch from the start") ----
+  // The playing <video>, otherwise the first one with a source. The player is told whether there is one,
+  // so playback keys and a long BACK work while the broadcast is stopped.
+  function appVideo() {
+    var list = Array.prototype.filter.call(document.querySelectorAll('video'), function (v) { return v.currentSrc && !v.ended; });
+    return list.filter(function (v) { return !v.paused; })[0] || list[0] || null;
+  }
+  var videoActive = false;
+  setInterval(function () {
+    var active = !!appVideo();
+    if (active !== videoActive) { videoActive = active; N.videoActive(active); }
+  }, 1000);
+
+  // TVP's player registers play/pause but its handler does nothing. When the app leaves the video's
+  // state unchanged, the key is applied to the video directly.
+  var PLAY_KEYS = { 402: 'toggle', 415: 'play', 19: 'pause' };
+  function key(code) {
+    var mode = PLAY_KEYS[code], v = mode && appVideo(), paused = v && v.paused;
+    sendKey(code);
+    if (!v) return;
+    setTimeout(function () {
+      if (v.paused !== paused) return;
+      var play = mode === 'toggle' ? paused : mode === 'play';
+      if (play && v.paused) { log('app ignored the play key – playing its video'); v.play().catch(function (e) { log('play: ' + e); }); }
+      else if (!play && !v.paused) { log('app ignored the pause key – pausing its video'); v.pause(); }
+    }, 400);
+  }
+
   window.__dvbtHbb = {
-    key: sendKey,
+    key: key,
     channelChanged: function () {
       Array.prototype.forEach.call(document.querySelectorAll('object[type="video/broadcast"]'), function (o) {
         var ch = currentChannel();

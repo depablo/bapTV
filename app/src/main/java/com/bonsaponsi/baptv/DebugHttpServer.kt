@@ -155,15 +155,20 @@ class DebugHttpServer(private val context: Context, val port: Int = DEFAULT_PORT
                 else -> {
                     // Injection into our own window (like the remote: focus, buttons, dialogs);
                     // when another app's window is on screen the system refuses – then straight to the activity.
+                    // long=1: a held key – the press, one repeat (marked as a long press) and the release.
+                    val now = android.os.SystemClock.uptimeMillis()
+                    val events = buildList {
+                        add(android.view.KeyEvent(now, now, android.view.KeyEvent.ACTION_DOWN, code, 0))
+                        if (request.query["long"] == "1") add(android.view.KeyEvent(now, now + 500, android.view.KeyEvent.ACTION_DOWN, code, 1,
+                            0, android.view.KeyCharacterMap.VIRTUAL_KEYBOARD, 0, android.view.KeyEvent.FLAG_LONG_PRESS))
+                        add(android.view.KeyEvent(now, now + 600, android.view.KeyEvent.ACTION_UP, code, 0))
+                    }
                     val how = try {
-                        android.app.Instrumentation().sendKeyDownUpSync(code)
+                        val instrumentation = android.app.Instrumentation()
+                        events.forEach { instrumentation.sendKeySync(it) }
                         "injected"
                     } catch (e: SecurityException) {
-                        onMain {
-                            val now = android.os.SystemClock.uptimeMillis()
-                            activity.dispatchKeyEvent(android.view.KeyEvent(now, now, android.view.KeyEvent.ACTION_DOWN, code, 0))
-                            activity.dispatchKeyEvent(android.view.KeyEvent(now, now, android.view.KeyEvent.ACTION_UP, code, 0))
-                        }
+                        onMain { events.forEach { activity.dispatchKeyEvent(it) } }
                         "to activity"
                     }
                     text("OK ${android.view.KeyEvent.keyCodeToString(code)} -> ${activity.javaClass.simpleName} ($how)\n")

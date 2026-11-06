@@ -304,6 +304,7 @@
     <string name="scan_advanced_hide">Ukryj ustawienia zaawansowane</string>
     <string name="hbbtv_offline">Dodatkowe usługi kanału (HbbTV) wymagają internetu – sprawdź połączenie.</string>
     <string name="hbbtv_unavailable">Dodatkowe usługi kanału (HbbTV) są teraz niedostępne.</string>
+    <string name="hbbtv_hold_back">Przytrzymaj BACK, aby wrócić do telewizji na żywo</string>
     <string name="colour_keys_service">bapTV – kolorowe przyciski pilota</string>
     <string name="colour_keys_service_description">Przekazuje przyciski czerwony, zielony, żółty i niebieski do bapTV, gdy jest na ekranie, na urządzeniach, które wysyłają je do innej aplikacji. Nie odczytuje zawartości ekranu.</string>
     <string name="menu_colour_keys">Kolorowe przyciski pilota</string>

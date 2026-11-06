@@ -105,7 +105,7 @@ MENU key; the menu is therefore also available on REC and SETTINGS.
 | ▲ | `DPAD_UP` | go one level back / close the info panel | |
 | ▶ | `DPAD_RIGHT` | open the info panel; at level 3 move between buttons; on the channel list: next category | seek forward 10 s (hold: 30 s) |
 | ◀ | `DPAD_LEFT` | on the channel list: previous category, on “All channels” close the list; at level 3 move between buttons | seek back 10 s (hold: 30 s) |
-| BACK | `BACK` | close the panel or list; stop channel identification; stop recording playback | |
+| BACK | `BACK` | close the panel or list; stop channel identification; stop recording playback; held: close an engaged HbbTV app | |
 | ⏯ | `MEDIA_PLAY_PAUSE` (also `MEDIA_PAUSE`) | start live pause; in recording playback: pause / resume | pause / resume |
 | ⏹ | `MEDIA_STOP` | in recording playback: back to live | back to live |
 | ⏪ / ⏩ | `MEDIA_REWIND` / `MEDIA_FAST_FORWARD` | | seek 30 s |
@@ -522,8 +522,21 @@ Details:
 - When the channel's app cannot be loaded (no internet, server down) no browser error page is shown;
   a short notice says the channel's extra services need the internet, once per channel switch.
 - When the app stops the broadcast picture to play its own video, the tuner status line ("No
-  picture", "Buffering…") is cleared. On the next channel switch the player takes the audio focus
-  back from the app's video, so the TV sound is not left muted.
+  picture", "Buffering…") is cleared. On the next channel switch, or when the app gives the picture
+  back, the player takes the audio focus back from the app's video, so the TV sound is not left muted.
+- **The app's own video (e.g. TVP "watch from the start" under blue).** The compatibility layer tells
+  the player when the page plays an internet `<video>`. Then:
+  - a notice says to hold BACK to return to live TV. A **long BACK** closes any engaged HbbTV app
+    (remotes have no EXIT key): the TV picture comes back and the channel's AUTOSTART app restarts.
+    TVP's player only hides its controls on BACK, so without this the stream could be left only with
+    a channel switch;
+  - ⏯ / play / pause reach the app even outside its key set. When the app leaves its video's state
+    unchanged for 400 ms (TVP's player registers the key but does nothing), the layer plays or
+    pauses the video itself. TVP's play/pause icon does not follow such a change.
+- TVP's teaser (MUX-3) shows its prompt ("watch from the start" on blue, RSO, VOD, adverts) for up to
+  20 s after a channel switch, and only within TVP's daily schedule; the colour keys work only while
+  it is shown. Blue opens `…/apps/manager/epg/npvr/live/T1D` (TVP1): the last ~30 min of the live
+  stream, with "OD POCZĄTKU" (from the programme start), "NA ŻYWO" and arrows seeking by 10 s.
 
 ## 11. Channel scan
 
