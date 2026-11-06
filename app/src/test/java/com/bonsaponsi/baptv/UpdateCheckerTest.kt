@@ -8,6 +8,13 @@ import org.junit.Test
 class UpdateCheckerTest {
 
     @Test
+    fun apkNamePerBuild() {
+        // The TV name stays as before: versions up to 1.11 take any .apk, the release must keep this one last.
+        assertEquals("baptv-1.12.0.apk", UpdateChecker.apkName("1.12.0", phone = false))
+        assertEquals("baptv-1.12.0-phone.apk", UpdateChecker.apkName("1.12.0", phone = true))
+    }
+
+    @Test
     fun versionComparison() {
         assertTrue(UpdateChecker.isNewer("1.4.1", "1.4.0"))
         assertTrue(UpdateChecker.isNewer("1.10.0", "1.9.3"))

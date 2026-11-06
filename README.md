@@ -81,15 +81,19 @@ the installation (once you allow bapTV to install apps). The check sends only a 
 Requirements:
 
 - JDK 17 or newer (the project compiles for Java 17)
-- Android SDK with platform 34 (`compileSdk 34`); `minSdk 26`, `targetSdk 29`
+- Android SDK with platform 35 (`compileSdk 35`); `minSdk 26`; `targetSdk 29` (TV build) and 35 (phone build)
 - Gradle 8.11.1 is downloaded by the wrapper; Android Gradle Plugin 8.7.3, Kotlin 2.1.0
 
 ```
 export JAVA_HOME=/path/to/jdk ANDROID_HOME=/path/to/android-sdk   # or set sdk.dir in local.properties
-./gradlew assembleDebug      # app/build/outputs/apk/debug/app-debug.apk (com.bonsaponsi.baptv.debug)
-./gradlew assembleRelease    # app/build/outputs/apk/release/app-release.apk (minified)
-./gradlew test               # JVM unit tests
+./gradlew assembleTvDebug       # app/build/outputs/apk/tv/debug/app-tv-debug.apk (com.bonsaponsi.baptv.debug)
+./gradlew assembleRelease       # app/build/outputs/apk/{tv,phone}/release/app-*-release.apk (minified)
+./gradlew test                  # JVM unit tests (both builds)
 ```
+
+There are two builds of the same app (package and key): **tv** – the full app for Android TV set-top boxes –
+and **phone** – internet channels and the set-top box remote for phones. A release has one APK of each:
+`baptv-X.Y.Z.apk` (TV) and `baptv-X.Y.Z-phone.apk`.
 
 Release builds are signed only when a signing config is provided: point `baptv.signing` in
 `local.properties` (or the `BAPTV_SIGNING` environment variable) to a properties file with

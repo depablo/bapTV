@@ -87,7 +87,8 @@ class PhoneActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         // Launchers that list LAUNCHER activities (also on TV boxes) start this one: a TV gets its own player.
-        if (DeviceCapabilities.isTelevision(this)) {
+        // The phone build has no TV player.
+        if (BuildConfig.TV && DeviceCapabilities.isTelevision(this)) {
             redirected = true
             startActivity(Intent(this, MainActivity::class.java))
             finish()

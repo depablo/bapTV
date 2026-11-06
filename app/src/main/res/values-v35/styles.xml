@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Phone screens: system bars stay (the player hides them in full screen), dark page in the brand colours. -->
+    <style name="PhoneTheme" parent="@android:style/Theme.DeviceDefault.NoActionBar">
+        <item name="android:windowBackground">@color/phone_bg</item>
+        <item name="android:statusBarColor">@color/brand_navy</item>
+        <item name="android:navigationBarColor">@color/phone_bg</item>
+        <item name="android:colorAccent">@color/accent</item>
+        <item name="android:buttonStyle">@style/MenuButtonBase</item>
+        <!-- The phone build targets API 35: keep the bars as on older Android instead of drawing under them. -->
+        <item name="android:windowOptOutEdgeToEdgeEnforcement">true</item>
+    </style>
+</resources>

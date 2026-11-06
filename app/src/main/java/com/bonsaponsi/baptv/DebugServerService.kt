@@ -13,6 +13,8 @@ import android.os.IBinder
  * Once enabled, the server comes back by itself after an update, a process restart and a set-top box reboot,
  * so a new version can always be uploaded and the log read through it.
  */
+// Declared only in the TV build's manifest (targetSdk 29), where no foreground service type is needed.
+@android.annotation.SuppressLint("ForegroundServiceType")
 class DebugServerService : Service() {
 
     override fun onBind(intent: Intent?): IBinder? = null

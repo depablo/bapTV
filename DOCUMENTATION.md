@@ -664,8 +664,8 @@ Debug builds additionally offer a local HTTP server; see
   refusal (encrypted), or an immediate unknown error (no such ID).
 - **Stream analysis**: the Google DTV tuner input reports `canRecord = false` but has a working TIF
   recording session. A `TvRecordingClient` recording is written to the input's folder in shared
-  storage, which the app can read (hence `targetSdk 29` with `requestLegacyExternalStorage` and the
-  storage permission). The recording contains PAT, the service's PMT, AIT, EIT and the service's
+  storage, which the app can read and delete (hence `targetSdk 29` with `requestLegacyExternalStorage` and
+  the storage permission; with a newer target Android 11 leaves these files read-only). The recording contains PAT, the service's PMT, AIT, EIT and the service's
   elementary streams, but no SDT or NIT. It can run in parallel with playback on the same multiplex;
   recording another multiplex fails with `RESOURCE_BUSY` (one tuner). Probe recordings are deleted
   after analysis.
@@ -763,7 +763,7 @@ exercises the generic path of the app (no Google DTV stack).
 1. In Android Studio create an Android TV device (e.g. *Television (1080p)*) with an Android TV
    API 30 x86 image. Avoid non-ASCII characters in the SDK and AVD paths; the emulator may fail with
    them.
-2. Build and install both APKs (`tools/emu.sh install`, or `./gradlew :app:assembleDebug
+2. Build and install both APKs (`tools/emu.sh install`, or `./gradlew :app:assembleTvDebug
    :testtuner:assembleDebug` and `adb install -r -g` for each).
 3. Create the test channels: `tools/emu.sh setup` (or open the test tuner's setup).
 4. Add the test tuner's channels once through the system Live Channels app, which marks them as
@@ -815,7 +815,7 @@ and HOME, but no media keys.
 
 ## 15. Debug-only developer tools
 
-The following features exist **only in debug builds** (`./gradlew assembleDebug`). They are meant
+The following features exist **only in debug builds** (`./gradlew assembleTvDebug`). They are meant
 for development on devices without adb access and are not part of release builds.
 
 ### Local HTTP server
@@ -938,7 +938,7 @@ Example from a computer in the same network:
 
 ```
 curl -s http://<device-ip>:8080/status
-curl -s --data-binary @app/build/outputs/apk/debug/app-debug.apk \
+curl -s --data-binary @app/build/outputs/apk/tv/debug/app-tv-debug.apk \
      -H 'Content-Type: application/vnd.android.package-archive' http://<device-ip>:8080/install
 curl -s -H "X-Tv-Token: <token>" -X POST "http://<device-ip>:8080/key?name=OK"
 ```
@@ -948,20 +948,34 @@ curl -s -H "X-Tv-Token: <token>" -X POST "http://<device-ip>:8080/key?name=OK"
 ### Requirements
 
 - JDK 17 or newer (sources and bytecode target Java 17)
-- Android SDK with platform 34; `compileSdk 34`, `minSdk 26`, `targetSdk 29`
+- Android SDK with platform 35; `compileSdk 35`, `minSdk 26`, `targetSdk` 29 (tv) and 35 (phone)
 - Gradle 8.11.1 (wrapper), Android Gradle Plugin 8.7.3, Kotlin 2.1.0
 - One library: AndroidX Media3 (ExoPlayer with HLS and DASH) for internet channels; unit tests use JUnit 4
 
-`targetSdk 29` is deliberate: it is the highest target for which `requestLegacyExternalStorage`
-still works on Android 11, which the app needs to read the tuner input's recordings. Lint's
-`ExpiredTargetSdkVersion` check is disabled because it only applies to Google Play.
+**Two builds** (product flavors, same package and signing key):
+
+- **tv** – the full app. `targetSdk 29` is deliberate: it is the highest target for which
+  `requestLegacyExternalStorage` still works on Android 11, which the app needs to read and delete the tuner
+  input's recordings (stream analysis, the recordings screen). With target 35 the recordings can be read but not
+  deleted (checked on the reference box: `NoSuchFileException`, and MediaStore deletes nothing without the user's
+  consent). The TV-only manifest is `app/src/tv/AndroidManifest.xml`; `BuildConfig.TV` is true.
+- **phone** – the phone screens (internet channels, the set-top box remote, updates) with a current
+  `targetSdk 35`, so Android 12L+ phones show no "built for an older version of Android" warning, and without
+  the TV components: no accessibility service, tuner, storage or boot permissions. Its theme keeps the system bars
+  as before (`windowOptOutEdgeToEdgeEnforcement`).
+
+The updater of each build fetches its own file from the release: `baptv-X.Y.Z.apk` (tv) or `baptv-X.Y.Z-phone.apk`;
+a tv build running on a phone moves to the phone one. Versions up to 1.11 take the last `.apk` of the release, so the
+TV file must be uploaded last. Lint's `ExpiredTargetSdkVersion` check is disabled because it only applies to Google
+Play.
 
 ### Commands
 
 ```
 export JAVA_HOME=/path/to/jdk ANDROID_HOME=/path/to/android-sdk   # or sdk.dir in local.properties
-./gradlew assembleDebug        # app/build/outputs/apk/debug/app-debug.apk (+ testtuner debug APK)
-./gradlew assembleRelease      # minified release build (R8 with proguard-rules.pro)
+./gradlew assembleTvDebug      # app/build/outputs/apk/tv/debug/app-tv-debug.apk
+./gradlew assemblePhoneDebug   # app/build/outputs/apk/phone/debug/app-phone-debug.apk
+./gradlew assembleRelease      # both minified release builds (R8 with proguard-rules.pro)
 ./gradlew test                 # JVM unit tests
 ./gradlew lint
 ```

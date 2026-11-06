@@ -26,7 +26,7 @@ if [[ -z "$SDK_WIN" ]]; then
 fi
 ADB="$(wslpath -u "$SDK_WIN")/platform-tools/adb.exe"
 [[ -x "$ADB" ]] || { echo "Missing $ADB - install Platform-Tools in Android Studio (SDK in $SDK_WIN)" >&2; exit 2; }
-APP_APK="$ROOT/app/build/outputs/apk/debug/app-debug.apk"
+APP_APK="$ROOT/app/build/outputs/apk/tv/debug/app-tv-debug.apk"
 TUNER_APK="$ROOT/testtuner/build/outputs/apk/debug/testtuner-debug.apk"
 
 adb() { "$ADB" "$@"; }
@@ -37,7 +37,7 @@ case "${1:-}" in
   install)
     if [[ "${2:-}" != "-n" ]]; then
       (cd "$ROOT" && JAVA_HOME="${JAVA_HOME:-$HOME/tools/jdk}" ANDROID_HOME="${ANDROID_HOME:-$HOME/tools/android-sdk}" \
-        ./gradlew :app:assembleDebug :testtuner:assembleDebug --console=plain -q)
+        ./gradlew :app:assembleTvDebug :testtuner:assembleDebug --console=plain -q)
     fi
     adb install -r -g "$(win "$TUNER_APK")"
     adb install -r -g "$(win "$APP_APK")"

@@ -63,20 +63,21 @@ object UpdateChecker {
         val json = JSONObject(get(latestUrl()).toString(Charsets.UTF_8))
         val version = json.getString("tag_name").removePrefix("v")
         val assets = json.getJSONArray("assets")
+        // A release has one APK per build (tv, phone); a TV build running on a phone moves to the phone one.
+        val wanted = apkName(version, phone = !BuildConfig.TV || !DeviceCapabilities.isTelevision(context))
         var apk: String? = null
         var sha: String? = null
         for (i in 0 until assets.length()) {
             val a = assets.getJSONObject(i)
-            val name = a.getString("name")
-            when {
-                name.endsWith(".apk") -> apk = a.getString("browser_download_url")
-                name.endsWith(".apk.sha256") -> sha = a.getString("browser_download_url")
+            when (a.getString("name")) {
+                wanted -> apk = a.getString("browser_download_url")
+                "$wanted.sha256" -> sha = a.getString("browser_download_url")
             }
         }
         val newer = isNewer(version, BuildConfig.VERSION_NAME)
         DebugLog.log(TAG, "latest release $version (running ${BuildConfig.VERSION_NAME}): ${if (newer) "newer" else "nothing new"}")
         if (!newer) return null
-        if (apk == null || sha == null) error("release $version has no APK or SHA-256 file")
+        if (apk == null || sha == null) error("release $version has no $wanted or its SHA-256 file")
         val summary = runCatching { changelog(json.getString("tag_name"), locale) }
             .onFailure { DebugLog.warn(TAG, "no store changelog for $version ($locale)", it) }.getOrNull()
         return Release(version, summary ?: notes(json.optString("body")), apk, sha)
@@ -115,6 +116,9 @@ object UpdateChecker {
     }
 
     /** "1.4.1" > "1.4.0-debug": numeric parts compared in order, suffixes ignored. */
+    /** File name of a release APK: `baptv-1.12.0.apk` (TV, also what versions up to 1.11 install) or `baptv-1.12.0-phone.apk`. */
+    fun apkName(version: String, phone: Boolean): String = if (phone) "baptv-$version-phone.apk" else "baptv-$version.apk"
+
     fun isNewer(remote: String, local: String): Boolean {
         fun parts(v: String) = v.substringBefore('-').split('.').map { it.toIntOrNull() ?: 0 }
         val r = parts(remote)

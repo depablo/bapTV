@@ -93,7 +93,10 @@ class Diagnostics(private val context: Context) {
                 line("$name: not installed / not visible")
                 return@forEach
             }
-            val app = info.applicationInfo
+            val app = info.applicationInfo ?: run {
+                line("$name: ${info.versionName} (no application info)")
+                return@forEach
+            }
             val flags = buildList {
                 if (app.flags and ApplicationInfo.FLAG_SYSTEM != 0) add("system")
                 if (app.flags and ApplicationInfo.FLAG_UPDATED_SYSTEM_APP != 0) add("updated")

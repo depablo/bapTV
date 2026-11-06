@@ -28,11 +28,13 @@ class App : Application() {
             }
             override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) = Unit
             // The phone remote server runs while any app screen is visible.
-            override fun onActivityStarted(activity: Activity) = PhoneRemote.activityStarted(activity)
-            override fun onActivityStopped(activity: Activity) = PhoneRemote.activityStopped()
+            override fun onActivityStarted(activity: Activity) { if (BuildConfig.TV) PhoneRemote.activityStarted(activity) }
+            override fun onActivityStopped(activity: Activity) { if (BuildConfig.TV) PhoneRemote.activityStopped() }
             override fun onActivitySaveInstanceState(activity: Activity, outState: Bundle) = Unit
             override fun onActivityDestroyed(activity: Activity) = Unit
         })
+        // The phone build has no server, recordings or scans.
+        if (!BuildConfig.TV) return
         // The web server comes back by itself after an update, a process restart and a set-top box reboot.
         DebugServerService.restoreIfEnabled(this)
         // Alarms for scheduled recordings are lost on a set-top box reboot – we set them at every process start.

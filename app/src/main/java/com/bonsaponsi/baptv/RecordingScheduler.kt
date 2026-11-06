@@ -195,6 +195,8 @@ class RecordingAlarmReceiver : BroadcastReceiver() {
  * Foreground service for the duration of a recording – the app process is not killed while the player
  * is not on screen (scheduled recording, set-top box in standby). Stops together with the recording.
  */
+// Declared only in the TV build's manifest (targetSdk 29), where no foreground service type is needed.
+@android.annotation.SuppressLint("ForegroundServiceType")
 class RecordingService : Service() {
     private val onChange: (Recorder.Entry?) -> Unit = { if (it == null) stopSelf() }
 

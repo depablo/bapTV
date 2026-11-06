@@ -231,9 +231,12 @@ object SelfUpdater {
         if (since != 0L && DebugLog.bootId > since) p.edit().remove(KEY_RELAUNCH_SINCE).apply()
     }
 
-    /** Launches the player. From the background it only works with the accessibility service enabled or the overlay permission. */
+    /**
+     * Launches the player (the phone screen in the phone build). From the background it only works with the
+     * accessibility service enabled or the overlay permission.
+     */
     fun launch(context: Context): String {
-        val intent = Intent(context, MainActivity::class.java)
+        val intent = Intent(context, if (BuildConfig.TV) MainActivity::class.java else PhoneActivity::class.java)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED)
         return try {
             context.startActivity(intent)

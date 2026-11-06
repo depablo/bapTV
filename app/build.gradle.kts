@@ -28,14 +28,11 @@ val debugSuffix = localProps.getProperty("baptv.debugSuffix")?.toBoolean() ?: tr
 
 android {
     namespace = "com.bonsaponsi.baptv"
-    compileSdk = 34
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "com.bonsaponsi.baptv"
         minSdk = 26
-        // The target device runs Android TV 11 (API 30). targetSdk 29: on Android 11 only then does
-        // requestLegacyExternalStorage work, which is needed to read dtvinput recordings (HbbTV experiment).
-        targetSdk = 29
         versionCode = 67
         versionName = "1.11.0"
         // Build time in /status (debug server): the deploy script uses it to check that the set-top box runs the
@@ -50,6 +47,29 @@ android {
         buildConfigField("int", "PHONE_REMOTE_PORT", "8090")
         // ColourKeysService only receives events of this package (res/xml/colour_keys_service.xml).
         resValue("string", "colour_keys_package", "com.bonsaponsi.baptv")
+    }
+
+    /**
+     * Two APKs under the same package and signing key, one per device kind:
+     * - tv – the full app (tuner, recordings, HbbTV, the remote's server, accessibility service for colour keys).
+     *   targetSdk 29: on Android TV 11 only then does requestLegacyExternalStorage work, which is needed to read and
+     *   delete dtvinput recordings (stream analysis, recordings screen). With a newer target the files are read-only.
+     * - phone – internet channels and the set-top box remote only. A current targetSdk and no TV components, so
+     *   phones show no "built for an older version of Android" warning.
+     * Each build's updater fetches its own file from the GitHub release (UpdateChecker).
+     */
+    flavorDimensions += "device"
+    productFlavors {
+        create("tv") {
+            dimension = "device"
+            targetSdk = 29
+            buildConfigField("boolean", "TV", "true")
+        }
+        create("phone") {
+            dimension = "device"
+            targetSdk = 35
+            buildConfigField("boolean", "TV", "false")
+        }
     }
 
     signingConfigs {
@@ -104,14 +124,13 @@ android {
         unitTests.isReturnDefaultValues = true
     }
     lint {
-        // ExpiredTargetSdkVersion only matters for Google Play; the app targets Android TV 11.
+        // ExpiredTargetSdkVersion only matters for Google Play; the tv build targets Android TV 11.
         disable += "ExpiredTargetSdkVersion"
     }
 }
 
 dependencies {
-    // Internet channels (IptvInputService): HLS, DASH and progressive streams. Media3 1.4 is the last line
-    // that builds with compileSdk 34.
+    // Internet channels (IptvInputService, phone player): HLS, DASH and progressive streams.
     val media3 = "1.4.1"
     implementation("androidx.media3:media3-exoplayer:$media3")
     implementation("androidx.media3:media3-exoplayer-hls:$media3")
