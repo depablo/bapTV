@@ -322,9 +322,10 @@ object IptvGuide {
         val factory = SAXParserFactory.newInstance()
         factory.isNamespaceAware = false
         runCatching { factory.setFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd", false) }
-        // Limits entity expansion ("billion laughs" in an internal DTD) where the parser supports it.
+        // Limits entity expansion ("billion laughs" in an internal DTD) where the parser supports it – Android's
+        // parser does not, so such a DTD is also refused before parsing ([refuseEntities]).
         runCatching { factory.setFeature(javax.xml.XMLConstants.FEATURE_SECURE_PROCESSING, true) }
-        factory.newSAXParser().parse(input, handler)
+        factory.newSAXParser().parse(refuseEntities(input), handler)
         return matcher.resolve(result.mapValues { (_, list) -> complete(list, fromMs) }.filterValues { it.isNotEmpty() })
     }
 
@@ -375,6 +376,26 @@ object IptvGuide {
     }
 
     /** XMLTV time: `20261031203000 +0100`; without an offset UTC. Read by hand – called for every matched programme. */
+    /**
+     * The stream unchanged, after a look at its start: entities can be declared only in the DTD before the root
+     * element, and XMLTV never needs them – a file declaring any, or with no `<tv` root in the first
+     * [PROLOG_BYTES], is refused.
+     */
+    fun refuseEntities(input: InputStream): InputStream {
+        val head = ByteArray(PROLOG_BYTES)
+        var n = 0
+        while (n < head.size) {
+            val read = input.read(head, n, head.size - n)
+            if (read < 0) break
+            n += read
+        }
+        val start = String(head, 0, n, Charsets.ISO_8859_1)
+        val root = start.indexOf("<tv")
+        if (root < 0 && n == head.size) throw IOException("no <tv> element in the first ${PROLOG_BYTES / 1024} KB – not XMLTV")
+        if (start.substring(0, if (root < 0) n else root).contains("<!ENTITY")) throw IOException("XMLTV declares entities – refused")
+        return java.io.SequenceInputStream(java.io.ByteArrayInputStream(head, 0, n), input)
+    }
+
     fun parseTime(value: String): Long? {
         val v = value.trim()
         val length = v.indexOfFirst { !it.isDigit() }.let { if (it < 0) v.length else it }
@@ -435,6 +456,7 @@ object IptvGuide {
     /** Length of the last programme of a channel when the file gives no end. */
     private const val DEFAULT_LENGTH_MS = 3600_000L
     private const val MAX_TEXT = 4000
+    private const val PROLOG_BYTES = 64 * 1024
     private const val MAX_SHORT_DESCRIPTION = 250
     private const val BATCH = 400
     private const val MAX_BATCH_BYTES = 256 * 1024L

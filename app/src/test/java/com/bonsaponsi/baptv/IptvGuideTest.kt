@@ -139,4 +139,17 @@ class IptvGuideTest {
         assertTrue(IptvGuide.isStale(day, successMs = 0, triedMs = day - IptvGuide.RETRY_AFTER_MS))
         assertFalse(IptvGuide.isStale(day, successMs = day - 3600_000L, triedMs = 0))
     }
+
+    @Test
+    fun entityDeclarationsAreRefused() {
+        val laughs = """<?xml version="1.0"?>
+            <!DOCTYPE tv [<!ENTITY a "aaaaaaaaaa"><!ENTITY b "&a;&a;&a;&a;&a;&a;&a;&a;&a;&a;">]>
+            <tv><programme start="20261106200000 +0100" channel="X"><title>&b;</title></programme></tv>"""
+        val matcher = IptvGuide.Matcher(listOf(IptvGuide.Matcher.Target(1, "X", "X")))
+        val error = runCatching { IptvGuide.parse(laughs.byteInputStream(), matcher, 0, Long.MAX_VALUE) }.exceptionOrNull()
+        assertTrue(error is java.io.IOException)
+        // An ordinary DTD reference is fine.
+        val plain = """<?xml version="1.0"?><!DOCTYPE tv SYSTEM "xmltv.dtd"><tv></tv>"""
+        assertTrue(IptvGuide.parse(plain.byteInputStream(), matcher, 0, Long.MAX_VALUE).isEmpty())
+    }
 }
