@@ -2440,8 +2440,11 @@ class MainActivity : Activity() {
             onPlayerEvent("onDisconnected $inputId")
             // Some dtvinput versions drop the live session when a background recording fails –
             // tune the same channel again once per channel change instead of leaving a black screen.
+            // Not through tuneTo(): it would move tunedAt and the retune would repeat. Not during a scan either –
+            // it holds the only tuner.
             val channel = channels.getOrNull(currentIndex)
-            if (started && playingRecording == null && channel != null && retunedAfterDisconnect != tunedAt) {
+            if (started && playingRecording == null && channel != null && retunedAfterDisconnect != tunedAt &&
+                (channel.iptv || !ScanSession.running)) {
                 retunedAfterDisconnect = tunedAt
                 DebugLog.log("Player", "session lost – tuning ${channel.number} \"${channel.name}\" again")
                 // The live pause buffer went away with the session.
