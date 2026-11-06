@@ -310,6 +310,9 @@
     <string name="colour_keys_not_now">Not now</string>
     <string name="menu_phone_remote">Phone remote</string>
     <string name="phone_remote_title">Phone remote</string>
+    <string name="phone_remote_address_changed">The set-top box has a new network address: %1$s. A phone remote opened in the browser (bookmark or home-screen icon) still points at the old one – scan the new code on that phone. The bapTV app on an Android phone finds the box by itself.</string>
+    <string name="phone_remote_show_code">Show the code</string>
+    <string name="phone_remote_later">Later</string>
     <string name="phone_remote_code">\n\nCode for a remote added to the phone\'s home screen: %1$s</string>
     <string name="phone_remote_qr_message">The phone must be connected to the same network (Wi-Fi) as this set-top box – not to mobile data. Scan the code with the phone\'s camera: the remote opens in its browser, no app to install.</string>
     <string name="phone_remote_pair">Pair another phone</string>

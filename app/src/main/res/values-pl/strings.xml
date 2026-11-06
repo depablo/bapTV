@@ -317,6 +317,9 @@
     <string name="colour_keys_not_now">Nie teraz</string>
     <string name="menu_phone_remote">Pilot w telefonie</string>
     <string name="phone_remote_title">Pilot w telefonie</string>
+    <string name="phone_remote_address_changed">Dekoder ma nowy adres w sieci: %1$s. Pilot otwarty w przeglądarce telefonu (zakładka albo ikona na ekranie głównym) wskazuje jeszcze stary – zeskanuj na tym telefonie nowy kod. Aplikacja bapTV na telefonie z Androidem znajdzie dekoder sama.</string>
+    <string name="phone_remote_show_code">Pokaż kod</string>
+    <string name="phone_remote_later">Później</string>
     <string name="phone_remote_code">\n\nKod dla pilota dodanego do ekranu głównego telefonu: %1$s</string>
     <string name="phone_remote_qr_message">Telefon musi być połączony z tą samą siecią (Wi-Fi) co dekoder – nie z danymi komórkowymi. Zeskanuj kod aparatem telefonu: pilot otworzy się w przeglądarce, bez instalowania aplikacji.</string>
     <string name="phone_remote_pair">Sparuj kolejny telefon</string>

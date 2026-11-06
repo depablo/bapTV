@@ -397,6 +397,31 @@ class MainActivity : Activity() {
         }, TIP_DELAY_MS)
         // New release on GitHub: checked at most once a day, a while after the picture appears.
         handler.postDelayed({ if (started) checkForUpdate(manual = false) }, UPDATE_CHECK_DELAY_MS)
+        handler.postDelayed({ if (started) { if (pendingRemoteAddress != null) showRemoteAddressChange() else checkRemoteAddress() } }, REMOTE_ADDRESS_DELAY_MS)
+    }
+
+    /** The box got a new network address: paired browser remotes point at the old one – a new QR code fixes it. */
+    private fun checkRemoteAddress() {
+        io.execute {
+            val address = PhoneRemote.takeAddressChange(this) ?: return@execute
+            DebugLog.log("Remote", "network address changed to $address – telling the user")
+            postIfActive { pendingRemoteAddress = address; showRemoteAddressChange() }
+        }
+    }
+
+    /** New address not shown yet – another window is on screen; shown once the player is free again. */
+    private var pendingRemoteAddress: String? = null
+
+    private fun showRemoteAddressChange() {
+        val address = pendingRemoteAddress ?: return
+        if (!started) return
+        if (menu.visible || !hasWindowFocus()) {
+            handler.postDelayed({ showRemoteAddressChange() }, REMOTE_ADDRESS_DELAY_MS)
+            return
+        }
+        pendingRemoteAddress = null
+        TvDialog.confirm(this, getString(R.string.phone_remote_title), getString(R.string.phone_remote_address_changed, address),
+            getString(R.string.phone_remote_show_code), getString(R.string.phone_remote_later)) { showPhoneRemoteQr(null) }
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -2487,6 +2512,8 @@ class MainActivity : Activity() {
         private const val FILTER_IPTV = -3
         private const val REPORT_PROMPT_DELAY_MS = 1500L
         private const val UPDATE_CHECK_DELAY_MS = 20_000L
+        /** After the tip of the day (and before the update check), so they do not meet. */
+        private const val REMOTE_ADDRESS_DELAY_MS = 12_000L
         private const val WHATS_NEW_DELAY_MS = 3000L
         /** After "What's new" and the crash report offer, so they do not meet. */
         private const val TIP_DELAY_MS = 8000L

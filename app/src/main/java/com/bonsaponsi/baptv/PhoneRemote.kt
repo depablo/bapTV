@@ -22,6 +22,7 @@ object PhoneRemote {
     private const val PREFS = "phone_remote"
     private const val KEY_ENABLED = "enabled"
     private const val KEY_DEVICES = "devices"
+    private const val KEY_ADDRESS = "address"
     private const val PAIRING_TTL_MS = 10 * 60_000L
     private const val SHORT_CODE_LENGTH = 6
     private const val MAX_WRONG_ATTEMPTS = 5
@@ -96,6 +97,21 @@ object PhoneRemote {
         shortCode = null
     }
 
+    /**
+     * The set-top box's new network address when it differs from the one the phones were paired at (null otherwise),
+     * remembered from now on. A browser remote is bound to the old address (bookmark, home-screen icon, cookie);
+     * the Android app finds the box by itself. Network queries – not on the main thread.
+     */
+    fun takeAddressChange(context: Context): String? {
+        if (!isEnabled(context) || devices(context).isEmpty()) return null
+        val now = Diagnostics.localAddresses().firstOrNull() ?: return null
+        val old = prefs(context).getString(KEY_ADDRESS, null)
+        if (old == now) return null
+        prefs(context).edit().putString(KEY_ADDRESS, now).apply()
+        // Pairings from before this check knew no address – nothing to compare with yet.
+        return old?.let { now }
+    }
+
     /** A new one-time link for the QR code, or null when the device has no network address. */
     fun pairingLink(): String? {
         val address = Diagnostics.localAddresses().firstOrNull() ?: return null
@@ -145,6 +161,7 @@ object PhoneRemote {
         // Bounded: each pairing adds an entry; beyond the limit the phone used longest ago has to pair again.
         val devices = devices(context) + Device(name, sha256(token), System.currentTimeMillis())
         saveDevices(context, devices.sortedByDescending { it.lastUsedMs }.take(MAX_DEVICES))
+        Diagnostics.localAddresses().firstOrNull()?.let { prefs(context).edit().putString(KEY_ADDRESS, it).apply() }
         DebugLog.log("Remote", "phone paired: $name")
         handler.post { onPaired?.invoke(name) }
         return token
