@@ -19,6 +19,11 @@ object Iptv {
     /** Display numbers of internet channels start here, after the broadcast ones. */
     private const val FIRST_NUMBER = 1001
 
+    /** Placeholder groups of public playlists ("Undefined" in iptv-org) – no group at all. */
+    private val PLACEHOLDER_GROUPS = setOf("undefined", "uncategorized", "uncategorised", "none", "n/a", "-")
+
+    fun cleanGroup(group: String): String = group.trim().takeUnless { it.lowercase() in PLACEHOLDER_GROUPS }.orEmpty()
+
     /** One stream: from a playlist entry, or stored with a channel. */
     data class Stream(
         val name: String,
@@ -41,7 +46,7 @@ object Iptv {
 
         companion object {
             fun fromJson(o: JSONObject) = Stream(
-                o.optString("name"), o.getString("url"), o.optString("group"), o.optString("logo"), o.optString("tvgId"),
+                o.optString("name"), o.getString("url"), cleanGroup(o.optString("group")), o.optString("logo"), o.optString("tvgId"),
                 o.optString("userAgent").ifEmpty { null }, o.optString("referrer").ifEmpty { null }, o.optBoolean("drm"),
                 o.optString("source"),
             )
@@ -227,12 +232,12 @@ object Iptv {
                 line.startsWith("#EXTINF") -> {
                     name = commaTitle(line)
                     info = attributes(line.removeSuffix(name))
-                    group = info["group-title"].orEmpty()
+                    group = cleanGroup(info["group-title"].orEmpty())
                     userAgent = info["http-user-agent"]
                     referrer = info["http-referrer"]
                     drm = false
                 }
-                line.startsWith("#EXTGRP:") -> if (group.isEmpty()) group = line.substringAfter(':').trim()
+                line.startsWith("#EXTGRP:") -> if (group.isEmpty()) group = cleanGroup(line.substringAfter(':'))
                 line.startsWith("#EXTVLCOPT:") -> {
                     val (key, value) = line.substringAfter(':').split('=', limit = 2).let { it[0].trim() to it.getOrElse(1) { "" }.trim() }
                     when (key) {

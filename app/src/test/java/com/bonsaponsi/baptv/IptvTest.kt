@@ -61,4 +61,17 @@ class IptvTest {
         // An address without #EXTINF is named after itself.
         assertEquals("https://example.com/no-extinf.m3u8", streams[2].name)
     }
+
+    @Test
+    fun placeholderGroupIsDropped() {
+        val playlist = Iptv.parseM3u(
+            """
+            #EXTM3U
+            #EXTINF:-1 group-title="Undefined",TVP Info
+            https://example.com/info.m3u8
+            """.trimIndent(),
+        )
+        assertEquals("", playlist.streams.single().group)
+        assertEquals("News", Iptv.cleanGroup(" News "))
+    }
 }
