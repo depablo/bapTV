@@ -1,0 +1,1 @@
+Dekodery bez stosu Google TV (np. Sagemcom): bapTV wybiera tuner dekodera zamiast zainstalowanej aplikacji TV, prosi o dostęp do listy programów przed kreatorem tunera i pokazuje kanały znalezione przez kreator.

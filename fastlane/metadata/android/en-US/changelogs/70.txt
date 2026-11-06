@@ -1,0 +1,1 @@
+Set-top boxes without the Google TV stack (e.g. Sagemcom): bapTV picks the box's own tuner instead of an installed TV app, asks for the TV listings permission before the tuner's setup wizard, and shows the channels the wizard found.

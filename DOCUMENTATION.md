@@ -60,6 +60,12 @@ What works depends on the tuner input. At startup the app detects the device cap
 If the tuner input has its own setup wizard, the channel search screen can open it (see
 [Channel scan](#11-channel-scan)).
 
+Which input is the tuner: the Google DTV input (`dtvinput`) if present, otherwise a TUNER-type input
+of the device itself (bound to tuner hardware or from a system app), and only then one from an installed
+app. Before opening another input's wizard the app asks for `READ_TV_LISTINGS` – without it Android shows
+the app only its own channels. Channels are skipped as hidden when `BROWSABLE` is 0, unless no channel of
+the input is browsable (no system TV app manages the flag).
+
 The Diagnostics report (section "Device capabilities") shows what was detected: the tuner input,
 whether the Google DTV stack is present, whether tuner statistics are available, whether the input
 has a setup wizard, whether its channels are visible in `TvContract`, whether stream analysis is
