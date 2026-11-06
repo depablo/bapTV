@@ -1,0 +1,1 @@
+"Watch from the start" (blue button on TVP): the broadcaster's player looks like bapTV, starts at the programme start and seeks correctly, ⏯ works, "Live" returns to the antenna picture. Holding BACK leaves any HbbTV app; the TV sound comes back afterwards.

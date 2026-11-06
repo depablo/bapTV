@@ -26,6 +26,7 @@ object Tour {
         65 to listOf(R.string.whats_new_phone_remote),
         66 to listOf(R.string.whats_new_phone_checks, R.string.whats_new_qr_pairing),
         67 to listOf(R.string.whats_new_phone_import, R.string.whats_new_phone_manage),
+        69 to listOf(R.string.whats_new_start_over),
     )
 
     /** [image] – name of the screenshot in [Illustrations]. */

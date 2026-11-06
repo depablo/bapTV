@@ -1,0 +1,1 @@
+„Oglądaj od początku” (niebieski przycisk na TVP): odtwarzacz nadawcy wygląda jak bapTV, startuje od początku audycji i poprawnie przewija, działa ⏯, „Na żywo” wraca do obrazu z anteny. Przytrzymanie BACK zamyka każdą aplikację HbbTV; dźwięk TV wraca.

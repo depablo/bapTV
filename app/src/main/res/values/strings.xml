@@ -395,6 +395,7 @@
     <string name="whats_new_phone_import">On the phone a new playlist is shown first: check its channels, select the working ones and add only those. The picture can go full screen.</string>
     <string name="whats_new_phone_manage">On the phone Menu → Manage channels: reorder, hide, rename and remove. The phone also checks for updates by itself.</string>
     <string name="whats_new_tips">“Did you know?” tips about lesser-known features, now and then at start (Menu → Settings → Tips at start).</string>
+    <string name="whats_new_start_over">“Watch from the start” under the blue button (e.g. TVP): the broadcaster\'s player now looks like bapTV, ⏯ works, “Live” returns to the antenna picture, and holding BACK leaves the app.</string>
 
     <!-- "Did you know?" tips (Tips). -->
     <string name="tip_title">Did you know?</string>

@@ -401,6 +401,7 @@
     <string name="whats_new_phone_import">Na telefonie nowa lista kanałów najpierw się pokazuje: sprawdź kanały, zaznacz działające i dodaj tylko je. Obraz można powiększyć na cały ekran.</string>
     <string name="whats_new_phone_manage">Na telefonie Menu → Zarządzaj kanałami: przesuwanie, ukrywanie, zmiana nazwy i usuwanie. Telefon sam sprawdza też aktualizacje.</string>
     <string name="whats_new_tips">Ciekawostki „Czy wiesz, że…?” o mniej znanych funkcjach, od czasu do czasu przy starcie (Menu → Ustawienia → Ciekawostki przy starcie).</string>
+    <string name="whats_new_start_over">„Oglądaj od początku” pod niebieskim przyciskiem (np. TVP): odtwarzacz nadawcy wygląda jak bapTV, działa ⏯, „Na żywo” wraca do obrazu z anteny, a przytrzymanie BACK zamyka aplikację.</string>
 
     <!-- "Did you know?" tips (Tips). -->
     <string name="tip_title">Czy wiesz, że…?</string>
