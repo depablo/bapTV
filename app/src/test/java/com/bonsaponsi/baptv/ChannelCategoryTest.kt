@@ -31,6 +31,7 @@ class ChannelCategoryTest {
         assertEquals(ENTERTAINMENT, ChannelCategory.guess("VOX HD"))
         assertEquals(NEWS, ChannelCategory.guess("Polskie Radio 24"))
         assertEquals(EDUCATION, ChannelCategory.guess("Crime+Investigation"))
+        assertEquals(ENTERTAINMENT, ChannelCategory.guess("Dance Moms"))
     }
 
     @Test
