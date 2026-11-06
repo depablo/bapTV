@@ -48,12 +48,7 @@ class PhoneRemoteServer(private val context: Context, val port: Int) {
         DebugLog.log("Remote", "phone remote server stopped")
     }
 
-    private class Response(val status: String, val type: String, val body: ByteArray, val headers: Map<String, String> = emptyMap()) {
-        constructor(status: String, type: String, body: String, headers: Map<String, String> = emptyMap()) :
-            this(status, type, body.toByteArray(Charsets.UTF_8), headers)
-    }
-
-    private fun json(value: Any, status: String = "200 OK") = Response(status, JSON, value.toString())
+    private fun json(value: Any, status: String = "200 OK") = HttpResponse(status, JSON, value.toString())
 
     private fun error(status: String, message: String) = json(JSONObject().put("error", message), status)
 
@@ -73,12 +68,12 @@ class PhoneRemoteServer(private val context: Context, val port: Int) {
         val request = try {
             HttpRequest.read(input) ?: return
         } catch (e: HttpRequest.BadRequest) {
-            send(out, Response("400 Bad Request", TEXT, e.message.orEmpty()))
+            HttpResponse("400 Bad Request", TEXT, e.message.orEmpty()).writeTo(out)
             return
         }
         val response = when {
-            !ServerAccess.hostAllowed(request.headers["host"]) -> Response("403 Forbidden", TEXT, "Connect using the IP address.\n")
-            ServerAccess.crossSite(request.headers) -> Response("403 Forbidden", TEXT, "Cross-site request rejected.\n")
+            !ServerAccess.hostAllowed(request.headers["host"]) -> HttpResponse("403 Forbidden", TEXT, "Connect using the IP address.\n")
+            ServerAccess.crossSite(request.headers) -> HttpResponse("403 Forbidden", TEXT, "Cross-site request rejected.\n")
             else -> try {
                 route(request, input)
             } catch (e: BadBody) {
@@ -88,7 +83,7 @@ class PhoneRemoteServer(private val context: Context, val port: Int) {
                 error("500 Internal Server Error", e.toString())
             }
         }
-        send(out, response)
+        response.writeTo(out)
     }
 
     private class BadBody(message: String) : Exception(message)
@@ -115,9 +110,9 @@ class PhoneRemoteServer(private val context: Context, val port: Int) {
         throw BadBody("expected a JSON list of streams")
     }
 
-    private fun route(request: HttpRequest, input: java.io.InputStream): Response {
+    private fun route(request: HttpRequest, input: java.io.InputStream): HttpResponse {
         when (request.method to request.path) {
-            "GET" to "/" -> return Response("200 OK", HTML, context.assets.open("remote.html").use { it.readBytes() })
+            "GET" to "/" -> return HttpResponse("200 OK", HTML, context.assets.open("remote.html").use { it.readBytes() })
             "GET" to "/pair" -> return pair(request)
             "GET" to "/whoami" -> {
                 val nonce = request.query["nonce"].orEmpty()
@@ -127,8 +122,8 @@ class PhoneRemoteServer(private val context: Context, val port: Int) {
             // Home-screen shortcut (fetched without cookies, so before the pairing check). Without HTTPS – which a
             // set-top box in a home network cannot offer – browsers do not install it as an app: Android opens the
             // shortcut in a browser tab, iOS as a standalone web app with its own cookies (paired with the short code).
-            "GET" to "/manifest.webmanifest" -> return Response("200 OK", "application/manifest+json", manifest(request).toString().toByteArray())
-            "GET" to "/icon.png" -> return Response("200 OK", "image/png", context.assets.open("remote-icon.png").use { it.readBytes() })
+            "GET" to "/manifest.webmanifest" -> return HttpResponse("200 OK", "application/manifest+json", manifest(request).toString().toByteArray())
+            "GET" to "/icon.png" -> return HttpResponse("200 OK", "image/png", context.assets.open("remote-icon.png").use { it.readBytes() })
         }
         if (!PhoneRemote.isPaired(context, cookie(request))) return error("401 Unauthorized", "not paired")
         return when (request.method to request.path) {
@@ -242,7 +237,7 @@ class PhoneRemoteServer(private val context: Context, val port: Int) {
         request.query["id"]?.toLongOrNull()?.let { id -> channels.firstOrNull { it.id == id } }
 
     /** Applies a change to the channel organisation, refreshes the TV screens and returns the new list. */
-    private fun manage(request: HttpRequest, change: (ChannelStore, List<Channel>) -> Unit): Response {
+    private fun manage(request: HttpRequest, change: (ChannelStore, List<Channel>) -> Unit): HttpResponse {
         val channels = ChannelRepository(context).loadChannels(Dtv.findTunerInput(context)?.id, includeHidden = true)
         change(ChannelStore(context), channels)
         DebugLog.log("Remote", "channel organisation changed from the phone: ${request.path}")
@@ -264,12 +259,12 @@ class PhoneRemoteServer(private val context: Context, val port: Int) {
     }
 
     /** Pairing from the QR code: a valid code sets the device cookie; either way back to the page, which shows the result. */
-    private fun pair(request: HttpRequest): Response {
+    private fun pair(request: HttpRequest): HttpResponse {
         val token = PhoneRemote.pair(context, request.query["code"], deviceName(request.headers["user-agent"]))
         DebugLog.log("Remote", "pairing attempt: ${if (token != null) "accepted" else "rejected"}")
         val headers = if (token == null) mapOf("Location" to "/?pair=failed")
         else mapOf("Location" to "/", "Set-Cookie" to "$COOKIE=$token; Path=/; Max-Age=$COOKIE_MAX_AGE; HttpOnly; SameSite=Lax")
-        return Response("303 See Other", TEXT, "", headers)
+        return HttpResponse("303 See Other", TEXT, "", headers)
     }
 
     private fun cookie(request: HttpRequest): String? = request.headers["cookie"]?.split(';')?.map { it.trim() }
@@ -298,7 +293,7 @@ class PhoneRemoteServer(private val context: Context, val port: Int) {
     }
 
     /** A playlist from an address (fetched here – the phone's browser may not reach it across origins) or uploaded as the body. */
-    private fun loadPlaylist(url: String?, request: HttpRequest, input: java.io.InputStream): Response {
+    private fun loadPlaylist(url: String?, request: HttpRequest, input: java.io.InputStream): HttpResponse {
         val text = if (url.isNullOrBlank()) body(request, input, MAX_PLAYLIST) else {
             if (!url.startsWith("http://") && !url.startsWith("https://")) return error("400 Bad Request", "address must start with http:// or https://")
             try {
@@ -345,7 +340,7 @@ class PhoneRemoteServer(private val context: Context, val port: Int) {
         .put("category", c.category)
 
     /** A key as if pressed on the remote: injected into the app's focused window (dialogs too), otherwise to the activity. */
-    private fun key(name: String?): Response {
+    private fun key(name: String?): HttpResponse {
         val code = name?.let { KEYS[it] } ?: return error("400 Bad Request", "unknown key")
         val activity = App.resumed?.get() ?: return error("409 Conflict", "app not on screen")
         try {
@@ -360,7 +355,7 @@ class PhoneRemoteServer(private val context: Context, val port: Int) {
         return json(JSONObject().put("ok", true))
     }
 
-    private fun tune(id: Long?): Response {
+    private fun tune(id: Long?): HttpResponse {
         id ?: return error("400 Bad Request", "missing id")
         val tune = PlayerRemote.tune ?: return error("409 Conflict", "player not running")
         return if (onMain { tune(id) } == true) json(JSONObject().put("ok", true)) else error("409 Conflict", "cannot tune now")
@@ -368,15 +363,6 @@ class PhoneRemoteServer(private val context: Context, val port: Int) {
 
     private fun <T> onMain(block: () -> T): T? = MainThread.call(block = block)
 
-    private fun send(out: OutputStream, r: Response) {
-        val extra = r.headers.entries.joinToString("") { "${it.key}: ${it.value}\r\n" }
-        out.write(
-            ("HTTP/1.1 ${r.status}\r\nContent-Type: ${r.type}\r\nContent-Length: ${r.body.size}\r\n$extra" +
-                "Cache-Control: no-store\r\nConnection: close\r\n\r\n").toByteArray(Charsets.UTF_8)
-        )
-        out.write(r.body)
-        out.flush()
-    }
 
     companion object {
         /** Parallel connections – a few phones polling the state need far fewer. */

@@ -42,13 +42,7 @@ class DebugHttpServer(private val context: Context, val port: Int = DEFAULT_PORT
         DebugLog.log("Http", "server stopped")
     }
 
-    /** [file] – body streamed from a file (recordings are gigabytes), in which case [body] is empty. */
-    private class Response(val status: String, val type: String, val body: ByteArray, val headers: Map<String, String> = emptyMap(), val file: java.io.File? = null) {
-        constructor(status: String, type: String, body: String, headers: Map<String, String> = emptyMap()) :
-            this(status, type, body.toByteArray(Charsets.UTF_8), headers)
-    }
-
-    private fun text(body: String, status: String = "200 OK") = Response(status, TEXT, body)
+    private fun text(body: String, status: String = "200 OK") = HttpResponse(status, TEXT, body)
 
     /**
      * Handles one connection. Every exception stays here: an idle connection (timeout),
@@ -72,14 +66,14 @@ class DebugHttpServer(private val context: Context, val port: Int = DEFAULT_PORT
         val request = try {
             HttpRequest.read(input) ?: return
         } catch (e: HttpRequest.BadRequest) {
-            send(out, text(e.message.orEmpty(), "400 Bad Request"))
+            text(e.message.orEmpty(), "400 Bad Request").writeTo(out)
             return
         }
         // Frequent polling of /status and /log.txt is not logged, to keep the log clean.
         if (request.path !in QUIET_PATHS) DebugLog.log("Http", "${s.inetAddress.hostAddress} ${request.method} ${request.path}")
         refusal(request)?.let { (status, why) ->
             DebugLog.warn("Http", "rejected ${request.method} ${request.path} from ${s.inetAddress.hostAddress}: $why")
-            send(out, text("$why\n", status))
+            text("$why\n", status).writeTo(out)
             return
         }
         val response = try {
@@ -93,7 +87,7 @@ class DebugHttpServer(private val context: Context, val port: Int = DEFAULT_PORT
             DebugLog.error("Http", "error handling ${request.method} ${request.path}", e)
             text("Error: $e\n", "500 Internal Server Error")
         }
-        send(out, withTokenCookie(request, response))
+        withTokenCookie(request, response).writeTo(out)
     }
 
     /** Reason for rejecting the request (HTTP status, description) or null – see [ServerAccess]. */
@@ -110,31 +104,31 @@ class DebugHttpServer(private val context: Context, val port: Int = DEFAULT_PORT
     }
 
     /** A token given in the URL is stored in a cookie, so links on the page (e.g. recording downloads) keep working. */
-    private fun withTokenCookie(request: HttpRequest, response: Response): Response {
+    private fun withTokenCookie(request: HttpRequest, response: HttpResponse): HttpResponse {
         val token = request.query["token"] ?: return response
         if (!ServerAccess.tokenOk(context, emptyMap(), mapOf("token" to token))) return response
-        return Response(response.status, response.type, response.body,
+        return HttpResponse(response.status, response.type, response.body,
             response.headers + ("Set-Cookie" to "${ServerAccess.COOKIE}=$token; Path=/; HttpOnly; SameSite=Strict"), response.file)
     }
 
-    private fun route(request: HttpRequest, input: InputStream, out: OutputStream): Response {
+    private fun route(request: HttpRequest, input: InputStream, out: OutputStream): HttpResponse {
         RECORDING_FILE.matchEntire(request.path)?.takeIf { request.method == "GET" }?.let { m ->
             val entry = Recorder.list(context).firstOrNull { it.id == m.groupValues[1].toLong() }
             val file = entry?.file?.takeIf { it.exists() } ?: return text("No such recording\n", "404 Not Found")
             val name = "${entry.channelName}_${entry.title}".replace(Regex("[^\\p{L}\\p{N}._-]+"), "_").take(80) + ".ts"
-            return Response("200 OK", "video/mp2t", ByteArray(0),
+            return HttpResponse("200 OK", "video/mp2t", ByteArray(0),
                 mapOf("Content-Disposition" to "attachment; filename*=UTF-8''" + java.net.URLEncoder.encode(name, "UTF-8").replace("+", "%20")), file)
         }
         return routeExact(request, input, out)
     }
 
-    private fun routeExact(request: HttpRequest, input: InputStream, out: OutputStream): Response = when (request.method to request.path) {
-        "GET" to "/" -> Response("200 OK", HTML, indexPage())
+    private fun routeExact(request: HttpRequest, input: InputStream, out: OutputStream): HttpResponse = when (request.method to request.path) {
+        "GET" to "/" -> HttpResponse("200 OK", HTML, indexPage())
         "GET" to "/report.txt" -> text(Diagnostics(context).build())
         "GET" to "/log.txt" -> logText(request)
-        "GET" to "/log" -> Response("200 OK", HTML, livePage())
+        "GET" to "/log" -> HttpResponse("200 OK", HTML, livePage())
         "GET" to "/logcat.txt" -> text(Diagnostics.ownLogcat(request.query["lines"]?.toIntOrNull() ?: 2000))
-        "GET" to "/status" -> Response("200 OK", JSON, status().toString(2))
+        "GET" to "/status" -> HttpResponse("200 OK", JSON, status().toString(2))
         "POST" to "/install" -> install(request, input, out)
         "POST" to "/launch" -> text(SelfUpdater.launch(context) + "\n")
         "POST" to "/probe" -> text(
@@ -175,12 +169,12 @@ class DebugHttpServer(private val context: Context, val port: Int = DEFAULT_PORT
                 }
             }
         }
-        "GET" to "/timeshift" -> Response("200 OK", JSON, (onMain { PlayerRemote.timeshiftState?.invoke() } ?: JSONObject().put("error", "player not running")).toString(2))
+        "GET" to "/timeshift" -> HttpResponse("200 OK", JSON, (onMain { PlayerRemote.timeshiftState?.invoke() } ?: JSONObject().put("error", "player not running")).toString(2))
         "POST" to "/timeshift" -> {
             val f = PlayerRemote.timeshift ?: return text("Player not running\n", "409 Conflict")
             text((onMain { f(request.query["action"].orEmpty(), request.query["arg"]) } ?: "no response") + "\n")
         }
-        "GET" to "/tvchannels" -> Response("200 OK", JSON, DebugTvTools.dump(context, request.query["input"]).toString(1))
+        "GET" to "/tvchannels" -> HttpResponse("200 OK", JSON, DebugTvTools.dump(context, request.query["input"]).toString(1))
         "POST" to "/tvchannels/delete" -> text(DebugTvTools.delete(context, request.query["id"]?.toLongOrNull(), request.query["input"]) + "\n")
         "POST" to "/tvchannels/update" -> {
             val id = request.query["id"]?.toLongOrNull() ?: return text("Specify ?id=<channel id>&column=value…\n", "400 Bad Request")
@@ -198,8 +192,8 @@ class DebugHttpServer(private val context: Context, val port: Int = DEFAULT_PORT
             val f = PlayerRemote.publish ?: return text("Player not running\n", "409 Conflict")
             text((onMain { f() } ?: "no response") + "\n")
         }
-        "GET" to "/recordings" -> if (request.query["format"] == "html") Response("200 OK", HTML, recordingsPage())
-            else Response("200 OK", JSON, Recorder.json(context).toString(2))
+        "GET" to "/recordings" -> if (request.query["format"] == "html") HttpResponse("200 OK", HTML, recordingsPage())
+            else HttpResponse("200 OK", JSON, Recorder.json(context).toString(2))
         "POST" to "/recordings" -> {
             val action = request.query["action"].orEmpty()
             if (action == "delete") text(if (Recorder.delete(context, request.query["id"]?.toLongOrNull() ?: -1)) "OK\n" else "Not deleted\n")
@@ -210,7 +204,7 @@ class DebugHttpServer(private val context: Context, val port: Int = DEFAULT_PORT
                 text((onMain { f(action, request.query["id"]) } ?: "no response") + "\n")
             }
         }
-        "GET" to "/capabilities" -> Response("200 OK", "application/json; charset=utf-8",
+        "GET" to "/capabilities" -> HttpResponse("200 OK", "application/json; charset=utf-8",
             DeviceCapabilities.refresh(context).toJson().toString(2).toByteArray())
         "POST" to "/open" -> {
             val target = when (request.query["screen"]) {
@@ -224,7 +218,7 @@ class DebugHttpServer(private val context: Context, val port: Int = DEFAULT_PORT
             runCatching { context.startActivity(android.content.Intent(context, target).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)) }
                 .fold({ text("Opened ${target.simpleName}\n") }, { text("Error: $it\n", "500 Internal Server Error") })
         }
-        "GET" to "/hbbtv" -> Response("200 OK", JSON, JSONObject()
+        "GET" to "/hbbtv" -> HttpResponse("200 OK", JSON, JSONObject()
             .put("enabled", HbbTvStore(context).enabled)
             .put("browser", onMain { PlayerRemote.hbb?.state() } ?: JSONObject.NULL)
             .put("channels", org.json.JSONArray().apply { HbbTvStore(context).all().forEach { put(it.toJson()) } })
@@ -237,8 +231,8 @@ class DebugHttpServer(private val context: Context, val port: Int = DEFAULT_PORT
             latch.await(10, java.util.concurrent.TimeUnit.SECONDS)
             text((result ?: "no result within 10 s") + "\n")
         }
-        "GET" to "/signal" -> Response("200 OK", HTML, context.assets.open("signal.html").use { it.readBytes() })
-        "GET" to "/signal.json" -> Response("200 OK", JSON, SignalMonitor.poll(context).toString())
+        "GET" to "/signal" -> HttpResponse("200 OK", HTML, context.assets.open("signal.html").use { it.readBytes() })
+        "GET" to "/signal.json" -> HttpResponse("200 OK", JSON, SignalMonitor.poll(context).toString())
         "POST" to "/signal/cycle" -> text(SignalMonitor.startCycle(context) + "\n")
         "POST" to "/signal/stop" -> text(SignalMonitor.stopCycle() + "\n")
         "POST" to "/signal/probe" -> {
@@ -262,21 +256,21 @@ class DebugHttpServer(private val context: Context, val port: Int = DEFAULT_PORT
             val f = request.query["freq"]?.toDoubleOrNull() ?: return text("Specify ?freq=<MHz>\n", "400 Bad Request")
             text(SignalMonitor.tuneMultiplex(context, f) + "\n")
         }
-        "GET" to "/channels" -> Response("200 OK", JSON, channelsJson().toString(2))
-        "GET" to "/iptv/guide" -> Response("200 OK", JSON, guideJson().toString(2))
+        "GET" to "/channels" -> HttpResponse("200 OK", JSON, channelsJson().toString(2))
+        "GET" to "/iptv/guide" -> HttpResponse("200 OK", JSON, guideJson().toString(2))
         "POST" to "/iptv/guide" -> {
             // ?add=<url> and/or ?remove=<url>, then a refresh in this request (may take a minute for a big file).
             request.query["add"]?.let { IptvGuide.addSources(context, listOf(it)) }
             request.query["remove"]?.let { IptvGuide.removeSource(context, it) }
             IptvGuide.refresh(context)
-            Response("200 OK", JSON, guideJson().toString(2))
+            HttpResponse("200 OK", JSON, guideJson().toString(2))
         }
         "GET" to "/epg" -> {
             val id = request.query["channel"]?.toLongOrNull() ?: return text("Specify ?channel=<id>\n", "400 Bad Request")
             val channel = ChannelRepository(context).loadChannels(Dtv.findTunerInput(context)?.id).firstOrNull { it.id == id }
                 ?: return text("Unknown channel $id\n", "404 Not Found")
             val list = ChannelRepository(context).programmes(channel)
-            Response("200 OK", JSON, org.json.JSONArray().apply {
+            HttpResponse("200 OK", JSON, org.json.JSONArray().apply {
                 list.forEach { p ->
                     put(JSONObject().put("start", p.startMs).put("end", p.endMs).put("title", p.title)
                         .put("genre", context.genreLabel(p.genre) ?: JSONObject.NULL).put("description", p.description))
@@ -286,10 +280,10 @@ class DebugHttpServer(private val context: Context, val port: Int = DEFAULT_PORT
         "GET" to "/screenshot.png" -> {
             val service = InstallClickService.instance
                 ?: return text("Screenshot requires the accessibility service to be enabled\n", "503 Service Unavailable")
-            service.screenshot()?.let { Response("200 OK", "image/png", it) } ?: text("Screenshot failed\n", "500 Internal Server Error")
+            service.screenshot()?.let { HttpResponse("200 OK", "image/png", it) } ?: text("Screenshot failed\n", "500 Internal Server Error")
         }
         "GET" to "/probe.ts" -> TsProbe.probeFile(context).let { f ->
-            if (f.exists()) Response("200 OK", "video/mp2t", f.readBytes()) else text("No recording – run POST /probe first\n", "404 Not Found")
+            if (f.exists()) HttpResponse("200 OK", "video/mp2t", f.readBytes()) else text("No recording – run POST /probe first\n", "404 Not Found")
         }
         "POST" to "/debug/no-tuner" -> {
             // Testing the internet-only mode on a device that has a tuner; takes effect after a restart.
@@ -305,12 +299,12 @@ class DebugHttpServer(private val context: Context, val port: Int = DEFAULT_PORT
     }
 
     /** Log: all of it (no parameters) or incrementally from `since`, detecting a process restart via `boot`. */
-    private fun logText(request: HttpRequest): Response {
+    private fun logText(request: HttpRequest): HttpResponse {
         val since = request.query["since"]?.toLongOrNull()
             ?: return text(DebugLog.snapshot().joinToString("\n"))
         val slice = DebugLog.since(since, request.query["boot"]?.toLongOrNull())
         val body = if (slice.lines.isEmpty()) "" else slice.lines.joinToString("\n", postfix = "\n")
-        return Response(
+        return HttpResponse(
             "200 OK", TEXT, body,
             mapOf("X-Log-Next" to slice.next.toString(), "X-Log-Boot" to DebugLog.bootId.toString()),
         )
@@ -318,7 +312,7 @@ class DebugHttpServer(private val context: Context, val port: Int = DEFAULT_PORT
 
     /** One installation at a time – parallel uploads would write to the same file. */
     @Synchronized
-    private fun install(request: HttpRequest, input: InputStream, out: OutputStream): Response {
+    private fun install(request: HttpRequest, input: InputStream, out: OutputStream): HttpResponse {
         val length = request.contentLength ?: return text("Missing Content-Length header\n", "411 Length Required")
         if (length <= 0 || length > MAX_APK_BYTES) return text("Invalid size: $length\n", "413 Payload Too Large")
         // For large files curl waits for “100 Continue” before sending the body.
@@ -390,18 +384,9 @@ class DebugHttpServer(private val context: Context, val port: Int = DEFAULT_PORT
             .put("lastInstall", SelfUpdater.lastResult(context) ?: JSONObject.NULL)
     }
 
-    private fun send(out: OutputStream, r: Response) {
-        val extra = r.headers.entries.joinToString("") { "${it.key}: ${it.value}\r\n" }
-        out.write(
-            ("HTTP/1.1 ${r.status}\r\nContent-Type: ${r.type}\r\nContent-Length: ${r.file?.length() ?: r.body.size}\r\n$extra" +
-                "Cache-Control: no-store\r\nConnection: close\r\n\r\n").toByteArray(Charsets.UTF_8)
-        )
-        if (r.file != null) r.file.inputStream().use { it.copyTo(out, 256 * 1024) } else out.write(r.body)
-        out.flush()
-    }
 
     /** Scheduling test without the TV guide: ?channel=<id>&start=<ms>&end=<ms>&title=… */
-    private fun scheduleRecording(request: HttpRequest): Response {
+    private fun scheduleRecording(request: HttpRequest): HttpResponse {
         val input = DeviceCapabilities.get(context).inputId ?: return text("No tuner input\n", "409 Conflict")
         val channelId = request.query["channel"]?.toLongOrNull() ?: return text("Specify channel=<id>\n", "400 Bad Request")
         val channel = ChannelRepository(context).loadChannels(input, includeHidden = true).firstOrNull { it.id == channelId }
@@ -465,6 +450,25 @@ class DebugHttpServer(private val context: Context, val port: Int = DEFAULT_PORT
 
         /** One server per process – kept alive by [DebugServerService]. */
         @Volatile var instance: DebugHttpServer? = null
+    }
+}
+
+/**
+ * HTTP/1.1 response of both servers, sent with `Connection: close`. [file] – body streamed from a file
+ * (recordings are gigabytes), in which case [body] is empty.
+ */
+class HttpResponse(val status: String, val type: String, val body: ByteArray, val headers: Map<String, String> = emptyMap(), val file: java.io.File? = null) {
+    constructor(status: String, type: String, body: String, headers: Map<String, String> = emptyMap()) :
+        this(status, type, body.toByteArray(Charsets.UTF_8), headers)
+
+    fun writeTo(out: OutputStream) {
+        val extra = headers.entries.joinToString("") { "${it.key}: ${it.value}\r\n" }
+        out.write(
+            ("HTTP/1.1 $status\r\nContent-Type: $type\r\nContent-Length: ${file?.length() ?: body.size}\r\n$extra" +
+                "Cache-Control: no-store\r\nConnection: close\r\n\r\n").toByteArray(Charsets.UTF_8)
+        )
+        if (file != null) file.inputStream().use { it.copyTo(out, 256 * 1024) } else out.write(body)
+        out.flush()
     }
 }
 
