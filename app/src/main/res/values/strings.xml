@@ -433,8 +433,8 @@
     <string name="import_add">Add selected (%1$d)</string>
     <string name="import_add_none">Select channels to add</string>
     <string name="import_known">already added</string>
-    <string name="import_summary">%1$d channels in the playlist, %2$d already added.</string>
-    <string name="import_checked">Checked %1$d, %2$d work.</string>
+    <string name="import_summary">Channels in the playlist: %1$d, already added: %2$d.</string>
+    <string name="import_checked">Checked: %1$d, working: %2$d.</string>
     <string name="import_checking">Checking %1$d of %2$d… (over this phone\'s connection)</string>
     <string name="phone_manage_hint">Drag ≡ to move a channel. Hidden channels stay here but are left out of the list.</string>
     <string name="phone_manage_move">Move</string>
@@ -467,9 +467,9 @@
     <!-- Phone remote (RemoteActivity, PilotActivity). -->
     <string name="phone_remote">Remote</string>
     <string name="phone_check_one">Check channel</string>
-    <string name="phone_check_running">Checking %1$d channels…</string>
-    <string name="phone_check_done">Checked %1$d: %2$d work, %3$d with a problem. Checked over this phone\'s connection, not the set-top box\'s.</string>
-    <string name="phone_check_limit">Only the first %1$d of %2$d channels were checked.</string>
+    <string name="phone_check_running">Checking channels: %1$d…</string>
+    <string name="phone_check_done">Checked: %1$d, working: %2$d, with a problem: %3$d. Checked over this phone\'s connection, not the set-top box\'s.</string>
+    <string name="phone_check_limit">Channels checked: only the first %1$d of %2$d.</string>
     <string name="phone_check_failed">The check could not be run.</string>
     <string name="phone_check_row">%1$s · checked %2$s</string>
     <string name="phone_check_ok">works</string>
