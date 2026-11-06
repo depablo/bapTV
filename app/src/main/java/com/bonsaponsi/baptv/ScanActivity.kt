@@ -4,6 +4,7 @@ import android.app.Activity
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -218,15 +219,25 @@ class ScanActivity : Activity() {
         }
     }
 
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        if (requestCode != REQUEST_LISTINGS) return
+        DebugLog.log("Scan", "permission result: ${permissions.zip(grantResults.toList())}")
+        // Also when refused: the wizard can still scan, only its channels stay invisible to the app.
+        openSystemSetup()
+    }
+
     private fun onSetupResult(requestCode: Int, resultCode: Int, data: Intent?, caps: DeviceCapabilities, channels: Int) {
-        DebugLog.log("Scan", "returned from setup wizard: requestCode=$requestCode resultCode=$resultCode data=$data, input channels=$channels")
+        val listings = Dtv.listingsPermission(this)
+        val listingsGranted = checkSelfPermission(listings) == PackageManager.PERMISSION_GRANTED
+        DebugLog.log("Scan", "returned from setup wizard: requestCode=$requestCode resultCode=$resultCode data=$data, input channels=$channels, $listings=$listingsGranted")
         if (channels > 0) {
             statusText.text = getString(R.string.scan_setup_channels, channels)
             findViewById<Button>(R.id.scan_close).requestFocus()
             handler.postDelayed({ if (!isFinishing) finish() }, CONTINUE_DELAY_MS)
             return
         }
-        val message = getString(R.string.scan_setup_no_channels, resultCode)
+        val message = getString(R.string.scan_setup_no_channels, resultCode) +
+            if (listingsGranted) "" else "\n" + getString(R.string.scan_listings_denied)
         // dtvinput may hide its channels from TvContract (searchable=0, CBS.R11) – then the player finds them by probing.
         // On a dtvinput that rejects in-app scans (CBS.U14) channels from the wizard were visible, so 0 really means none.
         if (caps.channelDiscovery && !caps.scanRejected) {
@@ -244,7 +255,18 @@ class ScanActivity : Activity() {
     private fun openSystemSetup() {
         handler.removeCallbacks(openWizard)
         wizardPending = false
+        // Without READ_TV_LISTINGS (dangerous) TvProvider shows only the app's own channels – the wizard's channels
+        // would be counted as 0 afterwards (Android 9 boxes without dtvinput). Asked for once, before the wizard;
+        // dtvinput's own channels are visible with READ_EPG_DATA.
         val input = Dtv.findTunerInput(this)
+        val listings = Dtv.listingsPermission(this)
+        if (input != null && input.serviceInfo.packageName != Dtv.DTV_INPUT_PACKAGE && listings != Dtv.PERMISSION_READ_EPG &&
+            !listingsAsked && checkSelfPermission(listings) != PackageManager.PERMISSION_GRANTED) {
+            listingsAsked = true
+            DebugLog.log("Scan", "requesting $listings before the setup wizard")
+            requestPermissions(arrayOf(listings), REQUEST_LISTINGS)
+            return
+        }
         val setupIntent = input?.createSetupIntent()
         DebugLog.log("Scan", "system setup wizard: input=${input?.id}, intent=$setupIntent")
         if (setupIntent == null) {
@@ -270,6 +292,9 @@ class ScanActivity : Activity() {
     private var isResumedNow = false
     private var wizardPending = false
 
+    /** READ_TV_LISTINGS asked for on this screen – not again when the wizard is opened a second time. */
+    private var listingsAsked = false
+
     override fun onResume() {
         super.onResume()
         isResumedNow = true
@@ -286,6 +311,7 @@ class ScanActivity : Activity() {
 
     companion object {
         private const val REQUEST_SETUP = 1
+        private const val REQUEST_LISTINGS = 2
         private const val CONTINUE_DELAY_MS = 3000L
         const val PREFS = "scan"
 

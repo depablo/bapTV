@@ -81,6 +81,7 @@
     <string name="scan_no_setup">The tuner has no setup wizard.</string>
     <string name="scan_setup_channels">Channels found by the wizard: %1$d – back to the player.</string>
     <string name="scan_setup_no_channels">No channels after the wizard (result code %1$d).</string>
+    <string name="scan_listings_denied">Without the permission to read TV listings bapTV cannot see the channels found by the wizard – allow it in the app settings and search again.</string>
     <string name="scan_setup_discover">No channels are listed yet – if the wizard found any, the player will find them now.</string>
     <string name="scan_opening_setup">Opening “System wizard” in %1$d s…</string>
     <string name="scan_mode_wizard_rejected">The tuner on this device rejects channel searches started by other apps, so bapTV uses the device\'s own wizard. Choose “System wizard” and come back to the app when it finishes.</string>
