@@ -24,6 +24,8 @@ object PhoneRemote {
     private const val KEY_DEVICES = "devices"
     private const val KEY_ADDRESS = "address"
     private const val PAIRING_TTL_MS = 10 * 60_000L
+    /** Time to answer a pairing request on the TV. */
+    private const val APPROVAL_TTL_MS = 60_000L
     private const val SHORT_CODE_LENGTH = 6
     private const val MAX_WRONG_ATTEMPTS = 5
     private const val MAX_DEVICES = 20
@@ -157,6 +159,11 @@ object PhoneRemote {
         }
         pairingCode = null
         shortCode = null
+        return addDevice(context, name)
+    }
+
+    /** Registers a phone that proved itself (code or confirmation on the TV); returns its new token. */
+    private fun addDevice(context: Context, name: String): String {
         val token = randomHex(16)
         // Bounded: each pairing adds an entry; beyond the limit the phone used longest ago has to pair again.
         val devices = devices(context) + Device(name, sha256(token), System.currentTimeMillis())
@@ -165,6 +172,59 @@ object PhoneRemote {
         DebugLog.log("Remote", "phone paired: $name")
         handler.post { onPaired?.invoke(name) }
         return token
+    }
+
+    enum class ApprovalState { WAITING, ACCEPTED, REJECTED, EXPIRED }
+
+    /** A phone app's request to pair, answered on the TV with the remote. [id] is known only to that phone. */
+    private class Approval(val id: String, val name: String, val expiresMs: Long) {
+        var state = ApprovalState.WAITING
+        var token: String? = null
+    }
+
+    private var approval: Approval? = null
+
+    /**
+     * Asks on the TV whether to pair the phone [name]; set by the player while it is on screen. The answer goes to
+     * the callback; one that comes after [APPROVAL_TTL_MS] is ignored.
+     */
+    @Volatile var onApprovalRequest: ((name: String, ttlMs: Long, answer: (Boolean) -> Unit) -> Unit)? = null
+
+    /**
+     * Pairing without a code: the request is shown on the TV and someone in front of it accepts it. One request at a
+     * time, so a device on the network cannot pile questions up on the screen. Returns the request ID the phone
+     * asks [approvalStatus] with, or null when no question can be shown now (player not on screen, one pending).
+     */
+    @Synchronized
+    fun requestApproval(context: Context, name: String): String? {
+        val ask = onApprovalRequest ?: return null
+        val now = SystemClock.elapsedRealtime()
+        approval?.let { if (it.state == ApprovalState.WAITING && now < it.expiresMs) return null }
+        val request = Approval(randomHex(16), name, now + APPROVAL_TTL_MS)
+        approval = request
+        DebugLog.log("Remote", "pairing request from \"$name\" – asking on the TV")
+        val app = context.applicationContext
+        handler.post { ask(name, APPROVAL_TTL_MS) { accept -> answer(app, request, accept) } }
+        return request.id
+    }
+
+    @Synchronized
+    private fun answer(context: Context, request: Approval, accept: Boolean) {
+        if (approval !== request || request.state != ApprovalState.WAITING) return
+        if (SystemClock.elapsedRealtime() > request.expiresMs) { request.state = ApprovalState.EXPIRED; return }
+        DebugLog.log("Remote", "pairing request from \"${request.name}\" ${if (accept) "accepted" else "rejected"} on the TV")
+        if (accept) request.token = addDevice(context, request.name)
+        request.state = if (accept) ApprovalState.ACCEPTED else ApprovalState.REJECTED
+    }
+
+    /** State of the request [id]; the token is handed out once, with ACCEPTED. */
+    @Synchronized
+    fun approvalStatus(id: String): Pair<ApprovalState, String?> {
+        val request = approval?.takeIf { MessageDigest.isEqual(it.id.toByteArray(), id.toByteArray()) }
+            ?: return ApprovalState.EXPIRED to null
+        if (request.state == ApprovalState.WAITING && SystemClock.elapsedRealtime() > request.expiresMs) request.state = ApprovalState.EXPIRED
+        if (request.state != ApprovalState.WAITING) approval = null
+        return request.state to request.token
     }
 
     @Synchronized

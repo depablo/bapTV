@@ -369,6 +369,7 @@ class MainActivity : Activity() {
         audio.start()
         Recorder.listeners += recorderListener
         RecordingScheduler.player = schedulerPlayer
+        PhoneRemote.onApprovalRequest = approvalRequest
         ScanSession.addListener(scanListener)
         // The tips stop with the screen (onStop); the banner may still be up, e.g. during a background scan.
         if (setupBanner.visibility == View.VISIBLE) setupTips.start()
@@ -398,6 +399,19 @@ class MainActivity : Activity() {
         // New release on GitHub: checked at most once a day, a while after the picture appears.
         handler.postDelayed({ if (started) checkForUpdate(manual = false) }, UPDATE_CHECK_DELAY_MS)
         handler.postDelayed({ if (started) { if (pendingRemoteAddress != null) showRemoteAddressChange() else checkRemoteAddress() } }, REMOTE_ADDRESS_DELAY_MS)
+    }
+
+    /** A phone app asks to pair without a code: the answer is given here, with the remote. Rejecting is focused. */
+    private val approvalRequest: (String, Long, (Boolean) -> Unit) -> Unit = { name, ttlMs, answer ->
+        if (started) {
+            val dialog = TvDialog.confirm(this, getString(R.string.phone_remote_approve_title), getString(R.string.phone_remote_approve_message, name),
+                getString(R.string.phone_remote_approve), getString(R.string.phone_remote_reject), focusCancel = true,
+                onClose = { answer(false) }) {
+                answer(true)
+                TvDialog.toast(this, getString(R.string.phone_remote_paired, name), long = true)
+            }
+            handler.postDelayed({ if (dialog.isShowing) dialog.dismiss() }, ttlMs)
+        } else answer(false)
     }
 
     /** The box got a new network address: paired browser remotes point at the old one – a new QR code fixes it. */
@@ -492,6 +506,7 @@ class MainActivity : Activity() {
         // activity alive after onDestroy.
         setupTips.stop()
         if (RecordingScheduler.player === schedulerPlayer) RecordingScheduler.player = null
+        if (PhoneRemote.onApprovalRequest === approvalRequest) PhoneRemote.onApprovalRequest = null
         prober?.cancel("activity stopped")
         if (keepSession) {
             DebugLog.log("Player", "onStop – live pause continues, tuner kept (app screen)")

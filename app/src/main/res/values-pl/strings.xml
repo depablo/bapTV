@@ -317,6 +317,10 @@
     <string name="colour_keys_not_now">Nie teraz</string>
     <string name="menu_phone_remote">Pilot w telefonie</string>
     <string name="phone_remote_title">Pilot w telefonie</string>
+    <string name="phone_remote_approve_title">Sparować telefon?</string>
+    <string name="phone_remote_approve_message">„%1$s” chce sterować tym dekoderem. Sparuj tylko wtedy, gdy to Twój telefon i prośba właśnie z niego wyszła.</string>
+    <string name="phone_remote_approve">Sparuj</string>
+    <string name="phone_remote_reject">Odrzuć</string>
     <string name="phone_remote_address_changed">Dekoder ma nowy adres w sieci: %1$s. Pilot otwarty w przeglądarce telefonu (zakładka albo ikona na ekranie głównym) wskazuje jeszcze stary – zeskanuj na tym telefonie nowy kod. Aplikacja bapTV na telefonie z Androidem znajdzie dekoder sama.</string>
     <string name="phone_remote_show_code">Pokaż kod</string>
     <string name="phone_remote_later">Później</string>
@@ -491,7 +495,7 @@
     <string name="phone_check_drm">DRM</string>
     <string name="phone_check_error">błąd</string>
     <string name="remote_searching">Szukam dekoderów bapTV w tej sieci Wi-Fi…</string>
-    <string name="remote_pick">Wybierz dekoder. Nowy poprosi o kod z ekranu telewizora (Menu → Ustawienia → Pilot w telefonie).</string>
+    <string name="remote_pick">Wybierz dekoder. Nowy poprosi o potwierdzenie na telewizorze albo o kod z jego ekranu (Menu → Ustawienia → Pilot w telefonie).</string>
     <string name="remote_discovery_failed">Nie można przeszukać sieci. Sprawdź, czy telefon jest w tej samej sieci Wi-Fi co dekoder.</string>
     <string name="remote_empty">Brak dekoderów. Otwórz Pilot w telefonie na dekoderze i wróć tutaj.</string>
     <string name="remote_not_found">Tego dekodera jeszcze nie widziano w sieci.</string>
@@ -504,6 +508,9 @@
     <string name="remote_camera_denied">Do skanowania potrzebny jest aparat. Wpisz kod z telewizora.</string>
     <string name="remote_pair">Paruj</string>
     <string name="remote_pair_failed">Kod jest błędny albo wygasł. Sprawdź kod na telewizorze.</string>
+    <string name="remote_confirm_message">Zaakceptuj parowanie na ekranie telewizora pilotem dekodera.</string>
+    <string name="remote_enter_code">Wpisz kod</string>
+    <string name="remote_pair_rejected">Parowanie nie zostało zaakceptowane na telewizorze.</string>
     <string name="remote_not_paired_any">Ten dekoder nie jest jeszcze sparowany.</string>
     <string name="remote_pairing_lost">Dekoder nie przyjmuje już tego telefonu. Sparuj go ponownie.</string>
     <string name="remote_unreachable">%1$s nie odpowiada. Otwórz bapTV na telewizorze i spróbuj ponownie.</string>

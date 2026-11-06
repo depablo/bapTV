@@ -310,6 +310,10 @@
     <string name="colour_keys_not_now">Not now</string>
     <string name="menu_phone_remote">Phone remote</string>
     <string name="phone_remote_title">Phone remote</string>
+    <string name="phone_remote_approve_title">Pair a phone?</string>
+    <string name="phone_remote_approve_message">“%1$s” wants to control this set-top box. Pair it only if it is your phone and you have just asked for it.</string>
+    <string name="phone_remote_approve">Pair</string>
+    <string name="phone_remote_reject">Reject</string>
     <string name="phone_remote_address_changed">The set-top box has a new network address: %1$s. A phone remote opened in the browser (bookmark or home-screen icon) still points at the old one – scan the new code on that phone. The bapTV app on an Android phone finds the box by itself.</string>
     <string name="phone_remote_show_code">Show the code</string>
     <string name="phone_remote_later">Later</string>
@@ -485,7 +489,7 @@
     <string name="phone_check_drm">DRM</string>
     <string name="phone_check_error">error</string>
     <string name="remote_searching">Looking for bapTV boxes on this Wi-Fi network…</string>
-    <string name="remote_pick">Choose a box. A new one asks for the code shown on its screen (Menu → Settings → Phone remote).</string>
+    <string name="remote_pick">Choose a box. A new one asks you to accept the pairing on the TV, or for the code shown on its screen (Menu → Settings → Phone remote).</string>
     <string name="remote_discovery_failed">Cannot search the network. Check that the phone is on the same Wi-Fi as the box.</string>
     <string name="remote_empty">No boxes yet. Open Phone remote on the box, then come back here.</string>
     <string name="remote_not_found">This box has not been seen on the network yet.</string>
@@ -498,6 +502,9 @@
     <string name="remote_camera_denied">The camera is needed to scan the code. Type the code from the TV instead.</string>
     <string name="remote_pair">Pair</string>
     <string name="remote_pair_failed">The code is wrong or has expired. Check the code on the TV.</string>
+    <string name="remote_confirm_message">Accept the pairing on the TV screen with its remote.</string>
+    <string name="remote_enter_code">Enter the code</string>
+    <string name="remote_pair_rejected">The pairing was not accepted on the TV.</string>
     <string name="remote_not_paired_any">This box is not paired yet.</string>
     <string name="remote_pairing_lost">The box no longer accepts this phone. Pair it again.</string>
     <string name="remote_unreachable">%1$s does not answer. Open bapTV on the TV and try again.</string>

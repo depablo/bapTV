@@ -114,6 +114,17 @@ class PhoneRemoteServer(private val context: Context, val port: Int) {
         when (request.method to request.path) {
             "GET" to "/" -> return HttpResponse("200 OK", HTML, context.assets.open("remote.html").use { it.readBytes() })
             "GET" to "/pair" -> return pair(request)
+            // The phone app's pairing without a code: the question appears on the TV, the phone asks for the answer.
+            "POST" to "/pair/request" -> {
+                val name = request.query["name"]?.filter { !it.isISOControl() }?.trim()?.take(MAX_NAME)?.ifEmpty { null }
+                    ?: deviceName(request.headers["user-agent"])
+                val id = PhoneRemote.requestApproval(context, name) ?: return error("409 Conflict", "cannot ask on the TV now")
+                return json(JSONObject().put("id", id))
+            }
+            "GET" to "/pair/status" -> {
+                val (state, token) = PhoneRemote.approvalStatus(request.query["id"].orEmpty())
+                return json(JSONObject().put("state", state.name.lowercase()).apply { token?.let { put("token", it) } })
+            }
             "GET" to "/whoami" -> {
                 val nonce = request.query["nonce"].orEmpty()
                 if (!NONCE.matches(nonce)) return error("400 Bad Request", "bad nonce")

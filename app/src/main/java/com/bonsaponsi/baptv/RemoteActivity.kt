@@ -193,7 +193,52 @@ class RemoteActivity : Activity() {
             Toast.makeText(this, R.string.remote_not_found, Toast.LENGTH_LONG).show()
             return
         }
-        askForCode(tv)
+        pairOnTv(tv)
+    }
+
+    /**
+     * Pairing confirmed on the TV with its remote: the box shows the question, this phone waits for the answer. When
+     * the box cannot ask (older bapTV, player not on screen, another request pending) – the code, as before.
+     */
+    private fun pairOnTv(tv: PhoneRemoteTvs.Tv) {
+        val host = tv.host ?: return
+        val cancelled = java.util.concurrent.atomic.AtomicBoolean(false)
+        val dialog = AlertDialog.Builder(this)
+            .setTitle(getString(R.string.remote_code_title, tv.name))
+            .setMessage(R.string.remote_confirm_message)
+            .setNeutralButton(R.string.remote_enter_code) { _, _ -> cancelled.set(true); askForCode(tv) }
+            .setNegativeButton(R.string.phone_cancel) { _, _ -> cancelled.set(true) }
+            .setOnCancelListener { cancelled.set(true) }
+            .show()
+        // The user waits here while answering on the TV – a touch beside the dialog must not end it.
+        dialog.setCanceledOnTouchOutside(false)
+        // Polling for up to a minute – on its own thread, not the shared worker.
+        BackgroundWorker.start("pair-on-tv") {
+            val id = try {
+                requestApproval(host, tv.port, android.os.Build.MODEL)
+            } catch (e: java.io.IOException) {
+                DebugLog.warn("RemoteActivity", "pairing request failed", e)
+                null
+            }
+            if (id == null) {
+                handler.post { if (!cancelled.get() && !isDestroyed) { dialog.dismiss(); askForCode(tv) } }
+                return@start
+            }
+            val deadline = System.currentTimeMillis() + APPROVAL_WAIT_MS
+            while (!cancelled.get() && System.currentTimeMillis() < deadline) {
+                Thread.sleep(APPROVAL_POLL_MS)
+                val (state, token) = try { approvalStatus(host, tv.port, id) } catch (e: java.io.IOException) { continue }
+                if (state == "waiting") continue
+                handler.post {
+                    if (cancelled.get() || isDestroyed) return@post
+                    dialog.dismiss()
+                    if (state == "accepted" && token != null) paired(tv, host, token)
+                    else Toast.makeText(this, R.string.remote_pair_rejected, Toast.LENGTH_LONG).show()
+                }
+                return@start
+            }
+            handler.post { if (!cancelled.get() && !isDestroyed) { dialog.dismiss(); Toast.makeText(this, R.string.remote_pair_rejected, Toast.LENGTH_LONG).show() } }
+        }
     }
 
     private fun askForCode(tv: PhoneRemoteTvs.Tv) {
@@ -271,15 +316,16 @@ class RemoteActivity : Activity() {
             }
             handler.post {
                 if (isDestroyed) return@post
-                if (token == null) {
-                    Toast.makeText(this, R.string.remote_pair_failed, Toast.LENGTH_LONG).show()
-                } else {
-                    tvs.remember(tv.id, tv.name, host, tv.port, token)
-                    applyList()
-                    startActivity(PilotActivity.intent(this, PhoneRemoteTvs.Tv(tv.id, tv.name, host, tv.port, token)))
-                }
+                if (token == null) Toast.makeText(this, R.string.remote_pair_failed, Toast.LENGTH_LONG).show()
+                else paired(tv, host, token)
             }
         }
+    }
+
+    private fun paired(tv: PhoneRemoteTvs.Tv, host: String, token: String) {
+        tvs.remember(tv.id, tv.name, host, tv.port, token)
+        applyList()
+        startActivity(PilotActivity.intent(this, PhoneRemoteTvs.Tv(tv.id, tv.name, host, tv.port, token)))
     }
 
     private inner class Adapter : BaseAdapter() {
@@ -312,6 +358,9 @@ class RemoteActivity : Activity() {
 
     companion object {
         private const val REQUEST_CAMERA = 2
+        /** A little longer than the box keeps the question on screen. */
+        private const val APPROVAL_WAIT_MS = 65_000L
+        private const val APPROVAL_POLL_MS = 1_000L
 
         /** Reads `http://<host>:<port>/pair?code=<6 digits>` (what the TV's QR code holds); null for anything else. */
         fun parsePairingLink(text: String): PairingLink? {
@@ -330,6 +379,36 @@ class RemoteActivity : Activity() {
          * Asks the box for a token with the code on its screen. The box answers 303 with a cookie when the code is
          * right, and without one when it is not. Returns the token, or null.
          */
+        /** Asks the box to show the pairing question; the request ID, or null when it cannot (409, older box: 404). */
+        fun requestApproval(host: String, port: Int, name: String): String? {
+            val query = URLEncoder.encode(name, "UTF-8")
+            val connection = URL("http://$host:$port/pair/request?name=$query").openConnection() as HttpURLConnection
+            try {
+                connection.requestMethod = "POST"
+                connection.connectTimeout = 5_000
+                connection.readTimeout = 5_000
+                if (connection.responseCode != 200) return null
+                val body = connection.inputStream.use { with(Iptv) { it.readNBytesCompat(4096) } }.decodeToString()
+                return org.json.JSONObject(body).optString("id").ifEmpty { null }
+            } finally {
+                connection.disconnect()
+            }
+        }
+
+        /** "waiting", "accepted" (with the token), "rejected" or "expired". */
+        fun approvalStatus(host: String, port: Int, id: String): Pair<String, String?> {
+            val connection = URL("http://$host:$port/pair/status?id=${URLEncoder.encode(id, "UTF-8")}").openConnection() as HttpURLConnection
+            try {
+                connection.connectTimeout = 5_000
+                connection.readTimeout = 5_000
+                if (connection.responseCode != 200) return "expired" to null
+                val json = org.json.JSONObject(connection.inputStream.use { with(Iptv) { it.readNBytesCompat(4096) } }.decodeToString())
+                return json.optString("state", "expired") to json.optString("token").ifEmpty { null }
+            } finally {
+                connection.disconnect()
+            }
+        }
+
         fun requestToken(host: String, port: Int, code: String): String? {
             val query = URLEncoder.encode(code, "UTF-8")
             val connection = URL("http://$host:$port/pair?code=$query").openConnection() as HttpURLConnection
