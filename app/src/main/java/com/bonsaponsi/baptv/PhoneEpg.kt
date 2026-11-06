@@ -65,7 +65,7 @@ class PhoneEpg(context: Context) {
 
     /**
      * Downloads every source and matches its programmes to the streams. A source that fails keeps the programmes
-     * it gave before. Without channels the sources are dropped too. Runs on the worker; returns how many channels
+     * it gave before; one that matches no channel is dropped. Without channels the sources are dropped too. Runs on the worker; returns how many channels
      * have a guide.
      */
     fun refresh(streams: List<Iptv.Stream>): Int = synchronized(refreshLock) {
@@ -80,6 +80,8 @@ class PhoneEpg(context: Context) {
         val matcher = IptvGuide.Matcher(streams.mapIndexed { i, s -> IptvGuide.Matcher.Target(i.toLong(), s.name, s.tvgId) })
         val found = HashMap<String, List<Programme>>()
         var failed = false
+        // Read fine but matched none of the channels: its playlist's channels are gone – the source goes too.
+        val unused = HashSet<String>()
         for (source in sources) {
             try {
                 val byIndex = IptvGuide.download(source) { IptvGuide.parse(it, matcher, now - KEEP_PAST_MS, now + KEEP_AHEAD_MS) }
@@ -90,6 +92,7 @@ class PhoneEpg(context: Context) {
                     if (found[url].isNullOrEmpty()) found[url] = list.map { it.copy(description = "") }
                 }
                 DebugLog.log("PhoneEpg", "$source: guide for ${byIndex.size} channels")
+                if (byIndex.isEmpty()) unused += source
             } catch (e: Exception) {
                 failed = true
                 DebugLog.warn("PhoneEpg", "guide from $source failed", e)
@@ -98,7 +101,8 @@ class PhoneEpg(context: Context) {
         // Only a full success moves the refresh time; a failed source is tried again after [IptvGuide.RETRY_AFTER_MS].
         val urls = streams.mapTo(HashSet()) { it.url }
         // Sources added during the download are kept (they are read at the next refresh).
-        update { g -> Guide(if (failed) g.atMs else now, now, g.sources, (if (failed) g.programmes + found else found).filterKeys { it in urls }) }
+        if (unused.isNotEmpty()) DebugLog.log("PhoneEpg", "dropping sources with no matching channel: ${unused.joinToString()}")
+        update { g -> Guide(if (failed) g.atMs else now, now, g.sources - unused, (if (failed) g.programmes + found else found).filterKeys { it in urls }) }
         return found.size
     }
 
