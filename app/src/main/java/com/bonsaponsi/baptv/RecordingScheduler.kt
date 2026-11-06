@@ -30,6 +30,8 @@ object RecordingScheduler {
     const val END_LATE_MS = 5 * 60_000L
     /** Warning in the player before a recording starts. */
     const val WARN_BEFORE_MS = 60_000L
+    /** How often a recording due during a channel scan checks whether the scan has ended. */
+    private const val SCAN_WAIT_MS = 30_000L
 
     /**
      * The on-screen player ([MainActivity]): the pre-start warning and the channel switch.
@@ -156,6 +158,13 @@ object RecordingScheduler {
                 player?.onRecordingUpcoming(entry)
             }
             ACTION_START -> {
+                // A channel scan holds the tuner for a few minutes and retuning would break it: the recording waits
+                // for its end, as long as the programme is still on.
+                if (ScanSession.running && System.currentTimeMillis() + SCAN_WAIT_MS < (entry.stopAtMs ?: entry.startMs)) {
+                    DebugLog.log(TAG, "channel scan running – \"${entry.title}\" starts after it (next try in ${SCAN_WAIT_MS / 1000} s)")
+                    set(context, ACTION_START, id, System.currentTimeMillis() + SCAN_WAIT_MS)
+                    return
+                }
                 DebugLog.log(TAG, "starting scheduled: ${entry.channelNumber} ${entry.channelName} \"${entry.title}\"")
                 RecordingService.start(context)
                 val delay = player?.switchForRecording(entry)?.getOrElse { e ->

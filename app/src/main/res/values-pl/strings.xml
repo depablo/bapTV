@@ -72,6 +72,7 @@
     <string name="scan_tuner_ready">Tuner gotowy, zaczynam szukać…</string>
     <string name="scan_no_response">Tuner nie odpowiada od %1$d s. Spróbuj ponownie albo użyj kreatora systemowego w ustawieniach zaawansowanych.</string>
     <string name="scan_publishing">Trwa publikowanie kanałów w systemie. Uruchom wyszukiwanie ponownie za kilka minut.</string>
+    <string name="scan_recording">Trwa nagrywanie. Uruchom wyszukiwanie po jego zakończeniu albo najpierw zatrzymaj nagrywanie.</string>
     <string name="scan_progress">Szukam kanałów… %1$d%% · znaleziono: %2$d</string>
     <string name="scan_complete">Zakończono. Znaleziono kanałów: %1$d</string>
     <string name="scan_failed">Nie znaleziono kanałów. Sprawdź antenę i spróbuj ponownie.</string>

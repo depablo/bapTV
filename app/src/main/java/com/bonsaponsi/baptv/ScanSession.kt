@@ -144,6 +144,11 @@ object ScanSession {
         app = context.applicationContext
         // A report of an earlier scan must not show up after this one.
         pendingReport = null
+        if (Recorder.active != null) {
+            // Retuning for the scan would cut the recording short.
+            end(Outcome.FAILED, res().getString(R.string.scan_recording))
+            return false
+        }
         if (ChannelPublisher.active) {
             // Publishing sends its own requests to InstallerService – a scan would break both.
             end(Outcome.FAILED, res().getString(R.string.scan_publishing))
