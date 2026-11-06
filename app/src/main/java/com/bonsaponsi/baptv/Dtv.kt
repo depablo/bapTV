@@ -3,6 +3,7 @@ package com.bonsaponsi.baptv
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ApplicationInfo
 import android.media.tv.TvInputInfo
 import android.media.tv.TvInputManager
 
@@ -100,18 +101,28 @@ object Dtv {
     }
 
     /**
-     * Returns the TV input that handles terrestrial TV. The CBS input is preferred,
-     * and if there is none (another manufacturer) – the first TUNER-type input.
+     * Returns the TV input that handles terrestrial TV. The CBS input is preferred; on another manufacturer – a
+     * TUNER-type input of the device itself (bound to tuner hardware, or from a system app) before ones from
+     * installed apps (IPTV players, TIF samples), which come first in the list on some boxes.
      */
     fun findTunerInput(context: Context): TvInputInfo? {
         if (simulateNoTuner(context)) return null
         val manager = context.getSystemService(Context.TV_INPUT_SERVICE) as? TvInputManager ?: return null
         val inputs = manager.tvInputList
-        return inputs.firstOrNull { it.serviceInfo.packageName == DTV_INPUT_PACKAGE }
-            // The app's own internet input ([IptvInputService]) is a TUNER-type input too – never the broadcast tuner.
-            // Matched by class, so a debug build installed next to the release one skips that one's input as well.
-            ?: inputs.firstOrNull { it.type == TvInputInfo.TYPE_TUNER && !it.isPassthroughInput && it.serviceInfo.name != IptvInputService::class.java.name }
+        inputs.firstOrNull { it.serviceInfo.packageName == DTV_INPUT_PACKAGE }?.let { return it }
+        // The app's own internet input ([IptvInputService]) is a TUNER-type input too – never the broadcast tuner.
+        // Matched by class, so a debug build installed next to the release one skips that one's input as well.
+        val tuners = inputs.filter { it.type == TvInputInfo.TYPE_TUNER && !it.isPassthroughInput && it.serviceInfo.name != IptvInputService::class.java.name }
+        return tuners.firstOrNull { isDeviceInput(it) } ?: tuners.firstOrNull()
     }
+
+    /**
+     * The input belongs to the device: the system builds a hardware input's id as "<service>/HW<device id>", and
+     * the manufacturer's inputs come with the system image.
+     */
+    private fun isDeviceInput(input: TvInputInfo): Boolean =
+        input.id.substringAfterLast('/').startsWith("HW") ||
+            (input.serviceInfo.applicationInfo.flags and (ApplicationInfo.FLAG_SYSTEM or ApplicationInfo.FLAG_UPDATED_SYSTEM_APP)) != 0
 
     /** Debug builds only: pretend there is no tuner (POST /debug/no-tuner) to test the internet-only mode. */
     private fun simulateNoTuner(context: Context) =
