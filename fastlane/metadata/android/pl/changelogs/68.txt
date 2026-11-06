@@ -1,0 +1,1 @@
+Osobny plik aplikacji na telefony (baptv-…-phone.apk): zbudowany dla aktualnego Androida, bez części telewizyjnych, więc telefony nie ostrzegają o aplikacji dla starszego Androida. Plik na TV bez zmian; każdy aktualizuje się z własnego pliku.

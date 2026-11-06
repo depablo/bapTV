@@ -1,0 +1,1 @@
+A separate app file for phones (baptv-…-phone.apk): built for current Android, without the TV parts, so phones show no warning about an app built for an older Android. The TV file stays as before; each one updates itself from its own file.
