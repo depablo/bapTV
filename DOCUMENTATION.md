@@ -540,6 +540,13 @@ Details:
   On TVP pages the compatibility layer restyles that player's controls like bapTV's info panel
   (CSS only – if TVP changes its page, its own look comes back), and OK on "NA ŻYWO" closes the app
   so live TV comes from the antenna again, not from TVP's internet stream.
+  TVP's stream keeps only the last 30 min, a window that slides with the clock, and the bar shows
+  that window (not the programme). Their "OD POCZĄTKU" jumps to the window's left edge, where dash.js
+  reports position 0, which their player treats as unknown: empty bar, 00:00:00, and ▶ seeking
+  nowhere. OK on "OD POCZĄTKU" therefore seeks the current video to the programme start taken from
+  their title (at least 15 s inside the window), and playback that falls to the edge (e.g. after a
+  long pause) is moved 15 s back in. A programme that started over 30 min ago can only be rewound to
+  the window start.
 
 ## 11. Channel scan
 

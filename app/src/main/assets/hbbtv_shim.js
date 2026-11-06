@@ -402,11 +402,12 @@
   // state unchanged, the key is applied to the video directly.
   var PLAY_KEYS = { 402: 'toggle', 415: 'play', 19: 'pause' };
   function key(code) {
-    if (code === 13 && tvpLiveButtonFocused()) {
+    if (code === 13 && tvpButtonFocused(/na\s*żywo/i)) {
       log('TVP "NA ŻYWO" – back to the broadcast picture');
       N.destroyApplication();
       return;
     }
+    if (code === 13 && tvpButtonFocused(/od\s*początku/i) && tvpFromStart()) return;
     var mode = PLAY_KEYS[code], v = mode && appVideo(), paused = v && v.paused;
     sendKey(code);
     if (!v) return;
@@ -418,14 +419,43 @@
     }, 400);
   }
 
-  // ---- TVP's start-over player (blue on TVP1) ----
+  // ---- TVP's start-over player (blue on TVP1/TVP2) ----
   // Its "NA ŻYWO" button would go on with TVP's internet stream; live TV comes from the antenna here,
   // so OK on it closes the app instead. Only while the button is on screen (OK on a hidden bar is pause).
   var TVP = /(^|\.)tvp\.pl$/.test(location.hostname);
-  function tvpLiveButtonFocused() {
+  function tvpButtonFocused(label) {
     var b = TVP && document.querySelector('#npvr .buttons button.focus');
-    return !!b && b.offsetParent !== null && /na\s*żywo/i.test(b.textContent);
+    return !!b && b.offsetParent !== null && label.test(b.textContent);
   }
+  // TVP's stream keeps only the last 30 min (a window sliding with the clock; the video's time is
+  // UTC in seconds). Their "OD POCZĄTKU" starts at the window's left edge – not the programme start –
+  // and playback then rides that edge: dash.js reports position 0 in the window, which their player
+  // takes for "unknown" (empty bar, 00:00:00, ▶ seeks to NaN). Instead the current video goes to the
+  // programme start (from their title "| DD.MM.YYYY, HH:MM - HH:MM |"), but at least 15 s into the window.
+  var EDGE_MARGIN = 15;
+  function tvpWindowVideo() {
+    var v = document.querySelector('#npvr #container video');
+    return v && v.seekable.length && v.seekable.start(0) > 1e9 ? v : null;
+  }
+  function tvpFromStart() {
+    var v = tvpWindowVideo();
+    if (!v) return false;
+    var t = document.querySelector('#npvr .info .title');
+    var m = t && t.textContent.match(/(\d{2})\.(\d{2})\.(\d{4}),\s*(\d{1,2}):(\d{2})/);
+    var start = m ? new Date(+m[3], m[2] - 1, +m[1], +m[4], +m[5]).getTime() / 1000 : 0;
+    var target = Math.min(Math.max(start, v.seekable.start(0) + EDGE_MARGIN), v.seekable.end(0));
+    log('TVP "OD POCZĄTKU" – ' + (start >= v.seekable.start(0) + EDGE_MARGIN ? 'programme start' : 'start of the 30 min window'));
+    v.currentTime = target;
+    if (v.paused) v.play().catch(function () {});
+    return true;
+  }
+  // Playback left behind by the window (long pause, or TVP's own jump to the edge) is moved back into it.
+  setInterval(function () {
+    var v = TVP && tvpWindowVideo();
+    if (!v || v.seeking || v.currentTime >= v.seekable.start(0) + 2) return;
+    log('TVP video at the edge of its 30 min window – moving ' + EDGE_MARGIN + ' s in');
+    v.currentTime = v.seekable.start(0) + EDGE_MARGIN;
+  }, 1000);
   // Its controls are restyled like bapTV's info panel. Only appearance – when TVP changes its page,
   // the selectors stop matching and their own look comes back.
   if (TVP) {
