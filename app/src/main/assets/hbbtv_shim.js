@@ -402,6 +402,11 @@
   // state unchanged, the key is applied to the video directly.
   var PLAY_KEYS = { 402: 'toggle', 415: 'play', 19: 'pause' };
   function key(code) {
+    if (code === 13 && tvpLiveButtonFocused()) {
+      log('TVP "NA ŻYWO" – back to the broadcast picture');
+      N.destroyApplication();
+      return;
+    }
     var mode = PLAY_KEYS[code], v = mode && appVideo(), paused = v && v.paused;
     sendKey(code);
     if (!v) return;
@@ -411,6 +416,35 @@
       if (play && v.paused) { log('app ignored the play key – playing its video'); v.play().catch(function (e) { log('play: ' + e); }); }
       else if (!play && !v.paused) { log('app ignored the pause key – pausing its video'); v.pause(); }
     }, 400);
+  }
+
+  // ---- TVP's start-over player (blue on TVP1) ----
+  // Its "NA ŻYWO" button would go on with TVP's internet stream; live TV comes from the antenna here,
+  // so OK on it closes the app instead. Only while the button is on screen (OK on a hidden bar is pause).
+  var TVP = /(^|\.)tvp\.pl$/.test(location.hostname);
+  function tvpLiveButtonFocused() {
+    var b = TVP && document.querySelector('#npvr .buttons button.focus');
+    return !!b && b.offsetParent !== null && /na\s*żywo/i.test(b.textContent);
+  }
+  // Its controls are restyled like bapTV's info panel. Only appearance – when TVP changes its page,
+  // the selectors stop matching and their own look comes back.
+  if (TVP) {
+    var skin = document.createElement('style');
+    skin.textContent = [
+      '#npvr #player .ui, #npvr #player .ui * { font-family: Roboto, "Noto Sans", sans-serif !important; }',
+      '#npvr #player .ui .background { background: rgba(16, 20, 24, 0.9) !important; left: 64px; width: 1152px; top: -142px; bottom: -28px; height: auto; border-radius: 12px; }',
+      '#npvr #player .ui .info { top: 486px; }',
+      '#npvr #player .ui .info .title { font-size: 20px; color: #B0B8C4; }',
+      '#npvr #player .ui .info .subtitle { font-size: 30px; color: #fff; }',
+      '#npvr #player .ui .progress { height: 4px; border-radius: 2px; background: rgba(255, 255, 255, 0.2); }',
+      '#npvr #player .ui .progress-bar { background: #3D8BFD; border-radius: 2px; }',
+      // Their play/pause dot does not follow the remote's play/pause key – left out, as in bapTV's bar.
+      '#npvr #player .ui .progress-bar .icon { display: none; }',
+      '#npvr #player .ui .times { color: #B0B8C4; font-size: 20px; }',
+      '#npvr #player .ui .buttons button { background: rgba(255, 255, 255, 0.08); color: #fff; border-radius: 8px; font-size: 17px; }',
+      '#npvr #player .ui .buttons button.focus { background: #3D8BFD; color: #fff; }'
+    ].join('\n');
+    (document.head || document.documentElement).appendChild(skin);
   }
 
   window.__dvbtHbb = {

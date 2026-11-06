@@ -537,6 +537,9 @@ Details:
   20 s after a channel switch, and only within TVP's daily schedule; the colour keys work only while
   it is shown. Blue opens `…/apps/manager/epg/npvr/live/T1D` (TVP1): the last ~30 min of the live
   stream, with "OD POCZĄTKU" (from the programme start), "NA ŻYWO" and arrows seeking by 10 s.
+  On TVP pages the compatibility layer restyles that player's controls like bapTV's info panel
+  (CSS only – if TVP changes its page, its own look comes back), and OK on "NA ŻYWO" closes the app
+  so live TV comes from the antenna again, not from TVP's internet stream.
 
 ## 11. Channel scan
 
