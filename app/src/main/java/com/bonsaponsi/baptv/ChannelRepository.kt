@@ -227,18 +227,19 @@ class ChannelRepository(private val context: Context) {
         var skippedType = 0
         var skippedHidden = 0
         var skippedScrambled = 0
+        val notBrowsable = ArrayList<Channel>()
         try {
             context.contentResolver.query(TvContract.buildChannelsUriForInput(inputId), projection, null, null, null)?.use { c ->
                 while (c.moveToNext()) {
                     total++
                     val serviceType = c.getStringOrNull(3)
                     if (serviceType != Channels.SERVICE_TYPE_AUDIO_VIDEO && serviceType != Channels.SERVICE_TYPE_AUDIO) { skippedType++; continue }
-                    // Channel hidden by the user in system settings.
-                    if (!c.isNull(4) && c.getInt(4) == 0) { skippedHidden++; continue }
+                    // Channel hidden by the user in system settings – kept aside in case none of them is browsable.
+                    val browsable = c.isNull(4) || c.getInt(4) != 0
                     // Scrambled channels stay on the list (marked) – the "Scrambled: hidden" toggle hides them.
                     val scrambled = isScrambled(c)
-                    if (scrambled) skippedScrambled++
-                    result += Channel(
+                    if (scrambled && browsable) skippedScrambled++
+                    (if (browsable) result else notBrowsable) += Channel(
                         id = c.getLong(0),
                         number = c.getStringOrNull(1).orEmpty(),
                         name = c.getStringOrNull(2).orEmpty(),
@@ -252,6 +253,15 @@ class ChannelRepository(private val context: Context) {
             }
         } catch (e: Exception) {
             DebugLog.error("Channels", "no access to channels of input $inputId", e)
+        }
+        // BROWSABLE defaults to 0 and only the system TV app sets it. With no such app (boxes without Live Channels,
+        // the emulator) no channel is ever browsable – then the flag says nothing about the user's choice.
+        if (result.isEmpty() && notBrowsable.isNotEmpty()) {
+            DebugLog.log("Channels", "$inputId: no browsable channels – ignoring the flag for ${notBrowsable.size}")
+            result += notBrowsable
+            skippedScrambled = notBrowsable.count { it.scrambled }
+        } else {
+            skippedHidden = notBrowsable.size
         }
         DebugLog.log(
             "Channels",
