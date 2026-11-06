@@ -253,6 +253,9 @@ class PhoneActivity : Activity() {
         shown = if (query.isEmpty()) channels else channels.filter {
             it.title.contains(query, ignoreCase = true) || it.stream.group.contains(query, ignoreCase = true)
         }
+        // Nothing found is not the same as nothing added.
+        (list.emptyView as TextView).text = if (channels.isNotEmpty() && query.isNotEmpty()) getString(R.string.phone_no_match, query)
+            else getString(R.string.phone_empty)
         (list.adapter as BaseAdapter).notifyDataSetChanged()
         showPlaying()
     }

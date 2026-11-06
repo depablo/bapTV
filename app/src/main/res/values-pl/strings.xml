@@ -457,6 +457,7 @@
     <string name="phone_manage_original">na liście: %1$s</string>
     <string name="phone_choose">Wybierz kanał</string>
     <string name="phone_empty">Brak kanałów internetowych. Dotknij +, aby dodać listę M3U z adresu albo z pliku.</string>
+    <string name="phone_no_match">Żaden kanał nie pasuje do „%1$s”.</string>
     <string name="phone_search_hint">Szukaj kanałów</string>
     <string name="phone_add">Dodaj listę</string>
     <string name="phone_add_title">Adres listy (M3U)</string>

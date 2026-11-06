@@ -451,6 +451,7 @@
     <string name="phone_manage_original">in the playlist: %1$s</string>
     <string name="phone_choose">Choose a channel</string>
     <string name="phone_empty">No internet channels yet. Tap + to add an M3U playlist from an address or a file.</string>
+    <string name="phone_no_match">No channel matches “%1$s”.</string>
     <string name="phone_search_hint">Search channels</string>
     <string name="phone_add">Add playlist</string>
     <string name="phone_add_title">Playlist address (M3U)</string>
