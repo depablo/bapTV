@@ -157,6 +157,13 @@ so, and the page names it when it loses the connection.
 - Pairing: the QR code holds a one-time code that works only while the code is on the TV screen
   (at most 10 minutes). The phone then stays paired through a cookie. The same menu entry pairs
   more phones, forgets all paired phones or turns the phone remote off.
+- **Pairing from the phone app.** The bapTV app on an Android phone finds the box on the network; choosing
+  an unpaired box shows "Pair a phone?" on the TV (Reject is focused), and accepting it with the remote
+  pairs the phone without a code. One request at a time, one minute to answer; when the box cannot ask
+  (bapTV not on the TV screen, older version), the phone asks for the code or the QR code instead.
+- **New network address.** A browser remote is bound to the box's address. When the address changes,
+  the next start of the player says so and offers to show a new QR code; the Android app finds the box
+  by itself.
 - **On the home screen.** The page has a web app manifest and icon, and in the phone's browser it shows a
   one-time tip on how to add it to the home screen. Browsers install web apps only from HTTPS, which a
   set-top box in a home network cannot offer with a trusted certificate, so: on Android the home-screen

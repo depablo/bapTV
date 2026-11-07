@@ -1,0 +1,1 @@
+Pair the phone app by accepting it on the TV, no code needed. A notice with a new code when the box's network address changes. A scheduled recording waits for a running channel scan. Phone: no "Undefined" category, better search hint, unused guide sources removed. Safer TV guide parsing.

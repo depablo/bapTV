@@ -411,6 +411,8 @@
     <string name="whats_new_phone_manage">Na telefonie Menu → Zarządzaj kanałami: przesuwanie, ukrywanie, zmiana nazwy i usuwanie. Telefon sam sprawdza też aktualizacje.</string>
     <string name="whats_new_tips">Ciekawostki „Czy wiesz, że…?” o mniej znanych funkcjach, od czasu do czasu przy starcie (Menu → Ustawienia → Ciekawostki przy starcie).</string>
     <string name="whats_new_start_over">„Oglądaj od początku” pod niebieskim przyciskiem (np. TVP): odtwarzacz nadawcy wygląda jak bapTV, działa ⏯, „Na żywo” wraca do obrazu z anteny, a przytrzymanie BACK zamyka aplikację.</string>
+    <string name="whats_new_pair_on_tv">Parowanie aplikacji bapTV na telefonie bez kodu: wybierz dekoder w telefonie i zaakceptuj go tutaj pilotem.</string>
+    <string name="whats_new_address_change">Gdy dekoder dostanie nowy adres w sieci, bapTV o tym powie i pokaże nowy kod dla pilota w przeglądarce telefonu.</string>
 
     <!-- "Did you know?" tips (Tips). -->
     <string name="tip_title">Czy wiesz, że…?</string>

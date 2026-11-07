@@ -405,6 +405,8 @@
     <string name="whats_new_phone_manage">On the phone Menu → Manage channels: reorder, hide, rename and remove. The phone also checks for updates by itself.</string>
     <string name="whats_new_tips">“Did you know?” tips about lesser-known features, now and then at start (Menu → Settings → Tips at start).</string>
     <string name="whats_new_start_over">“Watch from the start” under the blue button (e.g. TVP): the broadcaster\'s player now looks like bapTV, ⏯ works, “Live” returns to the antenna picture, and holding BACK leaves the app.</string>
+    <string name="whats_new_pair_on_tv">Pairing the bapTV phone app without a code: choose the box on the phone and accept it here with the remote.</string>
+    <string name="whats_new_address_change">When the box gets a new network address, bapTV says so and shows a new code for the phone remote in the browser.</string>
 
     <!-- "Did you know?" tips (Tips). -->
     <string name="tip_title">Did you know?</string>

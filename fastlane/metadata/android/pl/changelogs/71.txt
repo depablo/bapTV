@@ -1,0 +1,1 @@
+Parowanie aplikacji na telefonie przez akceptację na TV, bez kodu. Komunikat z nowym kodem, gdy zmieni się adres dekodera w sieci. Nagranie z harmonogramu czeka na koniec wyszukiwania kanałów. Telefon: bez kategorii „Undefined”, lepszy komunikat wyszukiwania, usuwanie nieużywanych źródeł przewodnika. Bezpieczniejsze wczytywanie przewodnika.
