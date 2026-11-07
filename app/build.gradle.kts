@@ -74,6 +74,7 @@ android {
             buildConfigField("boolean", "RECORDING", "true")
             buildConfigField("boolean", "DEV_SERVER", "true")
             buildConfigField("boolean", "ACCESSIBILITY_KEYS", "true")
+            buildConfigField("String", "DISTRIBUTION", "\"github\"")
         }
         create("play") {
             dimension = "distribution"
@@ -82,6 +83,7 @@ android {
             buildConfigField("boolean", "RECORDING", "false")
             buildConfigField("boolean", "DEV_SERVER", "false")
             buildConfigField("boolean", "ACCESSIBILITY_KEYS", "false")
+            buildConfigField("String", "DISTRIBUTION", "\"play\"")
         }
         create("tv") {
             dimension = "device"

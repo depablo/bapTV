@@ -21,8 +21,16 @@ object Tips {
     private const val KEY_DAILY = "daily"
     private const val ROTATE_MS = 20_000L
 
-    /** [image] – screenshot name in [Illustrations]; [available] – false on devices without the feature. */
-    private class Tip(val text: Int, val image: String?, val available: (DeviceCapabilities) -> Boolean = { true })
+    /**
+     * [image] – screenshot name in [Illustrations]; [githubOnly] – the tip describes a feature of the GitHub build only
+     * (see BuildConfig.DISTRIBUTION); [available] – false on devices without the feature.
+     */
+    private class Tip(
+        val text: Int,
+        val image: String?,
+        val githubOnly: Boolean = false,
+        val available: (DeviceCapabilities) -> Boolean = { true },
+    )
 
     private val ALL = listOf(
         Tip(R.string.tip_iptv_check, "phone-iptv-check"),
@@ -32,7 +40,7 @@ object Tips {
         Tip(R.string.tip_signal, "phone-signal") { it.signal },
         Tip(R.string.tip_guide, "guide"),
         Tip(R.string.tip_iptv_cleanup, "phone-iptv-mine"),
-        Tip(R.string.tip_record, "menu-record") { it.streamAnalysis },
+        Tip(R.string.tip_record, "menu-record", githubOnly = true) { it.streamAnalysis },
         Tip(R.string.tip_numbering, "menu-numbering"),
         Tip(R.string.tip_remote_home, "phone-home"),
         Tip(R.string.tip_hbbtv, "hbbtv") { it.hbbtv },
@@ -44,7 +52,7 @@ object Tips {
     /** The next tip in order; the position is kept, so each wait and each day shows a different one. */
     private fun next(context: Context): Tip? {
         val caps = DeviceCapabilities.get(context)
-        val tips = ALL.filter { it.available(caps) }
+        val tips = ALL.filter { it.available(caps) && (!it.githubOnly || BuildConfig.DISTRIBUTION == "github") }
         if (tips.isEmpty()) return null
         val prefs = prefs(context)
         val index = prefs.getInt(KEY_NEXT, 0).mod(tips.size)
