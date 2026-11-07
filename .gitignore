@@ -9,3 +9,8 @@
 build/
 emu.png
 local.properties
+
+# Device test scripts: local settings, token, results
+tests/device/local.env
+tests/device/.box-token
+tests/device/out/
