@@ -97,7 +97,7 @@ possible, and the country and scan frequency plan.
 
 The app keeps the screen on while you watch and returns to the last watched channel.
 
-## Remote control
+## 3. Remote control
 
 Android key codes are given so that the map also applies to other remotes. Some remotes have no
 MENU key; the menu is therefore also available on REC and SETTINGS.
@@ -441,6 +441,9 @@ Limitations:
 Recording uses the tuner input's TIF recording session (`TvRecordingClient`). It is available on
 devices with the Google DTV stack, where the recording can be read back as a transport stream file.
 
+The Google Play build has no recording (no menu entries, no recordings screen, no scheduled recordings);
+the GitHub build has them all. Section 16 lists the differences between the two.
+
 ### Manual recording
 
 - Menu → Recordings → **Record current programme**, or the **Record** button at info panel level 3.
@@ -762,16 +765,24 @@ Resources: English strings in `res/values` (default) and Polish in `res/values-p
 
 ### Permissions
 
-| Permission | Purpose |
-|---|---|
-| `READ_EPG_DATA`, `READ_TV_LISTINGS` | read channels and programmes of tuner inputs |
-| `WRITE_EPG_DATA` | insert and delete a temporary channel to find the highest channel ID (discovery) |
-| `dtvprovider.permission.READ` / `WRITE` | tuner statistics; tuner settings such as LNA (Google DTV stack) |
-| `INSTALL_TV_CHANNELS` | direct scan; granted only to privileged/platform-signed apps, otherwise unused |
-| `READ_EXTERNAL_STORAGE`, `WRITE_EXTERNAL_STORAGE` | read and delete the tuner input's recordings |
-| `INTERNET` | HbbTV applications; phone remote; debug server |
-| `FOREGROUND_SERVICE`, `RECEIVE_BOOT_COMPLETED` | recording service; restoring alarms and the debug server after boot |
-| `REQUEST_INSTALL_PACKAGES` | installing updates from the GitHub releases; debug builds: remote install |
+The manifests are `app/src/main` (both builds), `app/src/tv` (TV, GitHub and Play) and `app/src/play` (Play only,
+removes the entries marked "no"). The GitHub TV build also keeps the camera entries, which ZXing merges in.
+
+| Permission | Purpose | GitHub | Google Play |
+|---|---|---|---|
+| `READ_EPG_DATA`, `READ_TV_LISTINGS` | read channels and programmes of tuner inputs | yes | yes |
+| `WRITE_EPG_DATA` | insert and delete a temporary channel to find the highest channel ID (discovery) | yes | yes |
+| `dtvprovider.permission.READ` / `WRITE` | tuner statistics; tuner settings such as LNA (Google DTV stack) | yes | yes |
+| `INSTALL_TV_CHANNELS` | direct scan; granted only to privileged/platform-signed apps, otherwise unused | yes | yes |
+| `READ_EXTERNAL_STORAGE` | read the tuner input's probe recordings (channel identification, guide, HbbTV) | yes | yes |
+| `WRITE_EXTERNAL_STORAGE` | delete recordings (probe and user); on targetSdk 35 deleting the tuner input's files does not work | yes | no |
+| `INTERNET` | IPTV, HbbTV applications, guide downloads, phone remote, reports | yes | yes |
+| `FOREGROUND_SERVICE`, `RECEIVE_BOOT_COMPLETED` | recording service and alarms; restoring the debug server after boot | yes | yes (no recording service) |
+| `REQUEST_INSTALL_PACKAGES` | installing updates from the GitHub releases; debug builds: remote install | yes | no |
+| `CAMERA` | scanning the pairing QR code of the TV in the phone app (ZXing) | yes | no |
+
+Accessibility service `ColourKeysService` (colour keys while another app has focus): GitHub only. Without it the
+Google Play build receives the colour keys only while bapTV is on screen.
 
 ### Fragile points
 
@@ -799,7 +810,7 @@ exercises the generic path of the app (no Google DTV stack).
 1. In Android Studio create an Android TV device (e.g. *Television (1080p)*) with an Android TV
    API 30 x86 image. Avoid non-ASCII characters in the SDK and AVD paths; the emulator may fail with
    them.
-2. Build and install both APKs (`tools/emu.sh install`, or `./gradlew :app:assembleTvDebug
+2. Build and install both APKs (`tools/emu.sh install`, or `./gradlew :app:assembleGithubTvDebug
    :testtuner:assembleDebug` and `adb install -r -g` for each).
 3. Create the test channels: `tools/emu.sh setup` (or open the test tuner's setup).
 4. Add the test tuner's channels once through the system Live Channels app, which marks them as
@@ -851,7 +862,8 @@ and HOME, but no media keys.
 
 ## 15. Debug-only developer tools
 
-The following features exist **only in debug builds** (`./gradlew assembleTvDebug`). They are meant
+The following features exist **only in debug builds** (`./gradlew assembleGithubTvDebug`; the Google Play build
+never runs the local server, even in debug). They are meant
 for development on devices without adb access and are not part of release builds.
 
 ### Local HTTP server
@@ -984,37 +996,51 @@ curl -s -H "X-Tv-Token: <token>" -X POST "http://<device-ip>:8080/key?name=OK"
 ### Requirements
 
 - JDK 17 or newer (sources and bytecode target Java 17)
-- Android SDK with platform 35; `compileSdk 35`, `minSdk 26`, `targetSdk` 29 (tv) and 35 (phone)
+- Android SDK with platform 35; `compileSdk 35`, `minSdk 26`
 - Gradle 8.11.1 (wrapper), Android Gradle Plugin 8.7.3, Kotlin 2.1.0
 - One library: AndroidX Media3 (ExoPlayer with HLS and DASH) for internet channels; unit tests use JUnit 4
 
-**Two builds** (product flavors, same package and signing key):
+**Flavors** (same package and signing key; the first dimension wins for shared properties such as `targetSdk`):
 
-- **tv** – the full app. `targetSdk 29` is deliberate: it is the highest target for which
-  `requestLegacyExternalStorage` still works on Android 11, which the app needs to read and delete the tuner
-  input's recordings (stream analysis, the recordings screen). With target 35 the recordings can be read but not
-  deleted (checked on the reference box: `NoSuchFileException`, and MediaStore deletes nothing without the user's
-  consent). The TV-only manifest is `app/src/tv/AndroidManifest.xml`; `BuildConfig.TV` is true.
-- **phone** – the phone screens (internet channels, the set-top box remote, updates) with a current
-  `targetSdk 35`, so Android 12L+ phones show no "built for an older version of Android" warning, and without
-  the TV components: no accessibility service, tuner, storage or boot permissions. Its theme keeps the system bars
-  as before (`windowOptOutEdgeToEdgeEnforcement`).
+| Variant | `targetSdk` | Contents |
+|---|---|---|
+| `githubTv` | 29 | the full TV app: recordings, self-updater, debug server (debug builds), accessibility colour keys |
+| `playTv` | 35 | the TV app for Google Play: no recordings, no self-updater, no debug server, no accessibility service, no camera |
+| `githubPhone` | 35 | phone: internet channels, the set-top box remote, self-updater |
+| `playPhone` | – | not built; the phone app will be a separate Play package (the pilot) |
 
-The updater of each build fetches its own file from the release: `baptv-X.Y.Z.apk` (tv) or `baptv-X.Y.Z-phone.apk`;
-a tv build running on a phone moves to the phone one. Versions up to 1.11 take the last `.apk` of the release, so the
-TV file must be uploaded last. Lint's `ExpiredTargetSdkVersion` check is disabled because it only applies to Google
-Play.
+Build flags are in `BuildConfig`: `TV`, `SELF_UPDATE`, `RECORDING`, `DEV_SERVER`, `ACCESSIBILITY_KEYS`. The
+`github` flavor sets all of them to true, `play` to false, and the code checks them where the feature starts.
+The Play-only manifest is `app/src/play/AndroidManifest.xml`; the TV-only one is `app/src/tv/AndroidManifest.xml`.
+
+Why the GitHub TV build targets 29: it is the highest target for which `requestLegacyExternalStorage` still works on
+Android 11, which the app needs to read and delete the tuner input's recordings. With target 35 the probe
+recordings can be read but not deleted (checked on the reference box: `NoSuchFileException`, and MediaStore
+deletes nothing without the user's consent). The Play build therefore keeps them on shared storage; identification
+can use up roughly 300 MB per full run. `TsProbe` stops making probe recordings below 500 MB of free space.
+
+The phone build targets 35, so Android 12L+ phones show no "built for an older version of Android" warning. Its
+theme keeps the system bars as before (`windowOptOutEdgeToEdgeEnforcement`).
+
+The updater of each GitHub build fetches its own file from the release: `baptv-X.Y.Z.apk` (tv) or
+`baptv-X.Y.Z-phone.apk`; a tv build running on a phone moves to the phone one. Versions up to 1.11 take the last
+`.apk` of the release, so the TV file must be uploaded last. Lint's `ExpiredTargetSdkVersion` check is disabled;
+the Play variant meets the current target requirement anyway.
 
 ### Commands
 
 ```
 export JAVA_HOME=/path/to/jdk ANDROID_HOME=/path/to/android-sdk   # or sdk.dir in local.properties
-./gradlew assembleTvDebug      # app/build/outputs/apk/tv/debug/app-tv-debug.apk
-./gradlew assemblePhoneDebug   # app/build/outputs/apk/phone/debug/app-phone-debug.apk
-./gradlew assembleRelease      # both minified release builds (R8 with proguard-rules.pro)
-./gradlew test                 # JVM unit tests
+./gradlew assembleGithubTvDebug     # app/build/outputs/apk/githubTv/debug/app-github-tv-debug.apk
+./gradlew assemblePlayTvRelease     # app/build/outputs/apk/playTv/release/
+./gradlew assembleGithubPhoneDebug  # app/build/outputs/apk/githubPhone/debug/
+./gradlew assembleRelease           # all minified release builds (R8 with proguard-rules.pro)
+./gradlew test                      # JVM unit tests
 ./gradlew lint
 ```
+
+`assembleTvDebug` and `assemblePhoneDebug` remain as aliases of the GitHub debug builds for the scripts in `tools/`
+and `tests/device/`.
 
 Debug builds install as `com.bonsaponsi.baptv.debug` ("bapTV debug"), next to the release version:
 their own settings and channel lists, the phone remote on port 8091 instead of 8090, and no update

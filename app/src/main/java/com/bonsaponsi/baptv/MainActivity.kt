@@ -1138,6 +1138,7 @@ class MainActivity : Activity() {
      * Not during setup, identification or with the menu or a dialog open – the next channel with such an app asks again.
      */
     private fun offerColourKeys() {
+        if (!BuildConfig.ACCESSIBILITY_KEYS) return
         if (prefs.getBoolean(PREF_COLOUR_KEYS_OFFERED, false) || ColourKeysService.isEnabled(this)) return
         if (!started || isFinishing || identifying || prober != null || SetupProgress.inPipeline(this)) return
         if (menu.visible || !hasWindowFocus() || colourKeysOfferPending) return
@@ -1510,7 +1511,7 @@ class MainActivity : Activity() {
             else MenuPanel.Entry(getString(R.string.menu_pause), after = leave) { startPause() }
                 .takeIf { current != null && !current.virtual && !current.iptv && playingRecording == null },
         )
-        val recordings = if (!caps.streamAnalysis) emptyList() else listOfNotNull(
+        val recordings = if (!caps.streamAnalysis || !BuildConfig.RECORDING) emptyList() else listOfNotNull(
             Recorder.active.let { rec ->
                 if (rec != null) MenuPanel.Entry(getString(R.string.menu_record_stop_label), rec.title, stay) { Recorder.stop() }
                 else MenuPanel.Entry(getString(R.string.menu_record), current?.name, leave) {
@@ -1565,7 +1566,7 @@ class MainActivity : Activity() {
                     runCatching { startActivity(Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS)) }
                         .onFailure { DebugLog.warn("ColourKeys", "accessibility settings not available", it) }
                 }
-            }.takeIf { caps.hbbtv },
+            }.takeIf { caps.hbbtv && BuildConfig.ACCESSIBILITY_KEYS },
             MenuPanel.Entry(getString(R.string.menu_phone_remote), onOff(PhoneRemote.isEnabled(this))) { showPhoneRemote(menu::returned) },
             MenuPanel.Entry(getString(R.string.menu_hbbtv_relearn), after = stay) {
                 current?.let { identifyInBackground(it, force = true) }
@@ -1868,7 +1869,7 @@ class MainActivity : Activity() {
     }
 
     /** Scrambled channels record encrypted, and virtual HbbTV channels are just a slate on air – nothing to record. */
-    private fun recordable(channel: Channel) = !channel.scrambled && !channel.virtual && !channel.iptv
+    private fun recordable(channel: Channel) = BuildConfig.RECORDING && !channel.scrambled && !channel.virtual && !channel.iptv
 
     /** Scheduled recordings while the player is on screen: a warning a minute ahead and a channel switch. */
     private val schedulerPlayer = object : RecordingScheduler.Player {

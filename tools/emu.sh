@@ -26,7 +26,7 @@ if [[ -z "$SDK_WIN" ]]; then
 fi
 ADB="$(wslpath -u "$SDK_WIN")/platform-tools/adb.exe"
 [[ -x "$ADB" ]] || { echo "Missing $ADB - install Platform-Tools in Android Studio (SDK in $SDK_WIN)" >&2; exit 2; }
-APP_APK="$ROOT/app/build/outputs/apk/tv/debug/app-tv-debug.apk"
+APP_APK="$ROOT/app/build/outputs/apk/githubTv/debug/app-github-tv-debug.apk"
 TUNER_APK="$ROOT/testtuner/build/outputs/apk/debug/testtuner-debug.apk"
 
 adb() { "$ADB" "$@"; }

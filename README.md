@@ -29,7 +29,7 @@ of the HbbTV apps are blurred.</sub>
 - Info panel with now/next, programme details, audio and subtitle selection and technical data
 - Audio track and subtitle selection, with the preferred language remembered
 - Live pause (timeshift) with seeking
-- Recording: manual, or scheduled from the TV guide; recordings list and playback
+- Recording: manual, or scheduled from the TV guide; recordings list and playback (GitHub build only)
 - HbbTV applications (red button) started from the channel's AIT
 - Phone remote: scan a QR code on the TV and control bapTV from the phone's browser, with a channel list
   and channel organisation
@@ -70,7 +70,7 @@ The Diagnostics screen shows the detected capabilities.
 
 ### Updates
 
-bapTV checks the GitHub releases once a day (menu → Settings; the automatic check can be switched off)
+In the GitHub build, bapTV checks the GitHub releases once a day (menu → Settings; the automatic check can be switched off)
 and offers new versions with a short summary of the changes. The APK is checked against the published
 SHA-256 and must be signed with the same key as the installed app; Android then asks you to confirm
 the installation (once you allow bapTV to install apps). The check sends only a request to
@@ -81,19 +81,22 @@ the installation (once you allow bapTV to install apps). The check sends only a 
 Requirements:
 
 - JDK 17 or newer (the project compiles for Java 17)
-- Android SDK with platform 35 (`compileSdk 35`); `minSdk 26`; `targetSdk 29` (TV build) and 35 (phone build)
+- Android SDK with platform 35 (`compileSdk 35`); `minSdk 26`
 - Gradle 8.11.1 is downloaded by the wrapper; Android Gradle Plugin 8.7.3, Kotlin 2.1.0
 
 ```
 export JAVA_HOME=/path/to/jdk ANDROID_HOME=/path/to/android-sdk   # or set sdk.dir in local.properties
-./gradlew assembleTvDebug       # app/build/outputs/apk/tv/debug/app-tv-debug.apk (com.bonsaponsi.baptv.debug)
-./gradlew assembleRelease       # app/build/outputs/apk/{tv,phone}/release/app-*-release.apk (minified)
-./gradlew test                  # JVM unit tests (both builds)
+./gradlew assembleGithubTvDebug   # app/build/outputs/apk/githubTv/debug/app-github-tv-debug.apk (com.bonsaponsi.baptv.debug)
+./gradlew assemblePlayTvRelease   # app/build/outputs/apk/playTv/release/ (Google Play variant, minified)
+./gradlew assembleRelease         # all minified release builds
+./gradlew test                    # JVM unit tests
 ```
 
-There are two builds of the same app (package and key): **tv** – the full app for Android TV set-top boxes –
-and **phone** – internet channels and the set-top box remote for phones. A release has one APK of each:
-`baptv-X.Y.Z.apk` (TV) and `baptv-X.Y.Z-phone.apk`.
+Builds are made of two dimensions. **Distribution**: `github` (GitHub releases, with the self-updater) and
+`play` (Google Play). **Device**: `tv` (the full app for Android TV set-top boxes) and `phone` (internet channels
+and the set-top box remote). The GitHub TV build targets SDK 29, the Google Play TV build SDK 35. The phone build
+is only on GitHub for now. A GitHub release has one APK of each: `baptv-X.Y.Z.apk` (TV) and
+`baptv-X.Y.Z-phone.apk`. The details of the two distributions are in [DOCUMENTATION.md](DOCUMENTATION.md), section 16.
 
 Release builds are signed only when a signing config is provided: point `baptv.signing` in
 `local.properties` (or the `BAPTV_SIGNING` environment variable) to a properties file with

@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Google Play distribution only (see the flavors in build.gradle.kts): no installing of APKs, no writing to shared
+    storage (recordings are never deleted by the app), no accessibility service and no network debug server.
+    Stream analysis still reads the probe recordings of the tuner input (READ_EXTERNAL_STORAGE stays).
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" tools:node="remove" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" tools:node="remove" />
+    <!-- The QR scanner of the phone remote (ZXing) is the only user of the camera; a TV never runs it. -->
+    <uses-permission android:name="android.permission.CAMERA" tools:node="remove" />
+    <uses-feature android:name="android.hardware.camera" tools:node="remove" />
+    <uses-feature android:name="android.hardware.camera.autofocus" tools:node="remove" />
+    <uses-feature android:name="android.hardware.camera.flash" tools:node="remove" />
+    <uses-feature android:name="android.hardware.camera.front" tools:node="remove" />
+
+    <application>
+        <service android:name=".ColourKeysService" tools:node="remove" />
+        <service android:name=".DebugServerService" tools:node="remove" />
+        <service android:name=".RecordingService" tools:node="remove" />
+        <receiver android:name=".RecordingAlarmReceiver" tools:node="remove" />
+    </application>
+</manifest>

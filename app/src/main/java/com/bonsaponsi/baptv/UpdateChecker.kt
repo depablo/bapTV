@@ -32,6 +32,8 @@ object UpdateChecker {
      * Sideloaded installs (system package installer, adb) and our own updates keep it.
      */
     fun supported(context: Context): Boolean {
+        // Google Play builds never install APKs themselves: the store updates them.
+        if (!BuildConfig.SELF_UPDATE) return false
         val installer = runCatching {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) context.packageManager.getInstallSourceInfo(context.packageName).installingPackageName
             else @Suppress("DEPRECATION") context.packageManager.getInstallerPackageName(context.packageName)

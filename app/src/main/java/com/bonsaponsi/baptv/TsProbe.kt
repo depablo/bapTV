@@ -135,6 +135,13 @@ object TsProbe {
         val input = Dtv.findTunerInput(context) ?: return Recording("No tuner input.\n", null)
         // An ongoing recording holds the recording session and the recordings directory – learning will wait.
         if (Recorder.active != null) { lastError = "recording in progress"; return Recording("A programme is being recorded – skipping.\n", null) }
+        // Probe recordings stay on shared storage and the app cannot delete them on targetSdk 35: when space runs
+        // low they are not made, so the system and the app's own files keep their room.
+        val free = Recorder.freeBytes()
+        if (free in 0 until Recorder.MIN_FREE_BYTES) {
+            lastError = "low storage (${free / 1_000_000} MB)"
+            return Recording("Not enough free storage (${free / 1_000_000} MB) – channel analysis skipped.\n", null)
+        }
         if (!hasStoragePermission(context)) {
             // The permission prompt appears in the player – it has to be accepted once with the remote.
             context.startActivity(Intent(context, MainActivity::class.java)

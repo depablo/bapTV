@@ -61,8 +61,8 @@ class DebugServerService : Service() {
         @Volatile var lastError: String? = null
             private set
 
-        /** The server is a developer tool: release builds never run it. */
-        val available get() = BuildConfig.DEBUG
+        /** The server is a developer tool: release builds never run it, and neither does the Google Play build. */
+        val available get() = BuildConfig.DEBUG && BuildConfig.DEV_SERVER
 
         fun isEnabled(context: Context) =
             available && context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean(KEY_ENABLED, false)

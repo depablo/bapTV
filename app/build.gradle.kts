@@ -57,9 +57,32 @@ android {
      * - phone – internet channels and the set-top box remote only. A current targetSdk and no TV components, so
      *   phones show no "built for an older version of Android" warning.
      * Each build's updater fetches its own file from the GitHub release (UpdateChecker).
+     *
+     * Distribution (first dimension, so its values win over the device flavor's):
+     * - github – GitHub releases: self-updater, recordings, the debug server, accessibility colour keys.
+     * - play – Google Play: no self-updater, no recordings, no debug server, no colour-keys service;
+     *   targetSdk 35 for the TV build (Play requires it). Identification still reads a short stream
+     *   recording written by the tuner input – probe recordings cannot be deleted at that target (see
+     *   DOCUMENTATION.md, "Stream analysis"). Builds: githubTvDebug, playTvRelease, githubPhoneDebug…
+     * phone + play is not built: the phone app is not on Play yet (the pilot app will be a separate package).
      */
-    flavorDimensions += "device"
+    flavorDimensions += listOf("distribution", "device")
     productFlavors {
+        create("github") {
+            dimension = "distribution"
+            buildConfigField("boolean", "SELF_UPDATE", "true")
+            buildConfigField("boolean", "RECORDING", "true")
+            buildConfigField("boolean", "DEV_SERVER", "true")
+            buildConfigField("boolean", "ACCESSIBILITY_KEYS", "true")
+        }
+        create("play") {
+            dimension = "distribution"
+            targetSdk = 35
+            buildConfigField("boolean", "SELF_UPDATE", "false")
+            buildConfigField("boolean", "RECORDING", "false")
+            buildConfigField("boolean", "DEV_SERVER", "false")
+            buildConfigField("boolean", "ACCESSIBILITY_KEYS", "false")
+        }
         create("tv") {
             dimension = "device"
             targetSdk = 29
@@ -69,6 +92,12 @@ android {
             dimension = "device"
             targetSdk = 35
             buildConfigField("boolean", "TV", "false")
+        }
+    }
+
+    androidComponents {
+        beforeVariants { variant ->
+            if (variant.name.startsWith("playPhone")) variant.enable = false
         }
     }
 
@@ -128,6 +157,10 @@ android {
         disable += "ExpiredTargetSdkVersion"
     }
 }
+
+// Names from before the distribution flavors – scripts and docs still use them; they build the github variants.
+tasks.register("assembleTvDebug") { dependsOn("assembleGithubTvDebug") }
+tasks.register("assemblePhoneDebug") { dependsOn("assembleGithubPhoneDebug") }
 
 dependencies {
     // Internet channels (IptvInputService, phone player): HLS, DASH and progressive streams.
