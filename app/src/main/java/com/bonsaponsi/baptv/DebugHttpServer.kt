@@ -257,6 +257,12 @@ class DebugHttpServer(private val context: Context, val port: Int = DEFAULT_PORT
             text(SignalMonitor.tuneMultiplex(context, f) + "\n")
         }
         "GET" to "/channels" -> HttpResponse("200 OK", JSON, channelsJson().toString(2))
+        // What is on screen, as text – for test scripts (screenshots of the video layer come out black).
+        "GET" to "/ui" -> HttpResponse("200 OK", JSON, (onMain { uiJson() } ?: JSONObject().put("error", "main thread busy")).toString(2))
+        "POST" to "/debug/remote/forget" -> {
+            val name = request.query["name"] ?: return text("Specify ?name=<phone name>\n", "400 Bad Request")
+            text("Forgotten: ${PhoneRemote.forget(context, name)}\n")
+        }
         "GET" to "/iptv/guide" -> HttpResponse("200 OK", JSON, guideJson().toString(2))
         "POST" to "/iptv/guide" -> {
             // ?add=<url> and/or ?remove=<url>, then a refresh in this request (may take a minute for a big file).
@@ -342,6 +348,38 @@ class DebugHttpServer(private val context: Context, val port: Int = DEFAULT_PORT
     }
 
     private fun <T> onMain(block: () -> T): T? = MainThread.call(block = block)
+
+    /** The resumed app screen and the open dialogs: their visible texts and the focused element (main thread). */
+    private fun uiJson(): JSONObject {
+        val activity = App.resumed?.get()
+        val json = JSONObject().put("activity", activity?.javaClass?.simpleName ?: JSONObject.NULL)
+        activity?.window?.decorView?.let { json.put("screen", describe(it)) }
+        json.put("dialogs", org.json.JSONArray().apply {
+            // Only the screen's own dialogs – one left open under another activity (the introduction) is not visible.
+            TvDialog.openDialogs.filter { activity != null && ownedBy(it.context, activity) }.mapNotNull { it.window?.decorView }.forEach { put(describe(it)) }
+        })
+        return json
+    }
+
+    private tailrec fun ownedBy(context: android.content.Context?, activity: android.app.Activity): Boolean = when (context) {
+        null -> false
+        activity -> true
+        is android.content.ContextWrapper -> ownedBy(context.baseContext, activity)
+        else -> false
+    }
+
+    private fun describe(root: android.view.View): JSONObject {
+        val texts = org.json.JSONArray()
+        fun walk(v: android.view.View) {
+            if (!v.isShown) return
+            if (v is android.widget.TextView && v.text.isNotBlank()) texts.put(v.text.toString())
+            if (v is android.view.ViewGroup) for (i in 0 until v.childCount) walk(v.getChildAt(i))
+        }
+        walk(root)
+        val focused = root.findFocus()
+        return JSONObject().put("texts", texts)
+            .put("focused", (focused as? android.widget.TextView)?.text?.toString() ?: focused?.let { it.javaClass.simpleName } ?: JSONObject.NULL)
+    }
 
     /** Channel list with identified names, DVB identifiers and the current programme. */
     private fun guideJson(): JSONObject = JSONObject().put("sources", org.json.JSONArray(IptvGuide.sources(context)))
@@ -446,7 +484,7 @@ class DebugHttpServer(private val context: Context, val port: Int = DEFAULT_PORT
         private const val JSON = "application/json; charset=utf-8"
         private val RECORDING_FILE = Regex("/recordings/(\\d+)\\.ts")
         private val QUIET_PATHS = setOf("/status", "/log.txt", "/probe.ts", "/screenshot.png", "/hbbtv", "/signal.json")
-        private val KNOWN_PATHS = setOf("/", "/report.txt", "/log.txt", "/log", "/logcat.txt", "/status", "/install", "/launch", "/restart", "/probe", "/probe.ts", "/key", "/hbbtv", "/hbbtv/eval", "/screenshot.png", "/channels", "/epg", "/open", "/capabilities", "/recordings", "/timeshift", "/signal", "/signal.json", "/signal/cycle", "/signal/stop", "/signal/tune", "/signal/probe", "/signal/probe/stop", "/signal/lna", "/signal/rediscover", "/publish", "/tvchannels", "/tvchannels/delete", "/tvchannels/update", "/dtv/install", "/dtv/action", "/debug/no-tuner")
+        private val KNOWN_PATHS = setOf("/", "/report.txt", "/log.txt", "/log", "/logcat.txt", "/status", "/install", "/launch", "/restart", "/probe", "/probe.ts", "/key", "/hbbtv", "/hbbtv/eval", "/screenshot.png", "/channels", "/ui", "/debug/remote/forget", "/epg", "/open", "/capabilities", "/recordings", "/timeshift", "/signal", "/signal.json", "/signal/cycle", "/signal/stop", "/signal/tune", "/signal/probe", "/signal/probe/stop", "/signal/lna", "/signal/rediscover", "/publish", "/tvchannels", "/tvchannels/delete", "/tvchannels/update", "/dtv/install", "/dtv/action", "/debug/no-tuner")
 
         /** One server per process – kept alive by [DebugServerService]. */
         @Volatile var instance: DebugHttpServer? = null

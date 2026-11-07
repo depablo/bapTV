@@ -268,6 +268,15 @@ object PhoneRemote {
         }
     }.getOrDefault(emptyList())
 
+    /** Forgets the phones called [name] (test scripts); returns how many. */
+    @Synchronized
+    fun forget(context: Context, name: String): Int {
+        val devices = devices(context)
+        val kept = devices.filter { it.name != name }
+        if (kept.size != devices.size) saveDevices(context, kept)
+        return devices.size - kept.size
+    }
+
     fun forgetAll(context: Context) {
         saveDevices(context, emptyList())
         DebugLog.log("Remote", "paired phones forgotten")

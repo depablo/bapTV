@@ -148,13 +148,16 @@ object TvDialog {
         // Fixed width like the layout's 520dp: without it the window shrinks to the content (e.g. the QR image).
         dialog.window?.setLayout((520 * activity.resources.displayMetrics.density).toInt(), WindowManager.LayoutParams.WRAP_CONTENT)
         dialog.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
-        dialog.setOnShowListener { open++ }
-        dialog.setOnDismissListener { open--; onClose?.invoke() }
+        dialog.setOnShowListener { open += dialog }
+        dialog.setOnDismissListener { open -= dialog; onClose?.invoke() }
         return dialog to root
     }
 
     /** Dialogs on screen (main thread). The window focus moves to a new dialog only a moment after show() on a slow box. */
-    private var open = 0
+    private val open = ArrayList<Dialog>()
 
-    val anyOpen get() = open > 0
+    val anyOpen get() = open.isNotEmpty()
+
+    /** Open dialogs, oldest first – for the debug server's screen description (main thread). */
+    val openDialogs: List<Dialog> get() = open.toList()
 }
