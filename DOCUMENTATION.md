@@ -1040,7 +1040,7 @@ export JAVA_HOME=/path/to/jdk ANDROID_HOME=/path/to/android-sdk   # or sdk.dir i
 ```
 
 `assembleTvDebug` and `assemblePhoneDebug` remain as aliases of the GitHub debug builds for the scripts in `tools/`
-and `tests/device/`.
+and the device tests (kept in the private repository, `tests/device/`).
 
 Debug builds install as `com.bonsaponsi.baptv.debug` ("bapTV debug"), next to the release version:
 their own settings and channel lists, the phone remote on port 8091 instead of 8090, and no update
