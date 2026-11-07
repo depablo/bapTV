@@ -394,7 +394,7 @@ class MainActivity : Activity() {
         handler.postDelayed({ if (started) ReportSender.offerPendingCrash(this) }, REPORT_PROMPT_DELAY_MS)
         // "Did you know?" – at most once a day, only when nothing else is on screen (the dialog takes the window focus).
         handler.postDelayed({
-            if (started && !menu.visible && hasWindowFocus() && setupBanner.visibility != View.VISIBLE && !SetupProgress.inPipeline(this)) Tips.showDaily(this)
+            if (started && !menu.visible && hasWindowFocus() && !TvDialog.anyOpen && setupBanner.visibility != View.VISIBLE && !SetupProgress.inPipeline(this)) Tips.showDaily(this)
         }, TIP_DELAY_MS)
         // New release on GitHub: checked at most once a day, a while after the picture appears.
         handler.postDelayed({ if (started) checkForUpdate(manual = false) }, UPDATE_CHECK_DELAY_MS)
@@ -429,7 +429,7 @@ class MainActivity : Activity() {
     private fun showRemoteAddressChange() {
         val address = pendingRemoteAddress ?: return
         if (!started) return
-        if (menu.visible || !hasWindowFocus()) {
+        if (menu.visible || !hasWindowFocus() || TvDialog.anyOpen) {
             handler.postDelayed({ showRemoteAddressChange() }, REMOTE_ADDRESS_DELAY_MS)
             return
         }
