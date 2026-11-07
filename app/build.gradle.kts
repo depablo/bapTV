@@ -95,11 +95,19 @@ android {
             targetSdk = 35
             buildConfigField("boolean", "TV", "false")
         }
+        // The pilot: a separate Google Play app (the phone remote only). Same code, its own manifest in src/pilot.
+        create("pilot") {
+            dimension = "device"
+            applicationId = "com.bonsaponsi.baptv.pilot"
+            targetSdk = 35
+            buildConfigField("boolean", "TV", "false")
+        }
     }
 
     androidComponents {
         beforeVariants { variant ->
             if (variant.name.startsWith("playPhone")) variant.enable = false
+            if (variant.name.startsWith("githubPilot")) variant.enable = false
         }
     }
 

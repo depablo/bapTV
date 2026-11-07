@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Nazwa aplikacji pilota w launcherze (aplikacja telewizora to bapTV). -->
+    <string name="app_name">bapTV pilot</string>
+</resources>

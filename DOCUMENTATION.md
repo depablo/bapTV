@@ -765,8 +765,9 @@ Resources: English strings in `res/values` (default) and Polish in `res/values-p
 
 ### Permissions
 
-The manifests are `app/src/main` (both builds), `app/src/tv` (TV, GitHub and Play) and `app/src/play` (Play only,
-removes the entries marked "no"). The GitHub TV build also keeps the camera entries, which ZXing merges in.
+The manifests are `app/src/main` (all builds), `app/src/tv` (both TV builds), `app/src/play` (both Play builds, removes
+the entries marked "no") and `app/src/pilot` (the pilot app). The TV manifest removes the camera entries that ZXing
+merges in, because a TV never scans codes; the phone and pilot apps keep them.
 
 | Permission | Purpose | GitHub | Google Play |
 |---|---|---|---|
@@ -779,7 +780,7 @@ removes the entries marked "no"). The GitHub TV build also keeps the camera entr
 | `INTERNET` | IPTV, HbbTV applications, guide downloads, phone remote, reports | yes | yes |
 | `FOREGROUND_SERVICE`, `RECEIVE_BOOT_COMPLETED` | recording service and alarms; restoring the debug server after boot | yes | yes (no recording service) |
 | `REQUEST_INSTALL_PACKAGES` | installing updates from the GitHub releases; debug builds: remote install | yes | no |
-| `CAMERA` | scanning the pairing QR code of the TV in the phone app (ZXing) | yes | no |
+| `CAMERA` | scanning the pairing QR code of the TV in the phone and pilot apps (ZXing); not in the TV builds | no | no (the pilot app: yes) |
 
 Accessibility service `ColourKeysService` (colour keys while another app has focus): GitHub only. Without it the
 Google Play build receives the colour keys only while bapTV is on screen.
@@ -1007,7 +1008,9 @@ curl -s -H "X-Tv-Token: <token>" -X POST "http://<device-ip>:8080/key?name=OK"
 | `githubTv` | 29 | the full TV app: recordings, self-updater, debug server (debug builds), accessibility colour keys |
 | `playTv` | 35 | the TV app for Google Play: no recordings, no self-updater, no debug server, no accessibility service, no camera |
 | `githubPhone` | 35 | phone: internet channels, the set-top box remote, self-updater |
-| `playPhone` | – | not built; the phone app will be a separate Play package (the pilot) |
+| `playPilot` | 35 | the pilot app for Google Play, package `com.bonsaponsi.baptv.pilot`: only the phone remote (finding the set-top box, pairing, the remote's page, camera for the pairing QR code); no phone player, no updates |
+| `playPhone` | – | not built (the phone app stays on GitHub; the Play listing is the pilot) |
+| `githubPilot` | – | not built |
 
 Build flags are in `BuildConfig`: `TV`, `SELF_UPDATE`, `RECORDING`, `DEV_SERVER`, `ACCESSIBILITY_KEYS`. The
 `github` flavor sets all of them to true, `play` to false, and the code checks them where the feature starts.
@@ -1032,6 +1035,7 @@ the Play variant meets the current target requirement anyway.
 ```
 export JAVA_HOME=/path/to/jdk ANDROID_HOME=/path/to/android-sdk   # or sdk.dir in local.properties
 ./gradlew assembleGithubTvDebug     # app/build/outputs/apk/githubTv/debug/app-github-tv-debug.apk
+./gradlew assemblePlayPilotRelease  # app/build/outputs/apk/playPilot/release/ (the pilot app for Google Play)
 ./gradlew assemblePlayTvRelease     # app/build/outputs/apk/playTv/release/
 ./gradlew assembleGithubPhoneDebug  # app/build/outputs/apk/githubPhone/debug/
 ./gradlew assembleRelease           # all minified release builds (R8 with proguard-rules.pro)

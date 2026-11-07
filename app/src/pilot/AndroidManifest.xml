@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The pilot app (Google Play): only the phone remote – finding the set-top box, pairing and the remote's page.
+    Everything else of the phone build (the phone player, channel management, updates, the TV components) is removed
+    from the merged manifest. The code stays in the module; nothing starts it.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" tools:node="remove" />
+    <!-- Scanning the pairing QR code shown on the TV: the only use of the camera in this app. -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
+
+    <application
+        android:label="@string/app_name"
+        tools:replace="android:label">
+
+        <!-- The launcher starts with the list of set-top boxes; the remote opens from there. -->
+        <activity
+            android:name=".RemoteActivity"
+            android:exported="true"
+            tools:replace="android:exported">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <activity android:name=".PhoneActivity" tools:node="remove" />
+        <activity android:name=".PhoneImportActivity" tools:node="remove" />
+        <activity android:name=".PhoneChannelsActivity" tools:node="remove" />
+        <receiver android:name=".UpdateReceiver" tools:node="remove" />
+    </application>
+</manifest>
