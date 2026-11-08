@@ -2028,8 +2028,10 @@ class MainActivity : Activity() {
         val sameMux = if (channel.frequencyMhz == null) emptyList()
         else channels.filter { it.id != channel.id && it.frequencyMhz == channel.frequencyMhz && !it.identified }
         learnExecutor.execute {
-            // Give playback a moment to settle; if the channel changed in the meantime – give up.
-            Thread.sleep(if (force) 500 else 3000)
+            // Give playback a moment to settle; if the channel changed in the meantime – give up. In the self-clean
+            // regime wait until the stream has stabilised (~10 s) so the HbbTV/EPG clip self-cleans and the AIT is
+            // present; a forced relearn (the user is already on a stable channel) records sooner. Legacy: timing is free.
+            Thread.sleep(if (force) 500 else if (TsProbe.selfCleanRegime(applicationContext)) 10_000 else 3000)
             if (TsProbe.currentChannelUri != channel.uri || identifying || probingFrequency) return@execute
             val entry = hbbStore.get(channel.id)
             val epg = EpgStore.get(this)
@@ -2053,7 +2055,7 @@ class MainActivity : Activity() {
             if (!prefs.getBoolean(PREF_SAME_MUX_BUSY, false)) {
                 for (other in sameMux) {
                     if (TsProbe.currentChannelUri != channel.uri || identifying) break
-                    if (TsProbe.learn(applicationContext, other.id, seconds = 3) != null) {
+                    if (TsProbe.learn(applicationContext, other.id, seconds = 3, maxPasses = 1) != null) {
                         changed = true
                     } else if (TsProbe.lastErrorWasBusy) {
                         DebugLog.log("Identify", "tuner cannot record another service on the multiplex – identifying watched channels only")
@@ -2122,8 +2124,6 @@ class MainActivity : Activity() {
             var done = 0
             var ok = 0
             val started = System.currentTimeMillis()
-            // If we already know the tuner cannot record another service on the multiplex, switch channels right away.
-            var busy = identifyPrefs.getBoolean(PREF_SAME_MUX_BUSY, false)
             fun progress(ch: Channel) {
                 val elapsed = (System.currentTimeMillis() - started) / 1000.0
                 val perChannel = if (done > 3) elapsed / (done - 1) else SetupProgress.rates(this).perChannel
@@ -2139,30 +2139,23 @@ class MainActivity : Activity() {
                     )
                 }
             }
-            for ((_, group) in snapshot.groupBy { it.frequencyMhz }) {
+            for (ch in snapshot) {
                 if (identifyCancelled) break
-                tuneAndWait(group.first().id, IDENTIFY_SETTLE_MS)
-                group.forEachIndexed { i, ch ->
-                    if (identifyCancelled) return@forEachIndexed
-                    done++
-                    progress(ch)
-                    // Within a multiplex the tuner is already tuned – a short settle is enough.
-                    if (i > 0 && busy) tuneAndWait(ch.id, IDENTIFY_SETTLE_SAME_MUX_MS)
-                    // One channel per multiplex is recorded longer – the EIT (EPG) schedule arrives more slowly.
-                    var entry = TsProbe.learn(applicationContext, ch.id, seconds = if (i == 0) 8 else 3)
-                    if (entry == null && TsProbe.lastErrorWasBusy && !busy) {
-                        busy = true
-                        identifyPrefs.edit().putBoolean(PREF_SAME_MUX_BUSY, true).apply()
-                        DebugLog.log("Identify", "tuner cannot record another service on the multiplex – continuing with channel switching")
-                        tuneAndWait(ch.id, IDENTIFY_SETTLE_SAME_MUX_MS)
-                        entry = TsProbe.learn(applicationContext, ch.id, seconds = 3)
-                    } else if (entry == null && !identifyCancelled) {
-                        // A single failure (e.g. the channel was still tuning) – one retry.
-                        tuneAndWait(ch.id, IDENTIFY_SETTLE_MS)
-                        entry = TsProbe.learn(applicationContext, ch.id, seconds = 3)
-                    }
-                    if (entry != null) ok++
+                done++
+                progress(ch)
+                // Identification needs only the DVB triplet (sid → name/number via ServiceCatalog), which a single
+                // sub-second clip taken shortly after tuning the channel captures reliably AND self-cleans (verified on
+                // a test set-top box: sid 10/10, self-clean 10/10). Each channel is tuned on its own so the clip lands in the
+                // self-clean window. HbbTV and EPG are left for when the user watches the channel (identifyInBackground),
+                // where the stream has stabilised – that is the only window where the AIT both reads and self-cleans.
+                tuneAndWait(ch.id, IDENTIFY_SETTLE_MS)
+                var entry = TsProbe.learn(applicationContext, ch.id, seconds = 3, maxPasses = 1)
+                if (entry == null && !identifyCancelled) {
+                    // A single failure (e.g. the channel was still tuning) – one retry.
+                    tuneAndWait(ch.id, IDENTIFY_SETTLE_MS)
+                    entry = TsProbe.learn(applicationContext, ch.id, seconds = 3, maxPasses = 1)
                 }
+                if (entry != null) ok++
             }
             if (!identifyCancelled && done > 0) {
                 SetupProgress.learn(applicationContext, "perChannel", (System.currentTimeMillis() - started) / 1000.0, done)
@@ -2559,10 +2552,12 @@ class MainActivity : Activity() {
         private const val COLOUR_KEYS_OFFER_DELAY_MS = 3000L
         private const val STORAGE_ASK_INTERVAL_MS = 24 * 3600_000L
         private const val PREF_SAME_MUX_BUSY = "same_mux_busy"
-        /** Time for playback to settle after a channel switch before recording. */
-        private const val IDENTIFY_SETTLE_MS = 3500L
-        /** Switch within a multiplex – the frontend is already tuned. */
-        private const val IDENTIFY_SETTLE_SAME_MUX_MS = 1500L
+        /** Playback settle after tuning a channel before the identification clip: short, because identification needs
+         *  only the DVB triplet (present within ~1.5 s). A longer dwell would let more of the scan's clips self-clean,
+         *  but during a background scan the player is not rendering at the live edge, so the scan never reaches zero
+         *  anyway (measured: 10 s left +32 vs 1.5 s +49 – not worth the extra scan time). The leftover sub-second clips
+         *  (~20–33 MB one-off, down from ~150–280 MB) are capped by the free-space guard; normal viewing self-cleans. */
+        private const val IDENTIFY_SETTLE_MS = 1500L
         /** Margin after the scheduled programme end – programmes often run late. */
         private const val RECORD_MARGIN_MS = 5 * 60_000L
         private const val RECORDING_END_LIVE_MS = 6000L

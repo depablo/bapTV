@@ -21,11 +21,11 @@ object ServerAccess {
     /** Endpoints requiring the token (the rest: view pages, /signal, /status, log). */
     val PROTECTED = setOf(
         "/hbbtv/eval", "/key", "/screenshot.png", "/launch", "/restart", "/open", "/timeshift", "/recordings", "/probe", "/probe.ts",
-        "/publish", "/tvchannels", "/tvchannels/delete", "/tvchannels/update", "/dtv/install", "/dtv/action", "/debug/no-tuner", "/iptv/guide", "/ui", "/debug/remote/forget",
+        "/publish", "/tvchannels", "/tvchannels/delete", "/tvchannels/update", "/dtv/install", "/dtv/action", "/dtv/selfclean", "/debug/no-tuner", "/iptv/guide", "/ui", "/debug/remote/forget",
     )
 
     /** Developer tools – disabled in release builds. */
-    val DEBUG_ONLY = setOf("/hbbtv/eval", "/key", "/screenshot.png", "/install", "/timeshift", "/tvchannels", "/tvchannels/delete", "/tvchannels/update", "/dtv/install", "/dtv/action", "/debug/no-tuner", "/ui", "/debug/remote/forget")
+    val DEBUG_ONLY = setOf("/hbbtv/eval", "/key", "/screenshot.png", "/install", "/timeshift", "/tvchannels", "/tvchannels/delete", "/tvchannels/update", "/dtv/install", "/dtv/action", "/dtv/selfclean", "/debug/no-tuner", "/ui", "/debug/remote/forget")
 
     fun token(context: Context): String {
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)

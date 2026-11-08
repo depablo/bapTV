@@ -28,6 +28,25 @@ object TsProbe {
     private const val MAX_FAILURES = 2
     const val EXTRA_REQUEST_STORAGE = "request_storage"
 
+    /**
+     * On targetSdk >= 30 the app can delete neither the recording file nor dtvinput's RecordedPrograms row,
+     * so probes are kept under one second. dtvinput then deletes its own row (DtvRecordSession treats a
+     * completed recording shorter than 1 s as empty) and its observer removes the orphaned directory with
+     * dtvinput's own file ownership, so nothing accumulates. Verified on a set-top box, targetSdk 35:
+     * the AIT and the DVB triplet are still captured at 300-700 ms. 500 ms keeps a safe margin below 1000 ms.
+     */
+    private const val SELF_CLEAN_MS = 500L
+
+    /**
+     * In the self-clean regime a single sub-second clip often misses the AIT (the HbbTV carousel repeats about
+     * once a second), so we take up to this many clips and merge them into one analyzer. The DVB triplet already
+     * comes on the first clip; extra clips are only to catch the AIT. We stop early once both are present.
+     */
+    private const val SELF_CLEAN_PASSES = 3
+
+    /** Pause between clips so dtvinput releases the recording session before the next tune. */
+    private const val SETTLE_MS = 400L
+
     /** Channel being watched in the player (set by [MainActivity]). */
     @Volatile var currentChannelUri: Uri? = null
 
@@ -44,6 +63,16 @@ object TsProbe {
 
     fun hasStoragePermission(context: Context) =
         context.checkSelfPermission(Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED
+
+    /** Legacy storage (targetSdk < 30) lets the app delete the recordings it reads; otherwise rely on dtvinput's self-clean. */
+    private fun canDeleteRecordings(context: Context) = context.applicationInfo.targetSdkVersion < 30
+
+    /**
+     * True when the app cannot delete dtvinput's recordings (targetSdk >= 30) and must rely on dtvinput's self-clean
+     * of sub-second clips. Callers use it to time recordings into the self-clean window (identify ~1.5 s after a tune,
+     * HbbTV/EPG after a ~10 s dwell); on legacy storage the timing does not matter because the app deletes the files.
+     */
+    fun selfCleanRegime(context: Context) = !canDeleteRecordings(context)
 
     class Recording(val log: String, val analyzer: TsAnalyzer?)
 
@@ -97,9 +126,106 @@ object TsProbe {
      * Learns a channel in the background without switching the player: DVB identifiers, AIT and EPG
      * of the whole multiplex. Returns the saved entry or null (reason in [lastError]).
      */
-    fun learn(context: Context, channelId: Long, seconds: Int = 4): HbbTvStore.Entry? {
-        val rec = record(context, TvContract.buildChannelUri(channelId), seconds, switchPlayer = false)
+    fun learn(context: Context, channelId: Long, seconds: Int = 4, maxPasses: Int = SELF_CLEAN_PASSES): HbbTvStore.Entry? {
+        val rec = record(context, TvContract.buildChannelUri(channelId), seconds, switchPlayer = false, maxPasses = maxPasses)
         return rec.analyzer?.let { save(context, channelId, it) }
+    }
+
+    /**
+     * Debug diagnostic: checks whether dtvinput cleans up a sub-second recording by itself on this device/firmware,
+     * where on targetSdk 35 the app can delete neither the file nor the RecordedPrograms row. Self-clean is device
+     * dependent, so this stays as a tool to verify it on other boxes before relying on it there.
+     *
+     * Mechanism under test: DtvRecordSession.updateRecordEntry() deletes its OWN RecordedPrograms row when a
+     * completed recording measures a duration below 1000 ms; its DtvRecordedProgramsObserver then removes the
+     * now-unreferenced record directory with dtvinput's own file ownership (works on any targetSdk).
+     *
+     * The test records [ms] ms, parses AIT/SDT/EIT from the file, and then polls the row and the directory for
+     * a few seconds WITHOUT running the app's own cleanup, so any disappearance is dtvinput's doing.
+     */
+    @Synchronized
+    fun selfCleanTest(context: Context, channelUri: Uri?, ms: Long): String {
+        val uri = channelUri ?: currentChannelUri
+            ?: return "No channel: park the player on a channel (ideally one with HbbTV, e.g. TVP) or pass ?channel=<id>.\n"
+        val input = Dtv.findTunerInput(context) ?: return "No tuner input.\n"
+        if (Recorder.active != null) return "A programme is being recorded – skipping.\n"
+        if (!hasStoragePermission(context)) return "No storage read permission – accept it once in the player and retry.\n"
+        val log = StringBuilder()
+        fun note(msg: String) { log.appendLine(msg); DebugLog.log(TAG, msg) }
+
+        val before = recordsDir.listFiles()?.map { it.name }?.toSet().orEmpty()
+        note("self-clean test: recording $uri via ${input.id} for $ms ms (targetSdk ${context.applicationInfo.targetSdkVersion}); " +
+            "dir ${before.size} entries, free ${Recorder.freeBytes() / 1_000_000} MB")
+
+        val main = Handler(Looper.getMainLooper())
+        val tuned = CountDownLatch(1)
+        val stopped = CountDownLatch(1)
+        var recordedUri: Uri? = null
+        var error: String? = null
+        lateinit var client: TvRecordingClient
+        val callback = object : TvRecordingClient.RecordingCallback() {
+            override fun onConnectionFailed(inputId: String) { error = "onConnectionFailed"; tuned.countDown(); stopped.countDown() }
+            override fun onDisconnected(inputId: String) { error = error ?: "onDisconnected"; tuned.countDown(); stopped.countDown() }
+            override fun onTuned(channelUri: Uri) { note("onTuned $channelUri"); tuned.countDown() }
+            override fun onRecordingStopped(recordedProgramUri: Uri) { note("onRecordingStopped $recordedProgramUri"); recordedUri = recordedProgramUri; stopped.countDown() }
+            override fun onError(code: Int) { error = "onError $code"; tuned.countDown(); stopped.countDown() }
+        }
+        val created = CountDownLatch(1)
+        main.post {
+            try { client = TvRecordingClient(context, TAG, callback, main); client.tune(input.id, uri) }
+            catch (e: Exception) { error = "tune: $e"; tuned.countDown(); stopped.countDown() }
+            created.countDown()
+        }
+        created.await(5, TimeUnit.SECONDS)
+        if (!tuned.await(20, TimeUnit.SECONDS)) error = error ?: "no onTuned within 20 s"
+        if (error == null) {
+            main.post { runCatching { client.startRecording(null) }.onFailure { error = "startRecording: $it"; stopped.countDown() } }
+            Thread.sleep(ms)
+            main.post { runCatching { client.stopRecording() }.onFailure { error = "stopRecording: $it"; stopped.countDown() } }
+            if (!stopped.await(20, TimeUnit.SECONDS)) error = error ?: "no onRecordingStopped within 20 s"
+        }
+        main.post { runCatching { client.release() } }
+        error?.let { note("ERROR: $it") }
+
+        // The newest directory that appeared during this session; parse it before dtvinput may remove it.
+        val recDir = recordsDir.listFiles()?.filter { it.isDirectory && it.name !in before }
+            ?.maxByOrNull { it.name.substringAfter('_').toLongOrNull() ?: 0 }
+        val tsFile = recDir?.let { File(it, "record.ts") }?.takeIf { it.exists() }
+        note("record dir: ${recDir?.name ?: "none"}; file: ${tsFile?.let { "${it.length()} B" } ?: "none"}")
+        if (tsFile != null) {
+            val a = TsAnalyzer()
+            runCatching { tsFile.inputStream().buffered().use { a.feed(it, MAX_COPY_BYTES) } }
+                .onFailure { note("analysis aborted (partial): $it") }
+            note("captured in $ms ms -> AIT apps=${a.apps.size}, SDT services=${a.services.size}, " +
+                "PMT programs=${a.programs.size}, EIT events=${a.events.values.sumOf { it.size }}" +
+                (if (a.apps.isNotEmpty()) "; apps: " + a.apps.values.joinToString { "${it.controlName} ${it.url}" } else ""))
+            // The DVB triplet derived exactly as save() does, to check identification survives a sub-second probe.
+            val prog = a.programs.values.maxByOrNull { p -> p.streams.sumOf { a.pidCounts[it.pid] ?: 0L } }
+            val ids = prog?.let { a.eitIds[it.number] }
+            note("identification: sid=${prog?.number} onid=${a.originalNetworkId ?: ids?.second} " +
+                "tsid=${a.transportStreamId ?: ids?.first ?: a.patTransportStreamId} scrambled=${prog?.scrambled} " +
+                "video=${prog?.hasVideo} audio=${prog?.hasAudio}")
+        }
+
+        fun rowExists(u: Uri?): Boolean = u != null && runCatching {
+            context.contentResolver.query(u, arrayOf(TvContract.RecordedPrograms._ID), null, null, null)?.use { it.moveToFirst() } == true
+        }.getOrDefault(false)
+
+        note("t=0s: row=${rowExists(recordedUri)}, dir=${recDir?.exists() == true}")
+        var cleaned = false
+        for (i in 1..12) {
+            Thread.sleep(1000)
+            val r = rowExists(recordedUri)
+            val d = recDir?.exists() == true
+            note("t=${i}s: row=$r, dir=$d")
+            if (!r && !d) { note("RESULT: dtvinput self-cleaned after ${i}s (app ran no delete)"); cleaned = true; break }
+        }
+        if (!cleaned) note("RESULT: not self-cleaned within 12 s (row=${rowExists(recordedUri)}, dir=${recDir?.exists() == true})")
+
+        // Leave nothing behind regardless of the outcome (on targetSdk 35 both are expected to be no-ops).
+        recordedUri?.let { runCatching { context.contentResolver.delete(it, null, null) } }
+        recDir?.let { runCatching { Recorder.deleteRecordingDir(it) } }
+        return log.toString()
     }
 
     private fun save(context: Context, channelId: Long, a: TsAnalyzer): HbbTvStore.Entry? {
@@ -131,7 +257,7 @@ object TsProbe {
 
     /** One recording at a time (the tuner and the recordings directory are shared). */
     @Synchronized
-    private fun record(context: Context, uri: Uri, seconds: Int, switchPlayer: Boolean): Recording {
+    private fun record(context: Context, uri: Uri, seconds: Int, switchPlayer: Boolean, maxPasses: Int = SELF_CLEAN_PASSES): Recording {
         val input = Dtv.findTunerInput(context) ?: return Recording("No tuner input.\n", null)
         // An ongoing recording holds the recording session and the recordings directory – learning will wait.
         if (Recorder.active != null) { lastError = "recording in progress"; return Recording("A programme is being recorded – skipping.\n", null) }
@@ -160,9 +286,73 @@ object TsProbe {
             if (ok) Thread.sleep(4000)
         }
 
-        val before = recordsDir.listFiles()?.map { it.name }?.toSet().orEmpty()
-        note("recording $uri via ${input.id} for $seconds s; recordings directory: $recordsDir (${before.size} entries, readable: ${recordsDir.canRead()})")
+        val legacy = canDeleteRecordings(context)
+        // On targetSdk >= 30 keep each clip below one second so dtvinput deletes it itself (see [SELF_CLEAN_MS]) and
+        // repeat, merging all clips into one analyzer: a single sub-second clip often misses the AIT (the HbbTV
+        // carousel repeats ~1 s), while the DVB triplet comes on the first clip. On legacy storage one longer clip is
+        // enough (we delete it ourselves). [TsAnalyzer] accumulates across feeds, so merging is just feeding each clip.
+        val recordMs = if (legacy) seconds * 1000L else SELF_CLEAN_MS
+        // The self-clean window depends on WHEN this runs after the caller tuned the channel: identification records
+        // one clip ~1.5 s after the tune (triplet is there, clip self-cleans), HbbTV/EPG after a ~10 s dwell (AIT is
+        // there, stream stable). The caller owns that timing; record() just takes the clip(s) now.
+        val passes = if (legacy) 1 else maxPasses
+        note("analysing $uri via ${input.id}: up to $passes clip(s) of $recordMs ms (requested ${seconds}s), free ${Recorder.freeBytes() / 1_000_000} MB")
 
+        val analyzer = TsAnalyzer()
+        var fed = false
+        for (pass in 1..passes) {
+            val r = recordPass(context, input.id, uri, recordMs, ::note)
+            var stop = false
+            try {
+                when {
+                    r.error != null -> {
+                        lastError = r.error
+                        note("recording session error: ${r.error}" + if (r.error == "onError 2") " (RECORDING_ERROR_RESOURCE_BUSY – tuner busy)" else "")
+                        // A busy tuner is expected (another multiplex) and says nothing about recording support.
+                        if (!fed) {
+                            if (!lastErrorWasBusy) noteOutcome(context, ok = false, reason = r.error)
+                            return Recording(log.toString(), null)
+                        }
+                        stop = true // keep whatever earlier clips gathered
+                    }
+                    r.file == null -> {
+                        note("recording file not found; directory: ${recordsDir.listFiles()?.joinToString { it.name } ?: "unreadable"}")
+                        if (!fed) { noteOutcome(context, ok = false, reason = "no recording file"); return Recording(log.toString(), null) }
+                        stop = true
+                    }
+                    else -> {
+                        note("clip $pass/$passes: ${r.file} (${r.file.length()} B)")
+                        // Over-the-air data: a broken stream must not abort learning – whatever was read so far is kept.
+                        runCatching { r.file.inputStream().buffered().use { analyzer.feed(it, MAX_COPY_BYTES) } }
+                            .onFailure { DebugLog.warn(TAG, "stream analysis aborted – partial result", it) }
+                        fed = true
+                        // Keep the latest clip for the /probe.ts download (manual probe only); best effort.
+                        if (switchPlayer) runCatching {
+                            r.file.inputStream().use { src -> probeFile(context).outputStream().use { dst -> copyLimited(src, dst, MAX_COPY_BYTES) } }
+                        }
+                        if (hasEnough(analyzer)) { note("got the AIT and the DVB triplet after clip $pass"); stop = true }
+                    }
+                }
+            } finally {
+                // Always clean up (on targetSdk 29); on 35 these are no-ops – dtvinput removes the short clip itself.
+                val dirs = listOfNotNull(r.file?.parentFile) + sessionDirs(uri, r.before)
+                cleanup(context, r.recordedUri, dirs.distinct())
+            }
+            if (stop) break
+            if (pass < passes) Thread.sleep(SETTLE_MS) // let dtvinput release the session before the next tune
+        }
+        if (!fed) return Recording(log.toString(), null)
+        noteOutcome(context, ok = true, reason = "")
+        DebugLog.log(TAG, "analysis: SDT services ${analyzer.services.size}, AIT apps ${analyzer.apps.size}: " +
+            analyzer.apps.values.joinToString { "${it.controlName} ${it.url}" })
+        return Recording(log.toString(), analyzer)
+    }
+
+    private class PassResult(val file: File?, val recordedUri: Uri?, val before: Set<String>, val error: String?)
+
+    /** One tune + record ([recordMs]) + stop + release. Returns the written file (dtvinput self-cleans short clips). */
+    private fun recordPass(context: Context, tunerInputId: String, uri: Uri, recordMs: Long, note: (String) -> Unit): PassResult {
+        val before = recordsDir.listFiles()?.map { it.name }?.toSet().orEmpty()
         val main = Handler(Looper.getMainLooper())
         val tuned = CountDownLatch(1)
         val stopped = CountDownLatch(1)
@@ -180,7 +370,7 @@ object TsProbe {
         main.post {
             try {
                 client = TvRecordingClient(context, TAG, callback, main)
-                client.tune(input.id, uri)
+                client.tune(tunerInputId, uri)
             } catch (e: Exception) {
                 error = "tune: $e"
                 tuned.countDown(); stopped.countDown()
@@ -192,7 +382,7 @@ object TsProbe {
             if (!tuned.await(20, TimeUnit.SECONDS)) error = error ?: "no onTuned within 20 s"
             if (error == null) {
                 main.post { runCatching { client.startRecording(null) }.onFailure { error = "startRecording: $it"; stopped.countDown() } }
-                Thread.sleep(seconds * 1000L)
+                Thread.sleep(recordMs)
                 main.post { runCatching { client.stopRecording() }.onFailure { error = "stopRecording: $it"; stopped.countDown() } }
                 if (!stopped.await(20, TimeUnit.SECONDS)) error = error ?: "no onRecordingStopped within 20 s"
             }
@@ -200,41 +390,16 @@ object TsProbe {
             main.post { runCatching { client.release() } }
         }
         val file = if (error == null) findRecording(context, recordedUri, before) else null
-        try {
-            error?.let {
-                lastError = it
-                note("recording session error: $it" + if (it == "onError 2") " (RECORDING_ERROR_RESOURCE_BUSY – tuner busy)" else "")
-                // A busy tuner is expected (another multiplex) and says nothing about recording support.
-                if (!lastErrorWasBusy) noteOutcome(context, ok = false, reason = it)
-                return Recording(log.toString(), null)
-            }
-            if (file == null) {
-                note("recording file not found; directory: ${recordsDir.listFiles()?.joinToString { it.name } ?: "unreadable"}")
-                noteOutcome(context, ok = false, reason = "no recording file")
-                return Recording(log.toString(), null)
-            }
-            note("recording file: $file (${file.length()} B)")
-            val copy = probeFile(context)
-            runCatching {
-                file.inputStream().use { src -> copy.outputStream().use { dst -> copyLimited(src, dst, MAX_COPY_BYTES) } }
-            }.onFailure {
-                note("copy failed: $it")
-                noteOutcome(context, ok = false, reason = "copy failed")
-                return Recording(log.toString(), null)
-            }
-            noteOutcome(context, ok = true, reason = "")
-            val analyzer = TsAnalyzer()
-            // Over-the-air data: a broken stream must not abort learning – whatever was read so far is kept.
-            runCatching { copy.inputStream().buffered().use { analyzer.feed(it) } }
-                .onFailure { DebugLog.warn(TAG, "stream analysis aborted – partial result", it) }
-            DebugLog.log(TAG, "analysis: SDT services ${analyzer.services.size}, AIT apps ${analyzer.apps.size}: " +
-                analyzer.apps.values.joinToString { "${it.controlName} ${it.url}" })
-            return Recording(log.toString(), analyzer)
-        } finally {
-            // Always clean up, also after a session error – otherwise probe recordings fill up recording storage.
-            val dirs = listOfNotNull(file?.parentFile) + sessionDirs(uri, before)
-            cleanup(context, recordedUri, dirs.distinct())
-        }
+        return PassResult(file, recordedUri, before, error)
+    }
+
+    /** Enough gathered to stop multi-pass learning: the DVB triplet and at least one HbbTV app. */
+    private fun hasEnough(a: TsAnalyzer): Boolean {
+        val prog = a.programs.values.maxByOrNull { p -> p.streams.sumOf { a.pidCounts[it.pid] ?: 0L } } ?: return false
+        val ids = a.eitIds[prog.number]
+        val onid = a.originalNetworkId ?: ids?.second
+        val tsid = a.transportStreamId ?: ids?.first ?: a.patTransportStreamId
+        return a.apps.isNotEmpty() && onid != null && tsid != null
     }
 
     /**

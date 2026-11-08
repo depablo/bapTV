@@ -188,6 +188,14 @@ class DebugHttpServer(private val context: Context, val port: Int = DEFAULT_PORT
             val action = request.query["action"] ?: return text("Specify ?action=<intent action>[&params=<JSON>]\n", "400 Bad Request")
             text(DebugTvTools.action(context, action, request.query["params"]) + "\n")
         }
+        // Diagnostic: does dtvinput self-clean a sub-second recording on this device? See TsProbe.selfCleanTest.
+        "POST" to "/dtv/selfclean" -> text(
+            TsProbe.selfCleanTest(
+                context,
+                request.query["channel"]?.toLongOrNull()?.let { android.media.tv.TvContract.buildChannelUri(it) },
+                (request.query["ms"]?.toLongOrNull() ?: 700L).coerceIn(50, 5000),
+            ),
+        )
         "POST" to "/publish" -> {
             val f = PlayerRemote.publish ?: return text("Player not running\n", "409 Conflict")
             text((onMain { f() } ?: "no response") + "\n")
@@ -484,7 +492,7 @@ class DebugHttpServer(private val context: Context, val port: Int = DEFAULT_PORT
         private const val JSON = "application/json; charset=utf-8"
         private val RECORDING_FILE = Regex("/recordings/(\\d+)\\.ts")
         private val QUIET_PATHS = setOf("/status", "/log.txt", "/probe.ts", "/screenshot.png", "/hbbtv", "/signal.json")
-        private val KNOWN_PATHS = setOf("/", "/report.txt", "/log.txt", "/log", "/logcat.txt", "/status", "/install", "/launch", "/restart", "/probe", "/probe.ts", "/key", "/hbbtv", "/hbbtv/eval", "/screenshot.png", "/channels", "/ui", "/debug/remote/forget", "/epg", "/open", "/capabilities", "/recordings", "/timeshift", "/signal", "/signal.json", "/signal/cycle", "/signal/stop", "/signal/tune", "/signal/probe", "/signal/probe/stop", "/signal/lna", "/signal/rediscover", "/publish", "/tvchannels", "/tvchannels/delete", "/tvchannels/update", "/dtv/install", "/dtv/action", "/debug/no-tuner")
+        private val KNOWN_PATHS = setOf("/", "/report.txt", "/log.txt", "/log", "/logcat.txt", "/status", "/install", "/launch", "/restart", "/probe", "/probe.ts", "/key", "/hbbtv", "/hbbtv/eval", "/screenshot.png", "/channels", "/ui", "/debug/remote/forget", "/epg", "/open", "/capabilities", "/recordings", "/timeshift", "/signal", "/signal.json", "/signal/cycle", "/signal/stop", "/signal/tune", "/signal/probe", "/signal/probe/stop", "/signal/lna", "/signal/rediscover", "/publish", "/tvchannels", "/tvchannels/delete", "/tvchannels/update", "/dtv/install", "/dtv/action", "/dtv/selfclean", "/debug/no-tuner")
 
         /** One server per process – kept alive by [DebugServerService]. */
         @Volatile var instance: DebugHttpServer? = null
