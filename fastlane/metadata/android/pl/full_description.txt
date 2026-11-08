@@ -15,7 +15,7 @@
 <li>Interfejs po polsku i po angielsku</li>
 </ul>
 
-<p><b>Wymagania</b>: Android 8.0 lub nowszy z wbudowanym tunerem DVB-T/T2 dostępnym przez TV Input Framework (dekoder lub telewizor z Android TV). Wyszukiwanie kanałów w aplikacji, rozpoznawanie kanałów, nagrywanie i HbbTV wymagają tunera Google DTV, który mają m.in. dekodery operatorów; na innych urządzeniach kanały wyszukuje się w ustawieniach TV systemu. Aplikacja powstała i jest testowana na dekoderze Kaon PLAY BOX TV 4B; wbudowane nazwy i numery kanałów dotyczą Polski.</p>
+<p><b>Wymagania</b>: Android 8.0 lub nowszy z wbudowanym tunerem DVB-T/T2 dostępnym przez TV Input Framework (dekoder lub telewizor z Android TV). Wyszukiwanie kanałów w aplikacji, rozpoznawanie kanałów, nagrywanie i HbbTV wymagają tunera Google DTV, który mają m.in. dekodery operatorów; na innych urządzeniach kanały wyszukuje się w ustawieniach TV systemu. Aplikacja powstała i jest testowana na dekoderze DVB-T2; wbudowane nazwy i numery kanałów dotyczą Polski.</p>
 
 <p><b>Dostęp do sieci</b>: kanały naziemne pochodzą z anteny. Internetu używają aplikacje HbbTV, które są stronami internetowymi nadawców, kanały internetowe i listy, które dodasz sam (aplikacja nie zawiera żadnych), oraz – wyłącznie po Twoim potwierdzeniu – wysyłanie raportu diagnostycznego do autora. Pilot w telefonie to mały serwer WWW w Twojej sieci lokalnej, który sterowanie i dane o kanałach udostępnia tylko telefonom sparowanym kodem QR z telewizora.</p>
 

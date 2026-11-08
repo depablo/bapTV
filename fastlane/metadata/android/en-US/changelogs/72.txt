@@ -1,0 +1,1 @@
+Channel search finds channels with short recordings that the system removes again. HbbTV and the programme guide are learned while you watch a channel.
