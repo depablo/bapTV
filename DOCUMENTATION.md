@@ -706,8 +706,9 @@ Debug builds additionally offer a local HTTP server; see
   storage, which the app can read and delete (hence `targetSdk 29` with `requestLegacyExternalStorage` and
   the storage permission; with a newer target Android 11 leaves these files read-only). The recording contains PAT, the service's PMT, AIT, EIT and the service's
   elementary streams, but no SDT or NIT. It can run in parallel with playback on the same multiplex;
-  recording another multiplex fails with `RESOURCE_BUSY` (one tuner). Probe recordings are deleted
-  after analysis.
+  recording another multiplex fails with `RESOURCE_BUSY` (one tuner). On targetSdk 29 the app deletes its
+  probe recordings after analysis. On targetSdk 35 it cannot (scoped storage), so probes are kept under one
+  second: the input then deletes such a recording itself (see "Probe recordings" below).
 - **Scanning**: the Google DTV tuner input's installer service is exported without a permission and
   accepts JSON scan parameters; progress arrives as an `INSTALL_EVENT` broadcast.
 
@@ -1017,10 +1018,16 @@ Build flags are in `BuildConfig`: `TV`, `SELF_UPDATE`, `RECORDING`, `DEV_SERVER`
 The Play-only manifest is `app/src/play/AndroidManifest.xml`; the TV-only one is `app/src/tv/AndroidManifest.xml`.
 
 Why the GitHub TV build targets 29: it is the highest target for which `requestLegacyExternalStorage` still works on
-Android 11, which the app needs to read and delete the tuner input's recordings. With target 35 the probe
-recordings can be read but not deleted (checked on the reference box: `NoSuchFileException`, and MediaStore
-deletes nothing without the user's consent). The Play build therefore keeps them on shared storage; identification
-can use up roughly 300 MB per full run. `TsProbe` stops making probe recordings below 500 MB of free space.
+Android 11, which the app needs to read and delete the tuner input's recordings. With target 35 the app cannot
+delete them (scoped storage; MediaStore deletes nothing without the user's consent), so the Play build relies on
+the following instead.
+
+**Probe recordings (targetSdk 35).** Identification and HbbTV probes record a clip shorter than one second. The
+tuner input deletes a completed recording that is shorter than 1000 ms, together with its directory, so nothing
+accumulates in normal use. A full scan still leaves roughly 20–33 MB once, because its clips are recorded while the
+player is not rendering at the live edge. HbbTV and the guide are learned when the user watches a channel, about
+ten seconds after the switch. `TsProbe` also stops making probe recordings below 500 MB of free space.
+The debug endpoint `/dtv/selfclean` checks the self-clean behaviour on a given device or firmware.
 
 The phone build targets 35, so Android 12L+ phones show no "built for an older version of Android" warning. Its
 theme keeps the system bars as before (`windowOptOutEdgeToEdgeEnforcement`).
