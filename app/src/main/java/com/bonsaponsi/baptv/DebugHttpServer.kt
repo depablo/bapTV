@@ -425,7 +425,8 @@ class DebugHttpServer(private val context: Context, val port: Int = DEFAULT_PORT
             .put("foreground", App.foregroundActivity ?: JSONObject.NULL)
             .put("autoConfirm", InstallClickService.isConnected)
             .put("overlay", Settings.canDrawOverlays(context))
-            .put("canInstall", context.packageManager.canRequestPackageInstalls())
+            // Throws without REQUEST_INSTALL_PACKAGES (the Google Play build has none): then the answer is "no".
+            .put("canInstall", runCatching { context.packageManager.canRequestPackageInstalls() }.getOrDefault(false))
             .put("installing", SelfUpdater.isAwaitingConfirmation(context))
             .put("lastInstall", SelfUpdater.lastResult(context) ?: JSONObject.NULL)
     }

@@ -320,10 +320,14 @@ object TsProbe {
                         if (!fed) { noteOutcome(context, ok = false, reason = "no recording file"); return Recording(log.toString(), null) }
                         stop = true
                     }
+                    r.input == null -> {
+                        // Found, but dtvinput removed it before we could open it: nothing to analyse, take the next clip.
+                        note("clip $pass/$passes vanished before it could be read")
+                    }
                     else -> {
                         note("clip $pass/$passes: ${r.file} (${r.file.length()} B)")
                         // Over-the-air data: a broken stream must not abort learning – whatever was read so far is kept.
-                        runCatching { r.file.inputStream().buffered().use { analyzer.feed(it, MAX_COPY_BYTES) } }
+                        runCatching { r.input.buffered().use { analyzer.feed(it, MAX_COPY_BYTES) } }
                             .onFailure { DebugLog.warn(TAG, "stream analysis aborted – partial result", it) }
                         fed = true
                         // Keep the latest clip for the /probe.ts download (manual probe only); best effort.
@@ -348,7 +352,17 @@ object TsProbe {
         return Recording(log.toString(), analyzer)
     }
 
-    private class PassResult(val file: File?, val recordedUri: Uri?, val before: Set<String>, val error: String?)
+    /**
+     * [input] is the clip opened at once after it was found. dtvinput removes a sub-second clip soon after it stops, but
+     * an open descriptor still reads the data after the unlink; a null [input] with a [file] means it vanished first.
+     */
+    private class PassResult(
+        val file: File?,
+        val recordedUri: Uri?,
+        val before: Set<String>,
+        val error: String?,
+        val input: java.io.InputStream? = null,
+    )
 
     /** One tune + record ([recordMs]) + stop + release. Returns the written file (dtvinput self-cleans short clips). */
     private fun recordPass(context: Context, tunerInputId: String, uri: Uri, recordMs: Long, note: (String) -> Unit): PassResult {
@@ -390,7 +404,8 @@ object TsProbe {
             main.post { runCatching { client.release() } }
         }
         val file = if (error == null) findRecording(context, recordedUri, before) else null
-        return PassResult(file, recordedUri, before, error)
+        val input = file?.let { runCatching { it.inputStream() }.getOrNull() }
+        return PassResult(file, recordedUri, before, error, input)
     }
 
     /** Enough gathered to stop multi-pass learning: the DVB triplet and at least one HbbTV app. */
