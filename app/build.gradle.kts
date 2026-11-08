@@ -1,4 +1,7 @@
+import java.util.Collections
 import java.util.Properties
+import java.util.zip.ZipEntry
+import java.util.zip.ZipFile
 
 plugins {
     id("com.android.application")
@@ -39,6 +42,8 @@ android {
         // version just sent. Release builds keep 0 so that the same source always gives the same APK
         // (reproducible builds, F-Droid).
         buildConfigField("long", "BUILD_TIME", "0L")
+        // The debug server (DebugServerService) runs only in debug builds; release builds never have it.
+        buildConfigField("boolean", "DEV_SERVER", "false")
         // Report service (server/reports): receives diagnostics reports sent with the user's consent.
         buildConfigField("String", "REPORTS_URL", "\"https://reports.bonsaponsi.com/v1/report\"")
         buildConfigField("String", "CONTACT_EMAIL", "\"bap@bonsaponsi.com\"")
@@ -72,7 +77,6 @@ android {
             dimension = "distribution"
             buildConfigField("boolean", "SELF_UPDATE", "true")
             buildConfigField("boolean", "RECORDING", "true")
-            buildConfigField("boolean", "DEV_SERVER", "true")
             buildConfigField("boolean", "ACCESSIBILITY_KEYS", "true")
             buildConfigField("String", "DISTRIBUTION", "\"github\"")
         }
@@ -81,7 +85,6 @@ android {
             targetSdk = 35
             buildConfigField("boolean", "SELF_UPDATE", "false")
             buildConfigField("boolean", "RECORDING", "false")
-            buildConfigField("boolean", "DEV_SERVER", "false")
             buildConfigField("boolean", "ACCESSIBILITY_KEYS", "false")
             buildConfigField("String", "DISTRIBUTION", "\"play\"")
         }
@@ -131,6 +134,7 @@ android {
                 resValue("string", "colour_keys_package", "com.bonsaponsi.baptv.debug")
             }
             buildConfigField("long", "BUILD_TIME", "${System.currentTimeMillis()}L")
+            buildConfigField("boolean", "DEV_SERVER", "true")
         }
         release {
             isMinifyEnabled = true
@@ -184,4 +188,45 @@ dependencies {
     // Phone remote: scans the pairing QR code on the TV (ZXing, Apache 2.0 – no Google services, so it fits F-Droid).
     implementation("com.journeyapps:zxing-android-embedded:4.3.0")
     testImplementation("junit:junit:4.13.2")
+}
+
+/**
+ * Guard for the Google Play TV release: the debug server (its manifest entry and its classes) and the accessibility
+ * install helper must not be in the APK at all. Run after the release build:
+ * ./gradlew verifyPlayTvReleaseHasNoDevServer. Strings are searched as UTF-8 and UTF-16LE (binary manifests).
+ */
+val verifyPlayTvReleaseHasNoDevServer by tasks.registering {
+    dependsOn("assemblePlayTvRelease")
+    doLast {
+        val apk = layout.buildDirectory.file("outputs/apk/playTv/release/app-play-tv-release.apk").get().asFile
+        // Class names of the server and its helpers. Route names are not checked: ServerAccess keeps the access rules
+        // of both servers (the phone remote is in every build), and those strings are data, not server code.
+        val forbidden = listOf("DebugServerService", "DebugHttpServer", "DebugTvTools", "InstallClickService")
+        val found = mutableListOf<String>()
+        ZipFile(apk).use { zip ->
+            Collections.list(zip.entries())
+                .filter { entry -> entry.name.endsWith(".dex") || entry.name == "AndroidManifest.xml" }
+                .forEach { entry: ZipEntry ->
+                    val data: ByteArray = zip.getInputStream(entry).use { input -> input.readBytes() }
+                    for (word in forbidden) {
+                        for (form in listOf(word.toByteArray(Charsets.UTF_8), word.toByteArray(Charsets.UTF_16LE))) {
+                            if (data.indexOfBytes(form) >= 0) found += "${entry.name}: $word"
+                        }
+                    }
+                }
+        }
+        if (found.isNotEmpty()) {
+            throw GradleException("The Google Play TV release contains debug-server code:\n" + found.distinct().joinToString("\n"))
+        }
+        logger.lifecycle("OK: ${apk.name} contains no debug server")
+    }
+}
+
+fun ByteArray.indexOfBytes(needle: ByteArray): Int {
+    if (needle.isEmpty() || needle.size > size) return -1
+    outer@ for (i in 0..size - needle.size) {
+        for (j in needle.indices) if (this[i + j] != needle[j]) continue@outer
+        return i
+    }
+    return -1
 }

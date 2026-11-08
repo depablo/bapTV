@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Google Play TV, debug build only: the debug server comes back so that the Play build can be tested remotely
+    (see BuildConfig.DEV_SERVER). The release build of this flavor never gets this manifest, so it never runs the server.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <application>
+        <service
+            android:name=".DebugServerService"
+            android:exported="false" />
+    </application>
+</manifest>

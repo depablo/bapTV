@@ -36,7 +36,8 @@ class App : Application() {
         // The phone build has no server, recordings or scans.
         if (!BuildConfig.TV) return
         // The web server comes back by itself after an update, a process restart and a set-top box reboot.
-        DebugServerService.restoreIfEnabled(this)
+        // Debug builds only: the release code must not reference the server at all (see verifyPlayTvReleaseHasNoDevServer).
+        if (BuildConfig.DEV_SERVER) DebugServerService.restoreIfEnabled(this)
         // Alarms for scheduled recordings are lost on a set-top box reboot – we set them at every process start.
         // Both write files: a full storage must not crash every process start before any screen shows.
         runCatching { Recorder.recoverInterrupted(this) }.onFailure { DebugLog.error("App", "recovering interrupted recordings", it) }

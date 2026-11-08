@@ -49,7 +49,8 @@ class DiagnosticsActivity : Activity() {
             ReportSender.offer(this, ReportSender.Reason.USER, null, automatic = false)
         }
         findViewById<Button>(R.id.diag_clear).setOnClickListener { DebugLog.clear(); refresh() }
-        serverButton.setOnClickListener { toggleServer() }
+        // The server button exists only in debug builds (see DebugServerService.available): release code never reaches the server.
+        if (DebugServerService.available) serverButton.setOnClickListener { toggleServer() }
         findViewById<Button>(R.id.diag_allow_install).setOnClickListener {
             openSettings(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:$packageName"), Settings.ACTION_SECURITY_SETTINGS)
         }
