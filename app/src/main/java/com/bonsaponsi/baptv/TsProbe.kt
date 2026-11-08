@@ -61,6 +61,21 @@ object TsProbe {
 
     private val recordsDir: File get() = Recorder.recordsDir
 
+    /** Debug listing of the tuner input's Records directory: one entry per recording directory, newest first. */
+    fun recordsJson(context: Context): org.json.JSONArray {
+        val out = org.json.JSONArray()
+        val dirs = recordsDir.listFiles()?.filter { it.isDirectory }?.sortedByDescending { it.lastModified() }.orEmpty()
+        for (dir in dirs) {
+            val files = dir.walkTopDown().filter { it.isFile }.toList()
+            out.put(org.json.JSONObject()
+                .put("name", dir.name)
+                .put("bytes", files.sumOf { it.length() })
+                .put("files", files.size)
+                .put("modified", dir.lastModified()))
+        }
+        return out
+    }
+
     fun hasStoragePermission(context: Context) =
         context.checkSelfPermission(Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED
 
@@ -405,6 +420,14 @@ object TsProbe {
         }
         val file = if (error == null) findRecording(context, recordedUri, before) else null
         val input = file?.let { runCatching { it.inputStream() }.getOrNull() }
+        // Measurement: the duration dtvinput gives the recording, read before the row can be removed (self-clean < 1000 ms).
+        val durationMs = recordedUri?.let { u ->
+            runCatching {
+                context.contentResolver.query(u, arrayOf("duration_millis"), null, null, null)
+                    ?.use { c -> if (c.moveToFirst()) c.getLong(0) else null }
+            }.getOrNull()
+        }
+        note("measure: requested $recordMs ms, dtvinput duration ${durationMs ?: "-"} ms, file ${file?.length() ?: "-"} B")
         return PassResult(file, recordedUri, before, error, input)
     }
 
