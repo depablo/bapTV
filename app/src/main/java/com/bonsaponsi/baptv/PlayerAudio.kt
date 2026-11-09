@@ -16,6 +16,9 @@ class PlayerAudio(context: Context, private val tvView: TvView) {
 
     private val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
     private var volume = 1f
+
+    /** Session volume last set on the TvView (1 with focus, lower or 0 without). */
+    val sessionVolume get() = volume
     private var request: AudioFocusRequest? = null
 
     private val focusListener = AudioManager.OnAudioFocusChangeListener { change ->
@@ -81,8 +84,24 @@ class PlayerAudio(context: Context, private val tvView: TvView) {
                 append(" enc=${track.encoding ?: "?"}")
                 if (track.isAudioDescription) append(" AD")
             }
+            if (track.isEncrypted) append(" ENCRYPTED")
+            if (track.isHardOfHearing) append(" HOH")
+            if (track.isSpokenSubtitle) append(" SPOKEN")
             track.description?.let { append(" desc=\"$it\"") }
+            // Whatever else the input puts in the track (it is not part of the API, so only the keys and short values).
+            track.extra?.takeIf { !it.isEmpty }?.let { extra ->
+                append(" extra={")
+                append(extra.keySet().sorted().joinToString(", ") { key -> "$key=${extra.get(key)?.toString()?.take(40)}" })
+                append("}")
+            }
         }
+
+        /** Audio outputs with the sample rates, channel counts and encodings each one reports. */
+        fun describeOutputs(audioManager: AudioManager): List<String> =
+            audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS).map { d ->
+                "type=${d.type} \"${d.productName}\" rates=${d.sampleRates.joinToString()} " +
+                    "channels=${d.channelCounts.joinToString()} encodings=${d.encodings.joinToString()}"
+            }
 
         private fun focusName(change: Int) = when (change) {
             AudioManager.AUDIOFOCUS_GAIN -> "GAIN"

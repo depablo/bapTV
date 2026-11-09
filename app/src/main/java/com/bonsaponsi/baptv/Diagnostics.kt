@@ -45,9 +45,8 @@ class Diagnostics(private val context: Context) {
                 line("STREAM_$n: ${am.getStreamVolume(st)}/${am.getStreamMaxVolume(st)}, mute=${runCatching { am.isStreamMute(st) }.getOrNull()}")
             }
             line("Mode: ${am.mode}, music active: ${am.isMusicActive}")
-            am.getDevices(android.media.AudioManager.GET_DEVICES_OUTPUTS).forEach { d ->
-                line("Output: type=${d.type} \"${d.productName}\" encodings=${d.encodings.joinToString()} channels=${d.channelCounts.joinToString()}")
-            }
+            PlayerAudio.describeOutputs(am).forEach { line("Output: $it") }
+            line("Output mix rate: ${am.getProperty(android.media.AudioManager.PROPERTY_OUTPUT_SAMPLE_RATE)} Hz, buffer ${am.getProperty(android.media.AudioManager.PROPERTY_OUTPUT_FRAMES_PER_BUFFER)} frames")
         }
         section("Signal statistics") { line(SignalReader(context).read()?.format() ?: "unavailable") }
         section("App event log (newest last)") { DebugLog.snapshot().takeLast(1500).forEach { line(it) } }

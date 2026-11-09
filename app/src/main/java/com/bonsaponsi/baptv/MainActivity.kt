@@ -1784,7 +1784,8 @@ class MainActivity : Activity() {
         val tracks = tvView.getTracks(TvTrackInfo.TYPE_AUDIO).orEmpty()
         DebugLog.log(
             "Audio",
-            "audio tracks (${tracks.size}), selected=${tvView.getSelectedTrack(TvTrackInfo.TYPE_AUDIO)}: " +
+            "audio tracks (${tracks.size}), selected=${tvView.getSelectedTrack(TvTrackInfo.TYPE_AUDIO)}, " +
+                "session volume=${audio.sessionVolume}: " +
                 tracks.joinToString(" | ") { PlayerAudio.describeTrack(it) } + "; ${audio.systemState()}"
         )
     }
