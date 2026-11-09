@@ -189,7 +189,10 @@ class DebugHttpServer(private val context: Context, val port: Int = DEFAULT_PORT
             text(DebugTvTools.action(context, action, request.query["params"]) + "\n")
         }
         // Diagnostic: does dtvinput self-clean a sub-second recording on this device? See TsProbe.selfCleanTest.
-        "GET" to "/dtv/records" -> HttpResponse("200 OK", JSON, TsProbe.recordsJson(context).toString(1))
+        "GET" to "/dtv/records" -> HttpResponse(
+            "200 OK", JSON,
+            TsProbe.recordsJson(context, request.query["positions"]?.split(',')?.map { it.trim() }?.toSet().orEmpty()).toString(1),
+        )
         "POST" to "/dtv/selfclean" -> text(
             TsProbe.selfCleanTest(
                 context,

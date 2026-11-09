@@ -46,6 +46,8 @@ object TsProbe {
 
     /** Pause between clips so dtvinput releases the recording session before the next tune. */
     private const val SETTLE_MS = 400L
+    /** How long [selfCleanTest] waits for dtvinput to remove the clip; removals were seen up to 12 s after the stop. */
+    private const val SELF_CLEAN_WAIT_S = 20
 
     /** Channel being watched in the player (set by [MainActivity]). */
     @Volatile var currentChannelUri: Uri? = null
@@ -62,16 +64,26 @@ object TsProbe {
     private val recordsDir: File get() = Recorder.recordsDir
 
     /** Debug listing of the tuner input's Records directory: one entry per recording directory, newest first. */
-    fun recordsJson(context: Context): org.json.JSONArray {
+    /**
+     * Lists the Records directory. For the directories named in [positionsOf] (or all, with "all") it also parses
+     * record.ts for the dtvfs positions that decide dtvinput's self-clean (slow: reads each whole file).
+     */
+    fun recordsJson(context: Context, positionsOf: Set<String> = emptySet()): org.json.JSONArray {
         val out = org.json.JSONArray()
         val dirs = recordsDir.listFiles()?.filter { it.isDirectory }?.sortedByDescending { it.lastModified() }.orEmpty()
         for (dir in dirs) {
             val files = dir.walkTopDown().filter { it.isFile }.toList()
-            out.put(org.json.JSONObject()
+            val entry = org.json.JSONObject()
                 .put("name", dir.name)
                 .put("bytes", files.sumOf { it.length() })
                 .put("files", files.size)
-                .put("modified", dir.lastModified()))
+                .put("modified", dir.lastModified())
+            if ("all" in positionsOf || dir.name in positionsOf) {
+                val a = TsAnalyzer()
+                runCatching { File(dir, "record.ts").inputStream().buffered().use { a.feed(it, MAX_COPY_BYTES) } }
+                entry.put("positions", a.positionsText()).put("positionsDurationMs", a.positionsDurationMs() ?: -1)
+            }
+            out.put(entry)
         }
         return out
     }
@@ -207,8 +219,9 @@ object TsProbe {
             ?.maxByOrNull { it.name.substringAfter('_').toLongOrNull() ?: 0 }
         val tsFile = recDir?.let { File(it, "record.ts") }?.takeIf { it.exists() }
         note("record dir: ${recDir?.name ?: "none"}; file: ${tsFile?.let { "${it.length()} B" } ?: "none"}")
+        var analyzed: TsAnalyzer? = null
         if (tsFile != null) {
-            val a = TsAnalyzer()
+            val a = TsAnalyzer().also { analyzed = it }
             runCatching { tsFile.inputStream().buffered().use { a.feed(it, MAX_COPY_BYTES) } }
                 .onFailure { note("analysis aborted (partial): $it") }
             note("captured in $ms ms -> AIT apps=${a.apps.size}, SDT services=${a.services.size}, " +
@@ -220,22 +233,25 @@ object TsProbe {
             note("identification: sid=${prog?.number} onid=${a.originalNetworkId ?: ids?.second} " +
                 "tsid=${a.transportStreamId ?: ids?.first ?: a.patTransportStreamId} scrambled=${prog?.scrambled} " +
                 "video=${prog?.hasVideo} audio=${prog?.hasAudio}")
+            note(positionsNote(a))
         }
+        val predictedKept = analyzed?.let { (it.positionsDurationMs() ?: -1) >= 1000 }
 
         fun rowExists(u: Uri?): Boolean = u != null && runCatching {
             context.contentResolver.query(u, arrayOf(TvContract.RecordedPrograms._ID), null, null, null)?.use { it.moveToFirst() } == true
         }.getOrDefault(false)
 
-        note("t=0s: row=${rowExists(recordedUri)}, dir=${recDir?.exists() == true}")
+        note("t=0s: row=${rowExists(recordedUri)}, dir=${recDir?.exists() == true}, row duration ${recordedDurationMs(context, recordedUri) ?: "-"} ms")
         var cleaned = false
-        for (i in 1..12) {
+        for (i in 1..SELF_CLEAN_WAIT_S) {
             Thread.sleep(1000)
             val r = rowExists(recordedUri)
             val d = recDir?.exists() == true
             note("t=${i}s: row=$r, dir=$d")
             if (!r && !d) { note("RESULT: dtvinput self-cleaned after ${i}s (app ran no delete)"); cleaned = true; break }
         }
-        if (!cleaned) note("RESULT: not self-cleaned within 12 s (row=${rowExists(recordedUri)}, dir=${recDir?.exists() == true})")
+        if (!cleaned) note("RESULT: not self-cleaned within $SELF_CLEAN_WAIT_S s (row=${rowExists(recordedUri)}, dir=${recDir?.exists() == true})")
+        predictedKept?.let { note("PREDICTION: " + if (it == !cleaned) "matched" else "WRONG (expected ${if (it) "kept" else "self-clean"})") }
 
         // Leave nothing behind regardless of the outcome (on targetSdk 35 both are expected to be no-ops).
         recordedUri?.let { runCatching { context.contentResolver.delete(it, null, null) } }
@@ -341,9 +357,11 @@ object TsProbe {
                     }
                     else -> {
                         note("clip $pass/$passes: ${r.file} (${r.file.length()} B)")
+                        val positionsFrom = analyzer.positions.size
                         // Over-the-air data: a broken stream must not abort learning – whatever was read so far is kept.
                         runCatching { r.input.buffered().use { analyzer.feed(it, MAX_COPY_BYTES) } }
                             .onFailure { DebugLog.warn(TAG, "stream analysis aborted – partial result", it) }
+                        note("clip $pass/$passes " + positionsNote(analyzer, positionsFrom))
                         fed = true
                         // Keep the latest clip for the /probe.ts download (manual probe only); best effort.
                         if (switchPlayer) runCatching {
@@ -421,14 +439,22 @@ object TsProbe {
         val file = if (error == null) findRecording(context, recordedUri, before) else null
         val input = file?.let { runCatching { it.inputStream() }.getOrNull() }
         // Measurement: the duration dtvinput gives the recording, read before the row can be removed (self-clean < 1000 ms).
-        val durationMs = recordedUri?.let { u ->
-            runCatching {
-                context.contentResolver.query(u, arrayOf("duration_millis"), null, null, null)
-                    ?.use { c -> if (c.moveToFirst()) c.getLong(0) else null }
-            }.getOrNull()
-        }
-        note("measure: requested $recordMs ms, dtvinput duration ${durationMs ?: "-"} ms, file ${file?.length() ?: "-"} B")
+        note("measure: requested $recordMs ms, dtvinput duration ${recordedDurationMs(context, recordedUri) ?: "-"} ms, file ${file?.length() ?: "-"} B")
         return PassResult(file, recordedUri, before, error, input)
+    }
+
+    /** recording_duration_millis of a RecordedPrograms row; null when the row is gone (self-cleaned) or unreadable. */
+    private fun recordedDurationMs(context: Context, recordedUri: Uri?): Long? = recordedUri?.let { u ->
+        runCatching {
+            context.contentResolver.query(u, arrayOf(TvContract.RecordedPrograms.COLUMN_RECORDING_DURATION_MILLIS), null, null, null)
+                ?.use { c -> if (c.moveToFirst()) c.getLong(0) else null }
+        }.getOrNull()
+    }
+
+    /** Line describing a clip's dtvfs positions and the duration dtvinput derives from them (see [TsAnalyzer.positions]). */
+    private fun positionsNote(a: TsAnalyzer, from: Int = 0): String {
+        val ms = a.positionsDurationMs(from) ?: -1
+        return "positions (PID 23): ${a.positionsText(from)} -> dtvinput duration $ms ms, expect ${if (ms < 1000) "self-clean" else "kept"}"
     }
 
     /** Enough gathered to stop multi-pass learning: the DVB triplet and at least one HbbTV app. */

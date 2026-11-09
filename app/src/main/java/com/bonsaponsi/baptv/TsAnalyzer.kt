@@ -71,6 +71,8 @@ class TsAnalyzer {
     val events = sortedMapOf<Int, MutableMap<Int, Event>>()
     var originalNetworkId: Int? = null; private set
     val apps = LinkedHashMap<String, HbbApp>()
+    /** last_position_in_seconds of every dtvfs positions section (PID 23), in stream order. */
+    val positions = ArrayList<Long>()
 
     private val pmtPids = HashMap<Int, Int>()
     private val aitPids = HashSet<Int>()
@@ -99,6 +101,7 @@ class TsAnalyzer {
         val pid = ((p[1].toInt() and 0x1F) shl 8) or (p[2].toInt() and 0xFF)
         pidCounts[pid] = (pidCounts[pid] ?: 0L) + 1
         if (p[1].toInt() and 0x80 != 0) return // transport_error_indicator
+        if (pid == POSITIONS_PID) { parsePosition(p); return }
         if (!isSectionPid(pid)) return
         val pusi = p[1].toInt() and 0x40 != 0
         val afc = (p[3].toInt() shr 4) and 0x3
@@ -107,6 +110,42 @@ class TsAnalyzer {
         if (afc == 3) offset += 1 + (p[4].toInt() and 0xFF)
         if (offset >= PACKET) return
         assemblers.getOrPut(pid) { SectionAssembler() }.push(p, offset, pusi) { onSection(pid, it) }
+    }
+
+    /**
+     * dtvfs inserts a positions section on PID 23 into the stream it serves. dtvinput's recorder takes a clip's
+     * duration as (last - first) of these whole-second values and deletes a completed clip that measures below
+     * 1000 ms, so the values in a clip predict whether dtvinput removes it. The section fits one packet; like
+     * dtvinput, the CRC is not checked.
+     */
+    private fun parsePosition(p: ByteArray) {
+        if (p[1].toInt() and 0x40 == 0) return
+        val afc = (p[3].toInt() shr 4) and 0x3
+        if (afc == 0 || afc == 2) return
+        var i = 4
+        if (afc == 3) i += 1 + (p[4].toInt() and 0xFF)
+        if (i >= PACKET) return
+        i += 1 + (p[i].toInt() and 0xFF) // pointer_field
+        if (i + 3 > PACKET) return
+        val content = i + if (p[i + 1].toInt() and 0x80 != 0) 8 else 3
+        if (content + 4 > PACKET) return
+        positions += u32(p, content)
+    }
+
+    /**
+     * The duration dtvinput's recorder gives a clip whose positions are [positions] from index [from] on, in ms;
+     * null when there are none (dtvinput then reports -1, which also counts as below one second).
+     */
+    fun positionsDurationMs(from: Int = 0): Long? =
+        if (from >= positions.size) null else (positions.last() - positions[from]) * 1000
+
+    /** Positions from [from] on, run-length encoded: "1234 x3, 1235 x2". */
+    fun positionsText(from: Int = 0): String {
+        val runs = ArrayList<Pair<Long, Int>>()
+        for (v in positions.drop(from)) {
+            if (runs.isNotEmpty() && runs.last().first == v) runs[runs.size - 1] = v to runs.last().second + 1 else runs += v to 1
+        }
+        return if (runs.isEmpty()) "none" else runs.joinToString { (v, n) -> "$v x$n" }
     }
 
     private fun isSectionPid(pid: Int) = pid == 0 || pid == SDT_PID || pid == EIT_PID || pid in pmtPids || pid in aitPids
@@ -302,6 +341,7 @@ class TsAnalyzer {
     fun report(): String = buildString {
         appendLine("Packets: $packets, sync errors: $syncErrors")
         appendLine("TSID: ${transportStreamId ?: patTransportStreamId ?: "?"}, ONID: ${originalNetworkId ?: eitIds.values.firstOrNull()?.second ?: "?"}")
+        appendLine("dtvfs positions (PID 23): ${positionsText()} -> dtvinput duration ${positionsDurationMs() ?: -1} ms")
         appendLine("PIDs (packet count):")
         pidCounts.forEach { (pid, n) -> appendLine("  0x%04X (%d): %d".format(pid, pid, n)) }
         appendLine("Programs (PMT):")
@@ -373,6 +413,7 @@ class TsAnalyzer {
         private const val SYNC = 0x47.toByte()
         private const val SDT_PID = 0x11
         private const val EIT_PID = 0x12
+        private const val POSITIONS_PID = 23
         /** Video stream_type: MPEG-1/2, MPEG-4 Part 2, H.264, HEVC. */
         val VIDEO_TYPES = setOf(0x01, 0x02, 0x10, 0x1B, 0x24)
         /** Audio stream_type: MPEG-1/2, AAC ADTS/LATM, AC-3 and E-AC-3 (ATSC). */
