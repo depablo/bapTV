@@ -255,6 +255,7 @@ object ScanSession {
             "complete" in status -> {
                 // A new scan changes channel IDs – the discovered list must be refreshed.
                 ChannelStore(app).clearDiscovered()
+                VideoHealth.forget(app)
                 if (shown == 0) {
                     val message = r.getString(R.string.scan_complete, 0)
                     pendingReport = message

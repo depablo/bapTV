@@ -735,6 +735,7 @@ class MainActivity : Activity() {
         DebugLog.log("Player", "tune ${channel.number} \"${channel.name}\" id=${channel.id} uri=${channel.uri}")
         hbbNoticeShownFor = -1L
         showStatus(getString(R.string.status_tuning))
+        startNoVideoWatch(channel)
         // Internet channels play through the app's own input ([IptvInputService]).
         tvView.tune(channelInput, channel.uri)
         if (channel.iptv && iptvStream?.first != channel.id) io.execute {
@@ -1807,6 +1808,34 @@ class MainActivity : Activity() {
 
     private val clearBriefStatus = Runnable { showStatus(null) }
 
+    /** Set when the no-picture check has already written its message; the later player callbacks keep it. */
+    private var noVideoReported = false
+    private val noVideoCheck = Runnable { onNoVideoAfterTune() }
+
+    /**
+     * dtvinput reports TUNING and UNKNOWN but may never report a picture, and it sends no further callback after
+     * the last one – so "Tuning…" would stay on screen. After [TUNE_NO_VIDEO_MS] a broadcast channel without a
+     * picture gets its own message, and a channel that showed a picture before suggests a new channel search.
+     */
+    private fun startNoVideoWatch(channel: Channel) {
+        noVideoReported = false
+        handler.removeCallbacks(noVideoCheck)
+        if (!channel.iptv) handler.postDelayed(noVideoCheck, TUNE_NO_VIDEO_MS)
+    }
+
+    private fun onNoVideoAfterTune() {
+        if (videoState == "VIDEO_AVAILABLE" || playingRecording != null) return
+        val channel = channels.getOrNull(currentIndex)?.takeIf { !it.iptv } ?: return
+        val worked = VideoHealth.worked(applicationContext, channel.id)
+        DebugLog.log("Player", "no picture ${TUNE_NO_VIDEO_MS / 1000} s after tuning ${channel.number} \"${channel.name}\" (worked before: $worked)")
+        noVideoReported = true
+        showStatus(getString(if (worked) R.string.status_unknown else R.string.status_no_video))
+        if (PlayerRules.mayOfferRescan(worked, menu.visible, TvDialog.anyOpen, hasWindowFocus())) {
+            TvDialog.confirm(this, getString(R.string.status_unknown), getString(R.string.no_video_rescan_message),
+                getString(R.string.menu_scan), onConfirm = { startActivity(Intent(this, ScanActivity::class.java)) })
+        }
+    }
+
     private fun showStatusFor(text: String, ms: Long) {
         showStatus(text)
         handler.removeCallbacks(clearBriefStatus)
@@ -2391,6 +2420,9 @@ class MainActivity : Activity() {
             if (prober?.onEvent("onVideoAvailable", available = true) == true) return
             videoState = "VIDEO_AVAILABLE"
             onPlayerEvent("onVideoAvailable after ${(SystemClock.elapsedRealtime() - tunedAt)} ms")
+            handler.removeCallbacks(noVideoCheck)
+            noVideoReported = false
+            if (playingRecording == null) channels.getOrNull(currentIndex)?.takeIf { !it.iptv }?.let { VideoHealth.markWorking(applicationContext, it.id) }
             audio.apply("video")
             logAudioTracks()
             showStatus(null)
@@ -2426,7 +2458,7 @@ class MainActivity : Activity() {
             onPlayerEvent("onVideoUnavailable $label")
             // For an internet stream the reason helps: e.g. "HTTP 403" usually means the stream is blocked outside its country.
             val why = IptvInputService.lastError.takeIf { text == R.string.status_stream_failed }
-            showStatus(getString(text) + (why?.let { " ($it)" } ?: ""))
+            if (!noVideoReported) showStatus(getString(text) + (why?.let { " ($it)" } ?: ""))
             if (reason == TvInputManager.VIDEO_UNAVAILABLE_REASON_AUDIO_ONLY) {
                 applyPreferredTracks()
                 audio.apply("radio")
@@ -2565,6 +2597,8 @@ class MainActivity : Activity() {
         private const val SWITCH_BEFORE_RECORDING_MS = 3000L
         private const val SETUP_DONE_MS = 8000L
         private const val TUNE_UNKNOWN_GRACE_MS = 2000L
+        /** Longest tune seen with a picture on the broadcast input was about 5 s; past this the channel gets a message. */
+        private const val TUNE_NO_VIDEO_MS = 15_000L
         private const val SIGNAL_REFRESH_MS = 1000L
         private const val DIGIT_TIMEOUT_MS = 1500L
 

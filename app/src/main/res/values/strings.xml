@@ -16,6 +16,8 @@
     <string name="status_audio_only">Radio channel</string>
     <string name="status_not_connected">Antenna not connected</string>
     <string name="status_unknown">No picture</string>
+    <string name="status_no_video">No picture on this channel – check the antenna</string>
+    <string name="no_video_rescan_message">This channel worked before, but there is no picture now. The channels may have changed – search for channels again.</string>
     <string name="status_cas">Encrypted channel – no access (CAS)</string>
     <string name="status_blocked">Content blocked (parental control)</string>
     <string name="status_input_failed">Tuner connection error</string>
