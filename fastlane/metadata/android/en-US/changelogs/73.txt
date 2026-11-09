@@ -1,0 +1,1 @@
+A channel that worked before but now shows no picture offers a new channel search. The audio and subtitle choice no longer hides under the channel banner.

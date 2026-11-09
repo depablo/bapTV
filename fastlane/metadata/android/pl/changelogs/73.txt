@@ -1,0 +1,1 @@
+Kanał, który wcześniej działał, a teraz nie ma obrazu, proponuje ponowne wyszukanie kanałów. Wybór audio i napisów nie chowa się pod paskiem kanału.
