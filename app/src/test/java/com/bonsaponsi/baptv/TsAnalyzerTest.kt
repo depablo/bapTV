@@ -46,6 +46,31 @@ class TsAnalyzerTest {
     private fun desc(tag: Int, data: ByteArray) = byteArrayOf(tag.toByte(), data.size.toByte()) + data
 
     @Test
+    fun audioTrackTakesLanguageFromPmtAndCountsItsPes() {
+        val pat = section(0x00, 1, u16(0) + u16(0xE010) + u16(101) + u16(0xE100))
+        val language = desc(0x0A, "pol".toByteArray() + byteArrayOf(0x00))
+        val pmt = section(0x02, 101,
+            u16(0xE101) + u16(0xF000) +
+                byteArrayOf(0x03) + u16(0xE101) + u16(0xF000 or language.size) + language,
+        )
+        // One PES packet on the audio PID with an MPEG-1 layer II header (48 kHz, stereo).
+        val pes = ByteArray(TsAnalyzer.PACKET) { 0xFF.toByte() }
+        val head = intArrayOf(0x47, 0x41, 0x01, 0x10, 0x00, 0x00, 0x01, 0xC0, 0x00, 0x00, 0x80, 0x00, 0x00, 0xFF, 0xFD, 0x94, 0x00)
+        head.forEachIndexed { i, v -> pes[i] = v.toByte() }
+
+        val a = TsAnalyzer()
+        a.feed(ByteArrayInputStream(packetize(0, pat) + packetize(0x100, pmt) + pes))
+
+        val stream = a.programs[101]!!.streams.single()
+        assertEquals("pol", stream.language)
+        assertEquals(0x03, stream.type)
+        val track = a.audioTracks[0x101]!!
+        assertEquals(1L, track.pes)
+        assertEquals("MPEG-1 layer 2", track.format?.codec)
+        assertTrue(a.report().contains("audio: MPEG audio, lang=pol"))
+    }
+
+    @Test
     fun decodesPatPmtSdtAndAit() {
         val pat = section(0x00, 1, u16(0) + u16(0xE010) + u16(101) + u16(0xE100))
         val pmt = section(0x02, 101,

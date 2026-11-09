@@ -12,17 +12,25 @@ import java.nio.charset.Charset
  */
 class TsAnalyzer {
 
-    data class Stream(val pid: Int, val type: Int, val descriptorTags: List<Int>) {
+    /** [language] and [audioType] come from the ISO 639 language descriptor (0x0A), when the PMT has one. */
+    data class Stream(
+        val pid: Int,
+        val type: Int,
+        val descriptorTags: List<Int>,
+        val language: String? = null,
+        val audioType: Int? = null,
+    ) {
         /** stream_type 0x05 with application_signalling_descriptor (0x6F) – AIT stream. */
         val isAit get() = type == 0x05
+        /** Audio track: MPEG/AAC/AC-3 audio types or private PES (0x06) with an AC-3/E-AC-3/AAC/DTS descriptor. */
+        val isAudio get() = type in AUDIO_TYPES || (type == 0x06 && descriptorTags.any { it in AUDIO_DESCRIPTORS })
     }
 
     data class Program(val number: Int, val pmtPid: Int, val streams: List<Stream>, val descriptorTags: List<Int> = emptyList()) {
         /** Conditional access descriptor (0x09) in the PMT – scrambled service. */
         val scrambled get() = 0x09 in descriptorTags || streams.any { 0x09 in it.descriptorTags }
         val hasVideo get() = streams.any { it.type in VIDEO_TYPES }
-        /** Audio track: MPEG/AAC/AC-3 audio types or private PES (0x06) with an AC-3/E-AC-3/AAC/DTS descriptor. */
-        val hasAudio get() = streams.any { it.type in AUDIO_TYPES || (it.type == 0x06 && it.descriptorTags.any { t -> t in AUDIO_DESCRIPTORS }) }
+        val hasAudio get() = streams.any { it.isAudio }
     }
 
     data class Service(val id: Int, val type: Int, val provider: String, val name: String)
@@ -73,6 +81,8 @@ class TsAnalyzer {
     val apps = LinkedHashMap<String, HbbApp>()
     /** last_position_in_seconds of every dtvfs positions section (PID 23), in stream order. */
     val positions = ArrayList<Long>()
+    /** Audio PIDs listed in a PMT, with the frame headers found in their PES packets (see [AudioTrack]). */
+    val audioTracks = sortedMapOf<Int, AudioTrack>()
 
     private val pmtPids = HashMap<Int, Int>()
     private val aitPids = HashSet<Int>()
@@ -102,6 +112,7 @@ class TsAnalyzer {
         pidCounts[pid] = (pidCounts[pid] ?: 0L) + 1
         if (p[1].toInt() and 0x80 != 0) return // transport_error_indicator
         if (pid == POSITIONS_PID) { parsePosition(p); return }
+        audioTracks[pid]?.let { it.onPacket(p); return }
         if (!isSectionPid(pid)) return
         val pusi = p[1].toInt() and 0x40 != 0
         val afc = (p[3].toInt() shr 4) and 0x3
@@ -190,10 +201,14 @@ class TsAnalyzer {
             val type = s[i].toInt() and 0xFF
             val pid = u16(s, i + 1) and 0x1FFF
             val esLength = u16(s, i + 3) and 0xFFF
-            val tags = descriptorTags(s, i + 5, minOf(i + 5 + esLength, end))
-            val stream = Stream(pid, type, tags)
+            val esEnd = minOf(i + 5 + esLength, end)
+            val tags = descriptorTags(s, i + 5, esEnd)
+            val language = languageDescriptor(s, i + 5, esEnd)
+            val stream = Stream(pid, type, tags, language?.first, language?.second)
             streams += stream
             if (stream.isAit) aitPids += pid
+            // The PMT repeats; keep the counts of a track already seen.
+            if (stream.isAudio && pid !in audioTracks) audioTracks[pid] = AudioTrack(stream)
             i += 5 + esLength
         }
         val pmtPid = pmtPids.entries.firstOrNull { it.value == number }?.key ?: -1
@@ -320,6 +335,18 @@ class TsAnalyzer {
         return String(s, at + 4, urlLen, Charsets.ISO_8859_1)
     }
 
+    /** First ISO 639 language descriptor in the range: the three letter code and the audio_type byte. */
+    private fun languageDescriptor(s: ByteArray, from: Int, to: Int): Pair<String, Int>? {
+        var found: Pair<String, Int>? = null
+        parseDescriptors(s, from, to) { tag, at, len ->
+            if (tag == 0x0A && found == null && len >= 4) {
+                val code = String(s, at, 3, Charsets.ISO_8859_1).filter { it.isLetter() }
+                found = code to (s[at + 3].toInt() and 0xFF)
+            }
+        }
+        return found
+    }
+
     private fun descriptorTags(s: ByteArray, from: Int, to: Int): List<Int> {
         val tags = ArrayList<Int>()
         parseDescriptors(s, from, to) { tag, _, _ -> tags += tag }
@@ -350,6 +377,7 @@ class TsAnalyzer {
             appendLine("  service ${p.number} (PMT 0x%04X)%s%s".format(p.pmtPid, if (p.scrambled) " SCRAMBLED" else "", if (p.hasVideo) " video" else " no video"))
             p.streams.forEach { st ->
                 appendLine("    PID 0x%04X type 0x%02X descriptors %s%s".format(st.pid, st.type, st.descriptorTags.joinToString { "0x%02X".format(it) }, if (st.isAit) "  <- AIT" else ""))
+                audioTracks[st.pid]?.let { appendLine("      audio: ${it.summary()}") }
             }
         }
         appendLine("Services (SDT):")
