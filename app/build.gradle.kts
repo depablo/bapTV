@@ -69,7 +69,8 @@ android {
      *   targetSdk 35 for the TV build (Play requires it). Identification still reads a short stream
      *   recording written by the tuner input – probe recordings cannot be deleted at that target (see
      *   DOCUMENTATION.md, "Stream analysis"). Builds: githubTvDebug, playTvRelease, githubPhoneDebug…
-     * phone + play is not built: the phone app is not on Play yet (the pilot app will be a separate package).
+     * phone + play is not built: the phone app is not on Play. The Play TV build is paired from phones' browsers;
+     * the pilot app (a separate package) is GitHub only.
      */
     flavorDimensions += listOf("distribution", "device")
     productFlavors {
@@ -98,7 +99,8 @@ android {
             targetSdk = 35
             buildConfigField("boolean", "TV", "false")
         }
-        // The pilot: a separate Google Play app (the phone remote only). Same code, its own manifest in src/pilot.
+        // The pilot: a separate app (the phone remote only), GitHub distribution only. Same code, its own manifest in
+        // src/pilot. The Google Play build uses the browser remote of the TV app instead (QR code and link).
         create("pilot") {
             dimension = "device"
             applicationId = "com.bonsaponsi.baptv.pilot"
@@ -110,7 +112,7 @@ android {
     androidComponents {
         beforeVariants { variant ->
             if (variant.name.startsWith("playPhone")) variant.enable = false
-            if (variant.name.startsWith("githubPilot")) variant.enable = false
+            if (variant.name.startsWith("playPilot")) variant.enable = false
         }
     }
 
