@@ -1538,8 +1538,6 @@ class MainActivity : Activity() {
             },
             // Not during a background scan: each of these needs the tuner, and publishing would break the scan.
             MenuPanel.Entry(getString(R.string.menu_identify), after = leave) { identifyAll() }.takeIf { caps.streamAnalysis && !ScanSession.running },
-            MenuPanel.Entry(getString(R.string.menu_analyse), after = leave) { analyseStream() }
-                .takeIf { BuildConfig.DEBUG && caps.streamAnalysis && !ScanSession.running && playingRecording == null && current != null && !current.iptv && !current.virtual },
             MenuPanel.Entry(getString(R.string.menu_rediscover), after = leave) { rediscover() }.takeIf { caps.channelDiscovery && !ScanSession.running },
             // Debug builds only: published channels outlive the app and cannot be removed by it (see publish_warning).
             MenuPanel.Entry(getString(R.string.menu_publish)) { confirmPublish(menu::returned) }
@@ -1579,6 +1577,8 @@ class MainActivity : Activity() {
         val diagnostics = listOfNotNull(
             MenuPanel.Entry(getString(R.string.menu_signal), after = leave) { showBanner(withSignal = true) }.takeIf { caps.signal },
             MenuPanel.Entry(getString(R.string.menu_diagnostics)) { startActivity(Intent(this, DiagnosticsActivity::class.java)) },
+            MenuPanel.Entry(getString(R.string.menu_analyse), after = leave) { analyseStream() }
+                .takeIf { caps.streamAnalysis && !ScanSession.running && playingRecording == null && current != null && !current.iptv && !current.virtual },
             MenuPanel.Entry(getString(R.string.menu_send_report)) {
                 ReportSender.offer(this, ReportSender.Reason.USER, null, automatic = false, onClose = menu::returned)
             },
