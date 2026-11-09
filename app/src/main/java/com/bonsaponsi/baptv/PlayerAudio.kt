@@ -84,15 +84,20 @@ class PlayerAudio(context: Context, private val tvView: TvView) {
                 append(" enc=${track.encoding ?: "?"}")
                 if (track.isAudioDescription) append(" AD")
             }
-            if (track.isEncrypted) append(" ENCRYPTED")
-            if (track.isHardOfHearing) append(" HOH")
-            if (track.isSpokenSubtitle) append(" SPOKEN")
+            // isEncrypted and getExtra are missing on older platforms (NoSuchMethodError on Android 9).
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                if (track.isEncrypted) append(" ENCRYPTED")
+                if (track.isHardOfHearing) append(" HOH")
+                if (track.isSpokenSubtitle) append(" SPOKEN")
+            }
             track.description?.let { append(" desc=\"$it\"") }
             // Whatever else the input puts in the track (it is not part of the API, so only the keys and short values).
-            track.extra?.takeIf { !it.isEmpty }?.let { extra ->
-                append(" extra={")
-                append(extra.keySet().sorted().joinToString(", ") { key -> "$key=${extra.get(key)?.toString()?.take(40)}" })
-                append("}")
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                track.extra?.takeIf { !it.isEmpty }?.let { extra ->
+                    append(" extra={")
+                    append(extra.keySet().sorted().joinToString(", ") { key -> "$key=${extra.get(key)?.toString()?.take(40)}" })
+                    append("}")
+                }
             }
         }
 
