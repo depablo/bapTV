@@ -2088,7 +2088,7 @@ class MainActivity : Activity() {
             if (!prefs.getBoolean(PREF_SAME_MUX_BUSY, false)) {
                 for (other in sameMux) {
                     if (TsProbe.currentChannelUri != channel.uri || identifying) break
-                    if (TsProbe.learn(applicationContext, other.id, seconds = 3, maxPasses = 1) != null) {
+                    if (TsProbe.learn(applicationContext, other.id, seconds = 3, identifyOnly = true) != null) {
                         changed = true
                     } else if (TsProbe.lastErrorWasBusy) {
                         DebugLog.log("Identify", "tuner cannot record another service on the multiplex – identifying watched channels only")
@@ -2182,11 +2182,11 @@ class MainActivity : Activity() {
                 // self-clean window. HbbTV and EPG are left for when the user watches the channel (identifyInBackground),
                 // where the stream has stabilised – that is the only window where the AIT both reads and self-cleans.
                 tuneAndWait(ch.id, IDENTIFY_SETTLE_MS)
-                var entry = TsProbe.learn(applicationContext, ch.id, seconds = 3, maxPasses = 1)
+                var entry = TsProbe.learn(applicationContext, ch.id, seconds = 3, identifyOnly = true)
                 if (entry == null && !identifyCancelled) {
                     // A single failure (e.g. the channel was still tuning) – one retry.
                     tuneAndWait(ch.id, IDENTIFY_SETTLE_MS)
-                    entry = TsProbe.learn(applicationContext, ch.id, seconds = 3, maxPasses = 1)
+                    entry = TsProbe.learn(applicationContext, ch.id, seconds = 3, identifyOnly = true)
                 }
                 if (entry != null) ok++
             }

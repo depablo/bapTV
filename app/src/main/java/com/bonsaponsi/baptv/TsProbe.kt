@@ -36,8 +36,16 @@ object TsProbe {
      * (whole seconds, see [TsAnalyzer.positions]), so a clip is kept whenever its content crosses a second. Right
      * after a tune 100 ms of recording still yields about 0.3-0.6 s of stream; on a set-top box about 1 in 5 such
      * clips was kept, against most of the 500 ms ones. The service id is in every clip; the AIT often is not.
+     * Used for identification, which needs only the service id.
      */
-    private const val SELF_CLEAN_MS = 100L
+    private const val IDENTIFY_CLIP_MS = 100L
+
+    /**
+     * Clip length for HbbTV/EPG learning while a channel is watched. The recording then shares the player's dtvfs
+     * session, so a clip holds about as much stream as it lasts. The AIT (carousel about once a second) needs longer
+     * clips than identification; a clip that crosses a dtvfs second is kept, so some of these stay.
+     */
+    private const val LEARN_CLIP_MS = 500L
 
     /**
      * In the self-clean regime a single sub-second clip often misses the AIT (the HbbTV carousel repeats about
@@ -156,10 +164,11 @@ object TsProbe {
 
     /**
      * Learns a channel in the background without switching the player: DVB identifiers, AIT and EPG
-     * of the whole multiplex. Returns the saved entry or null (reason in [lastError]).
+     * of the whole multiplex. With [identifyOnly] it takes one short clip, enough for the service id.
+     * Returns the saved entry or null (reason in [lastError]).
      */
-    fun learn(context: Context, channelId: Long, seconds: Int = 4, maxPasses: Int = SELF_CLEAN_PASSES): HbbTvStore.Entry? {
-        val rec = record(context, TvContract.buildChannelUri(channelId), seconds, switchPlayer = false, maxPasses = maxPasses)
+    fun learn(context: Context, channelId: Long, seconds: Int = 4, identifyOnly: Boolean = false): HbbTvStore.Entry? {
+        val rec = record(context, TvContract.buildChannelUri(channelId), seconds, switchPlayer = false, identifyOnly = identifyOnly)
         return rec.analyzer?.let { save(context, channelId, it) }
     }
 
@@ -295,7 +304,7 @@ object TsProbe {
 
     /** One recording at a time (the tuner and the recordings directory are shared). */
     @Synchronized
-    private fun record(context: Context, uri: Uri, seconds: Int, switchPlayer: Boolean, maxPasses: Int = SELF_CLEAN_PASSES): Recording {
+    private fun record(context: Context, uri: Uri, seconds: Int, switchPlayer: Boolean, identifyOnly: Boolean = false): Recording {
         val input = Dtv.findTunerInput(context) ?: return Recording("No tuner input.\n", null)
         // An ongoing recording holds the recording session and the recordings directory – learning will wait.
         if (Recorder.active != null) { lastError = "recording in progress"; return Recording("A programme is being recorded – skipping.\n", null) }
@@ -325,15 +334,15 @@ object TsProbe {
         }
 
         val legacy = canDeleteRecordings(context)
-        // On targetSdk >= 30 keep each clip below one second so dtvinput deletes it itself (see [SELF_CLEAN_MS]) and
+        // On targetSdk >= 30 keep each clip below one second so dtvinput deletes it itself (see [IDENTIFY_CLIP_MS], [LEARN_CLIP_MS]) and
         // repeat, merging all clips into one analyzer: a single sub-second clip often misses the AIT (the HbbTV
         // carousel repeats ~1 s), while the DVB triplet comes on the first clip. On legacy storage one longer clip is
         // enough (we delete it ourselves). [TsAnalyzer] accumulates across feeds, so merging is just feeding each clip.
-        val recordMs = if (legacy) seconds * 1000L else SELF_CLEAN_MS
+        val recordMs = if (legacy) seconds * 1000L else if (identifyOnly) IDENTIFY_CLIP_MS else LEARN_CLIP_MS
         // The self-clean window depends on WHEN this runs after the caller tuned the channel: identification records
         // one clip ~1.5 s after the tune (triplet is there, clip self-cleans), HbbTV/EPG after a ~10 s dwell (AIT is
         // there, stream stable). The caller owns that timing; record() just takes the clip(s) now.
-        val passes = if (legacy) 1 else maxPasses
+        val passes = if (legacy || identifyOnly) 1 else SELF_CLEAN_PASSES
         note("analysing $uri via ${input.id}: up to $passes clip(s) of $recordMs ms (requested ${seconds}s), free ${Recorder.freeBytes() / 1_000_000} MB")
 
         val analyzer = TsAnalyzer()
