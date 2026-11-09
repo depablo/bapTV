@@ -1,0 +1,1 @@
+Naprawiono awarię na Androidzie 13 i starszych, gdy kanał zaczyna pokazywać obraz.
