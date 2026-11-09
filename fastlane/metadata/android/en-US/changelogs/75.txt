@@ -1,0 +1,1 @@
+The diagnostics report shows the codec, sample rate and channels of each audio track. A recording stop that dtvinput does not answer at once is sent again.

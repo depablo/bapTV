@@ -1,0 +1,1 @@
+Raport diagnostyczny pokazuje kodek, częstotliwość i liczbę kanałów każdej ścieżki audio. Gdy dtvinput nie odpowie od razu na zatrzymanie nagrywania, polecenie jest ponawiane.
