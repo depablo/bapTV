@@ -1232,8 +1232,8 @@ class MainActivity : Activity() {
 
     /** Info panel at the given level (1–4), see [infoLevel]. */
     private fun showInfo(level: Int) {
-        // The banner (e.g. after retuning on return from a screen) does not go under an open menu.
-        if (menu.visible) return
+        // The banner (e.g. after retuning on return from a screen) does not go under an open menu or dialog.
+        if (!PlayerRules.mayShowInfo(menu.visible, TvDialog.anyOpen)) return
         val channel = channels.getOrNull(currentIndex) ?: return
         infoLevel = level.coerceIn(1, 4)
         showSignal = infoLevel == 4
@@ -1720,6 +1720,9 @@ class MainActivity : Activity() {
             TvDialog.message(this, title, getString(R.string.no_tracks), onClose)
             return
         }
+        // Opened from the info banner: the banner goes away, so no channel window is left under the choice.
+        handler.removeCallbacks(hideBanner)
+        hideBanner.run()
         val labels = ArrayList<TvDialog.Option>()
         if (subtitles) labels += TvDialog.Option(getString(R.string.subtitles_off))
         tracks.forEachIndexed { i, track -> labels += TvDialog.Option(trackLabel(track, i)) }

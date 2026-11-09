@@ -5,7 +5,13 @@ package com.bonsaponsi.baptv
  */
 object PlayerRules {
 
-        /** The rescan offer needs the player itself on screen: a channel that worked before, not under the menu or a dialog. */
+    /**
+     * The channel info banner stays off the menu and off an open dialog. Its arrow keys would otherwise bring it
+     * up while a track or scan dialog is open.
+     */
+    fun mayShowInfo(menuVisible: Boolean, dialogOpen: Boolean): Boolean = !menuVisible && !dialogOpen
+
+    /** The rescan offer needs the player itself on screen: a channel that worked before, not under the menu or a dialog. */
     fun mayOfferRescan(workedBefore: Boolean, menuVisible: Boolean, dialogOpen: Boolean, windowFocused: Boolean): Boolean =
         workedBefore && !menuVisible && !dialogOpen && windowFocused
 }
