@@ -235,6 +235,13 @@ class DebugHttpServer(private val context: Context, val port: Int = DEFAULT_PORT
             .put("browser", onMain { PlayerRemote.hbb?.state() } ?: JSONObject.NULL)
             .put("channels", org.json.JSONArray().apply { HbbTvStore(context).all().forEach { put(it.toJson()) } })
             .toString(2))
+        // Test aid: marks every learned entry as old (ids kept), so the next visit of each channel learns HbbTV/EPG again.
+        "POST" to "/hbbtv/age" -> {
+            val store = HbbTvStore(context)
+            val entries = store.all()
+            entries.forEach { store.put(it.copy(learnedAt = 0)) }
+            text("${entries.size} entries aged\n")
+        }
         "POST" to "/hbbtv/eval" -> {
             val js = request.query["js"] ?: return text("Specify ?js=...\n", "400 Bad Request")
             val latch = java.util.concurrent.CountDownLatch(1)
@@ -497,7 +504,7 @@ class DebugHttpServer(private val context: Context, val port: Int = DEFAULT_PORT
         private const val JSON = "application/json; charset=utf-8"
         private val RECORDING_FILE = Regex("/recordings/(\\d+)\\.ts")
         private val QUIET_PATHS = setOf("/status", "/log.txt", "/probe.ts", "/screenshot.png", "/hbbtv", "/signal.json")
-        private val KNOWN_PATHS = setOf("/", "/report.txt", "/log.txt", "/log", "/logcat.txt", "/status", "/install", "/launch", "/restart", "/probe", "/probe.ts", "/key", "/hbbtv", "/hbbtv/eval", "/screenshot.png", "/channels", "/ui", "/debug/remote/forget", "/epg", "/open", "/capabilities", "/recordings", "/timeshift", "/signal", "/signal.json", "/signal/cycle", "/signal/stop", "/signal/tune", "/signal/probe", "/signal/probe/stop", "/signal/lna", "/signal/rediscover", "/publish", "/tvchannels", "/tvchannels/delete", "/tvchannels/update", "/dtv/install", "/dtv/action", "/dtv/selfclean", "/dtv/records", "/debug/no-tuner")
+        private val KNOWN_PATHS = setOf("/", "/report.txt", "/log.txt", "/log", "/logcat.txt", "/status", "/install", "/launch", "/restart", "/probe", "/probe.ts", "/key", "/hbbtv", "/hbbtv/eval", "/hbbtv/age", "/screenshot.png", "/channels", "/ui", "/debug/remote/forget", "/epg", "/open", "/capabilities", "/recordings", "/timeshift", "/signal", "/signal.json", "/signal/cycle", "/signal/stop", "/signal/tune", "/signal/probe", "/signal/probe/stop", "/signal/lna", "/signal/rediscover", "/publish", "/tvchannels", "/tvchannels/delete", "/tvchannels/update", "/dtv/install", "/dtv/action", "/dtv/selfclean", "/dtv/records", "/debug/no-tuner")
 
         /** One server per process – kept alive by [DebugServerService]. */
         @Volatile var instance: DebugHttpServer? = null
