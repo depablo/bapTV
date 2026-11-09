@@ -1539,10 +1539,11 @@ class MainActivity : Activity() {
             // Not during a background scan: each of these needs the tuner, and publishing would break the scan.
             MenuPanel.Entry(getString(R.string.menu_identify), after = leave) { identifyAll() }.takeIf { caps.streamAnalysis && !ScanSession.running },
             MenuPanel.Entry(getString(R.string.menu_analyse), after = leave) { analyseStream() }
-                .takeIf { caps.streamAnalysis && !ScanSession.running && playingRecording == null && current != null && !current.iptv && !current.virtual },
+                .takeIf { BuildConfig.DEBUG && caps.streamAnalysis && !ScanSession.running && playingRecording == null && current != null && !current.iptv && !current.virtual },
             MenuPanel.Entry(getString(R.string.menu_rediscover), after = leave) { rediscover() }.takeIf { caps.channelDiscovery && !ScanSession.running },
+            // Debug builds only: published channels outlive the app and cannot be removed by it (see publish_warning).
             MenuPanel.Entry(getString(R.string.menu_publish)) { confirmPublish(menu::returned) }
-                .takeIf { caps.inAppScan && !ScanSession.running && channels.any { it.discovered && it.identified } },
+                .takeIf { BuildConfig.DEBUG && caps.inAppScan && !ScanSession.running && channels.any { it.discovered && it.identified } },
         )
         val settings = listOfNotNull(
             MenuPanel.Entry(getString(R.string.menu_about), BuildConfig.VERSION_NAME) { showAbout(menu::returned) },
@@ -1581,7 +1582,8 @@ class MainActivity : Activity() {
             MenuPanel.Entry(getString(R.string.menu_send_report)) {
                 ReportSender.offer(this, ReportSender.Reason.USER, null, automatic = false, onClose = menu::returned)
             },
-            MenuPanel.Entry(getString(R.string.menu_debug_overlay), onOff(debugOverlay.visibility == View.VISIBLE), stay) { toggleOverlay() },
+            MenuPanel.Entry(getString(R.string.menu_debug_overlay), onOff(debugOverlay.visibility == View.VISIBLE), stay) { toggleOverlay() }
+                .takeIf { BuildConfig.DEBUG },
         )
         return listOf(
             MenuPanel.Section("watch", getString(R.string.menu_section_watch), R.drawable.ic_menu_watch, watch),
