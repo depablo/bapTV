@@ -1,0 +1,1 @@
+Stream analysis is in the Diagnostics part of the player menu: it records the channel being watched, and the details go into the next report.

@@ -1,0 +1,1 @@
+Analiza strumienia jest w części Diagnostyka menu odtwarzacza: nagrywa oglądany kanał, a szczegóły trafiają do następnego raportu.
