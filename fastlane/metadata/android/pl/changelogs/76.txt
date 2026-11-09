@@ -1,0 +1,1 @@
+Menu odtwarzacza ma Analizuj strumień: nagrywa oglądany kanał, a szczegóły strumienia (PID-y, programy, formaty audio) trafiają do następnego raportu diagnostycznego.

@@ -1,0 +1,1 @@
+The player menu has Analyse the stream: it records the channel being watched, and the stream details (PIDs, programs, audio formats) are added to the next diagnostics report.
