@@ -32,10 +32,12 @@ object TsProbe {
      * On targetSdk >= 30 the app can delete neither the recording file nor dtvinput's RecordedPrograms row,
      * so probes are kept under one second. dtvinput then deletes its own row (DtvRecordSession treats a
      * completed recording shorter than 1 s as empty) and its observer removes the orphaned directory with
-     * dtvinput's own file ownership, so nothing accumulates. Verified on a set-top box, targetSdk 35:
-     * the AIT and the DVB triplet are still captured at 300-700 ms. 500 ms keeps a safe margin below 1000 ms.
+     * dtvinput's own file ownership. dtvinput measures the duration from the dtvfs position sections in the clip
+     * (whole seconds, see [TsAnalyzer.positions]), so a clip is kept whenever its content crosses a second. Right
+     * after a tune 100 ms of recording still yields about 0.3-0.6 s of stream; on a set-top box about 1 in 5 such
+     * clips was kept, against most of the 500 ms ones. The service id is in every clip; the AIT often is not.
      */
-    private const val SELF_CLEAN_MS = 500L
+    private const val SELF_CLEAN_MS = 100L
 
     /**
      * In the self-clean regime a single sub-second clip often misses the AIT (the HbbTV carousel repeats about
@@ -46,6 +48,9 @@ object TsProbe {
 
     /** Pause between clips so dtvinput releases the recording session before the next tune. */
     private const val SETTLE_MS = 400L
+    /** Interval and count of stop attempts in [awaitStop] (20 s in total, the old single wait). */
+    private const val STOP_RETRY_MS = 1000L
+    private const val STOP_TRIES = 20
     /** How long [selfCleanTest] waits for dtvinput to remove the clip; removals were seen up to 12 s after the stop. */
     private const val SELF_CLEAN_WAIT_S = 20
 
@@ -208,8 +213,10 @@ object TsProbe {
         if (error == null) {
             main.post { runCatching { client.startRecording(null) }.onFailure { error = "startRecording: $it"; stopped.countDown() } }
             Thread.sleep(ms)
-            main.post { runCatching { client.stopRecording() }.onFailure { error = "stopRecording: $it"; stopped.countDown() } }
-            if (!stopped.await(20, TimeUnit.SECONDS)) error = error ?: "no onRecordingStopped within 20 s"
+            val ok = awaitStop(stopped, ::note) {
+                main.post { runCatching { client.stopRecording() }.onFailure { error = "stopRecording: $it"; stopped.countDown() } }
+            }
+            if (!ok) error = error ?: "no onRecordingStopped within 20 s"
         }
         main.post { runCatching { client.release() } }
         error?.let { note("ERROR: $it") }
@@ -430,8 +437,10 @@ object TsProbe {
             if (error == null) {
                 main.post { runCatching { client.startRecording(null) }.onFailure { error = "startRecording: $it"; stopped.countDown() } }
                 Thread.sleep(recordMs)
-                main.post { runCatching { client.stopRecording() }.onFailure { error = "stopRecording: $it"; stopped.countDown() } }
-                if (!stopped.await(20, TimeUnit.SECONDS)) error = error ?: "no onRecordingStopped within 20 s"
+                val ok = awaitStop(stopped, note) {
+                    main.post { runCatching { client.stopRecording() }.onFailure { error = "stopRecording: $it"; stopped.countDown() } }
+                }
+                if (!ok) error = error ?: "no onRecordingStopped within 20 s"
             }
         } finally {
             main.post { runCatching { client.release() } }
@@ -441,6 +450,20 @@ object TsProbe {
         // Measurement: the duration dtvinput gives the recording, read before the row can be removed (self-clean < 1000 ms).
         note("measure: requested $recordMs ms, dtvinput duration ${recordedDurationMs(context, recordedUri) ?: "-"} ms, file ${file?.length() ?: "-"} B")
         return PassResult(file, recordedUri, before, error, input)
+    }
+
+    /**
+     * Sends the stop ([stop]) and waits for onRecordingStopped. A stop that reaches dtvinput before its recorder has
+     * started is ignored and the recording then runs until release() – seen with clips of 100 ms and less, leaving a
+     * 15–20 MB file that dtvinput keeps. So the stop is repeated every [STOP_RETRY_MS] until the callback comes.
+     */
+    private fun awaitStop(stopped: CountDownLatch, note: (String) -> Unit, stop: () -> Unit): Boolean {
+        for (i in 1..STOP_TRIES) {
+            stop()
+            if (stopped.await(STOP_RETRY_MS, TimeUnit.MILLISECONDS)) return true
+            if (i < STOP_TRIES) note("no onRecordingStopped ${i * STOP_RETRY_MS} ms after stopRecording – sending it again")
+        }
+        return false
     }
 
     /** recording_duration_millis of a RecordedPrograms row; null when the row is gone (self-cleaned) or unreadable. */
