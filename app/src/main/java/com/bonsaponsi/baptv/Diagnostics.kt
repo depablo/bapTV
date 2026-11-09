@@ -49,6 +49,10 @@ class Diagnostics(private val context: Context) {
             line("Output mix rate: ${am.getProperty(android.media.AudioManager.PROPERTY_OUTPUT_SAMPLE_RATE)} Hz, buffer ${am.getProperty(android.media.AudioManager.PROPERTY_OUTPUT_FRAMES_PER_BUFFER)} frames")
         }
         section("Signal statistics") { line(SignalReader(context).read()?.format() ?: "unavailable") }
+        section("Stream analysis (last run from the player menu)") {
+            val analysis = TsProbe.lastAnalysis(context)
+            if (analysis == null) line("none") else analysis.lines().forEach { line(it) }
+        }
         section("App event log (newest last)") { DebugLog.snapshot().takeLast(1500).forEach { line(it) } }
         if (includeLogcat) section("App process logcat") { sb.append(ownLogcat(1000)) }
         return sb.toString()

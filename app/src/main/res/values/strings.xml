@@ -123,6 +123,10 @@
     <string name="guide_unidentified">Channel not identified – the guide will appear once the channel is identified (menu → “Identify channels and get the guide”).</string>
     <string name="menu_guide">TV guide</string>
     <string name="menu_identify">Identify channels and get the guide</string>
+    <string name="menu_analyse">Analyse the stream</string>
+    <string name="analyse_running">Analysing the stream…</string>
+    <string name="analyse_done">Stream analysis saved. It is added to the next report.</string>
+    <string name="analyse_failed">No stream could be read. The reason is in the next report.</string>
     <string name="identify_done">Channels identified: %1$d/%2$d</string>
     <string name="identify_cancelled">Identification stopped</string>
     <string name="identify_no_permission">Identification needs permission to read storage – accept the request and try again</string>

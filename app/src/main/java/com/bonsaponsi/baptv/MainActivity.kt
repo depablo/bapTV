@@ -1538,6 +1538,8 @@ class MainActivity : Activity() {
             },
             // Not during a background scan: each of these needs the tuner, and publishing would break the scan.
             MenuPanel.Entry(getString(R.string.menu_identify), after = leave) { identifyAll() }.takeIf { caps.streamAnalysis && !ScanSession.running },
+            MenuPanel.Entry(getString(R.string.menu_analyse), after = leave) { analyseStream() }
+                .takeIf { caps.streamAnalysis && !ScanSession.running && playingRecording == null && current != null && !current.iptv && !current.virtual },
             MenuPanel.Entry(getString(R.string.menu_rediscover), after = leave) { rediscover() }.takeIf { caps.channelDiscovery && !ScanSession.running },
             MenuPanel.Entry(getString(R.string.menu_publish)) { confirmPublish(menu::returned) }
                 .takeIf { caps.inAppScan && !ScanSession.running && channels.any { it.discovered && it.identified } },
@@ -2123,6 +2125,17 @@ class MainActivity : Activity() {
      * and the remaining channels are recorded in the background (or, if the tuner does not allow it, switched one by one).
      * One longer recording per multiplex also yields a week of TV guide data.
      */
+    /** Records a short clip of the channel being watched; the analysis is added to the next report (menu → Diagnostics). */
+    private fun analyseStream() {
+        val channel = channels.getOrNull(currentIndex) ?: return
+        if (identifying || ScanSession.running || Recorder.active != null) return
+        showStatusBriefly(getString(R.string.analyse_running))
+        learnExecutor.execute {
+            val ok = TsProbe.analyseStream(applicationContext, TvContract.buildChannelUri(channel.id), channel.name)
+            handler.post { showStatusBriefly(getString(if (ok) R.string.analyse_done else R.string.analyse_failed)) }
+        }
+    }
+
     private fun identifyAll() {
         if (identifying || ScanSession.running) return
         // The stage 3 banner shown after discovery must not stay when identification does not start.

@@ -125,6 +125,31 @@ object TsProbe {
             (entry?.let { "\nSaved channel HbbTV data: ${it.toJson()}\n" } ?: "")
     }
 
+    private fun analysisFile(context: Context) = File(context.filesDir, "stream-analysis.txt")
+
+    /**
+     * Blocking (background thread, player on [uri]): records a short clip of the channel being watched and keeps
+     * the stream analysis for the next report ([Diagnostics]). Nothing is saved for HbbTV or the EPG. Returns true
+     * when a stream was read.
+     */
+    fun analyseStream(context: Context, uri: Uri, channelName: String): Boolean {
+        val rec = record(context, uri, seconds = 4, switchPlayer = false)
+        val analyzer = rec.analyzer
+        val text = buildString {
+            appendLine("Channel: $channelName (id ${android.content.ContentUris.parseId(uri)})")
+            appendLine("Time: ${java.time.Instant.now()}")
+            append(rec.log)
+            appendLine(analyzer?.report() ?: "No stream was read (reason in the log above).")
+        }
+        runCatching { analysisFile(context).writeText(text) }
+            .onFailure { DebugLog.warn(TAG, "saving the stream analysis failed", it) }
+        return analyzer != null
+    }
+
+    /** The last analysis from [analyseStream], or null when there is none. */
+    fun lastAnalysis(context: Context): String? =
+        runCatching { analysisFile(context).takeIf { it.isFile }?.readText() }.getOrNull()
+
     /** Reason for the last failed recording (e.g. "onError 2" – tuner busy with another multiplex). */
     @Volatile var lastError: String? = null
         private set
