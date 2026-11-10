@@ -47,6 +47,7 @@ class Diagnostics(private val context: Context) {
             line("Mode: ${am.mode}, music active: ${am.isMusicActive}")
             PlayerAudio.describeOutputs(am).forEach { line("Output: $it") }
             line("Output mix rate: ${am.getProperty(android.media.AudioManager.PROPERTY_OUTPUT_SAMPLE_RATE)} Hz, buffer ${am.getProperty(android.media.AudioManager.PROPERTY_OUTPUT_FRAMES_PER_BUFFER)} frames")
+            AudioSetup.describe(context).forEach { line(it) }
         }
         section("Signal statistics") { line(SignalReader(context).read()?.format() ?: "unavailable") }
         section("Stream analysis (last run from the player menu)") {

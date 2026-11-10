@@ -84,29 +84,30 @@ class PlayerAudio(context: Context, private val tvView: TvView) {
                 append(" enc=${track.encoding ?: "?"}")
                 if (track.isAudioDescription) append(" AD")
             }
-            // isEncrypted and getExtra are missing on older platforms (NoSuchMethodError on Android 9).
+            // isEncrypted is missing on older platforms (NoSuchMethodError on Android 9).
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
                 if (track.isEncrypted) append(" ENCRYPTED")
                 if (track.isHardOfHearing) append(" HOH")
                 if (track.isSpokenSubtitle) append(" SPOKEN")
             }
             track.description?.let { append(" desc=\"$it\"") }
-            // Whatever else the input puts in the track (it is not part of the API, so only the keys and short values).
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-                track.extra?.takeIf { !it.isEmpty }?.let { extra ->
-                    append(" extra={")
-                    append(extra.keySet().sorted().joinToString(", ") { key -> "$key=${extra.get(key)?.toString()?.take(40)}" })
-                    append("}")
-                }
+            // Whatever else the input puts in the track (not part of the API, so only the keys and short values).
+            // getExtra is there since API 21; on Android 9 it is the only place an input could name the codec.
+            track.extra?.takeIf { !it.isEmpty }?.let { extra ->
+                append(" extra={")
+                append(extra.keySet().sorted().joinToString(", ") { key -> "$key=${extra.get(key)?.toString()?.take(40)}" })
+                append("}")
             }
         }
 
         /** Audio outputs with the sample rates, channel counts and encodings each one reports. */
         fun describeOutputs(audioManager: AudioManager): List<String> =
             audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS).map { d ->
-                "type=${d.type} \"${d.productName}\" rates=${d.sampleRates.joinToString()} " +
-                    "channels=${d.channelCounts.joinToString()} encodings=${d.encodings.joinToString()}"
+                "type=${d.type}${OUTPUT_TYPES[d.type]?.let { "/$it" }.orEmpty()} \"${d.productName}\" rates=${d.sampleRates.joinToString()} " +
+                    "channels=${d.channelCounts.joinToString()} encodings=${d.encodings.joinToString { AudioSetup.encodingName(it) }}"
             }
+
+        private val OUTPUT_TYPES = mapOf(2 to "speaker", 5 to "line", 6 to "S/PDIF", 8 to "A2DP", 9 to "HDMI", 10 to "HDMI ARC", 29 to "HDMI eARC")
 
         private fun focusName(change: Int) = when (change) {
             AudioManager.AUDIOFOCUS_GAIN -> "GAIN"
