@@ -71,6 +71,33 @@ class TsAnalyzerTest {
     }
 
     @Test
+    fun privateStreamWithAc4ExtensionDescriptorIsAnAc4AudioTrack() {
+        val pat = section(0x00, 1, u16(0) + u16(0xE010) + u16(101) + u16(0xE100))
+        // Extension descriptors: AC-4 (0x15, ac4_config_flag 0) and audio preselection (0x19), then the language.
+        val es = desc(0x7F, byteArrayOf(0x15, 0x00)) + desc(0x7F, byteArrayOf(0x19, 0x00)) +
+            desc(0x0A, "mul".toByteArray() + byteArrayOf(0x00))
+        val pmt = section(0x02, 101,
+            u16(0xE06D) + u16(0xF000) +
+                byteArrayOf(0x06) + u16(0xE06D) + u16(0xF000 or es.size) + es,
+        )
+        // A PES packet with an AC-4 sync frame (sync word AC 40) right after the PES header.
+        val pes = ByteArray(TsAnalyzer.PACKET) { 0xFF.toByte() }
+        val head = intArrayOf(0x47, 0x40, 0x6D, 0x10, 0x00, 0x00, 0x01, 0xBD, 0x00, 0x00, 0x84, 0x00, 0x00, 0xAC, 0x40, 0x01, 0x00)
+        head.forEachIndexed { i, v -> pes[i] = v.toByte() }
+
+        val a = TsAnalyzer()
+        a.feed(ByteArrayInputStream(packetize(0, pat) + packetize(0x100, pmt) + pes))
+
+        val stream = a.programs[101]!!.streams.single()
+        assertEquals(listOf(0x15, 0x19), stream.extensionTags)
+        assertTrue(stream.isAc4 && stream.isAudio)
+        assertEquals("AC-4 sync frame", a.audioTracks[0x6D]!!.format?.codec)
+        val report = a.report()
+        assertTrue(report.contains("descriptors 0x7F, 0x7F, 0x0A (extensions 0x15, 0x19)"))
+        assertTrue(report.contains("audio: AC-4, lang=mul"))
+    }
+
+    @Test
     fun decodesPatPmtSdtAndAit() {
         val pat = section(0x00, 1, u16(0) + u16(0xE010) + u16(101) + u16(0xE100))
         val pmt = section(0x02, 101,

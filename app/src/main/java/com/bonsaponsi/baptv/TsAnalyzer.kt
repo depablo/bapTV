@@ -12,18 +12,26 @@ import java.nio.charset.Charset
  */
 class TsAnalyzer {
 
-    /** [language] and [audioType] come from the ISO 639 language descriptor (0x0A), when the PMT has one. */
+    /**
+     * [language] and [audioType] come from the ISO 639 language descriptor (0x0A), when the PMT has one.
+     * [extensionTags] are the descriptor_tag_extension values of the extension descriptors (0x7F).
+     * [mpegAudioFlags] is the byte of the MPEG audio_stream_descriptor (0x03): free_format, ID, layer, variable rate.
+     */
     data class Stream(
         val pid: Int,
         val type: Int,
         val descriptorTags: List<Int>,
         val language: String? = null,
         val audioType: Int? = null,
+        val extensionTags: List<Int> = emptyList(),
+        val mpegAudioFlags: Int? = null,
     ) {
         /** stream_type 0x05 with application_signalling_descriptor (0x6F) – AIT stream. */
         val isAit get() = type == 0x05
-        /** Audio track: MPEG/AAC/AC-3 audio types or private PES (0x06) with an AC-3/E-AC-3/AAC/DTS descriptor. */
-        val isAudio get() = type in AUDIO_TYPES || (type == 0x06 && descriptorTags.any { it in AUDIO_DESCRIPTORS })
+        /** Private PES (0x06) with the AC-4 extension descriptor. */
+        val isAc4 get() = type == 0x06 && AC4_EXTENSION in extensionTags
+        /** Audio track: MPEG/AAC/AC-3 audio types or private PES (0x06) with an AC-3/E-AC-3/AAC/DTS descriptor or AC-4. */
+        val isAudio get() = type in AUDIO_TYPES || (type == 0x06 && descriptorTags.any { it in AUDIO_DESCRIPTORS }) || isAc4
     }
 
     data class Program(val number: Int, val pmtPid: Int, val streams: List<Stream>, val descriptorTags: List<Int> = emptyList()) {
@@ -204,7 +212,7 @@ class TsAnalyzer {
             val esEnd = minOf(i + 5 + esLength, end)
             val tags = descriptorTags(s, i + 5, esEnd)
             val language = languageDescriptor(s, i + 5, esEnd)
-            val stream = Stream(pid, type, tags, language?.first, language?.second)
+            val stream = Stream(pid, type, tags, language?.first, language?.second, extensionTags(s, i + 5, esEnd), mpegAudioFlags(s, i + 5, esEnd))
             streams += stream
             if (stream.isAit) aitPids += pid
             // The PMT repeats; keep the counts of a track already seen.
@@ -353,6 +361,19 @@ class TsAnalyzer {
         return tags
     }
 
+    /** descriptor_tag_extension of every extension descriptor (0x7F) in the range. */
+    private fun extensionTags(s: ByteArray, from: Int, to: Int): List<Int> {
+        val tags = ArrayList<Int>()
+        parseDescriptors(s, from, to) { tag, at, len -> if (tag == 0x7F && len >= 1) tags += s[at].toInt() and 0xFF }
+        return tags
+    }
+
+    private fun mpegAudioFlags(s: ByteArray, from: Int, to: Int): Int? {
+        var flags: Int? = null
+        parseDescriptors(s, from, to) { tag, at, len -> if (tag == 0x03 && len >= 1 && flags == null) flags = s[at].toInt() and 0xFF }
+        return flags
+    }
+
     private inline fun parseDescriptors(s: ByteArray, from: Int, to: Int, block: (tag: Int, at: Int, len: Int) -> Unit) {
         var d = from
         while (d + 2 <= to) {
@@ -376,7 +397,10 @@ class TsAnalyzer {
         programs.values.forEach { p ->
             appendLine("  service ${p.number} (PMT 0x%04X)%s%s".format(p.pmtPid, if (p.scrambled) " SCRAMBLED" else "", if (p.hasVideo) " video" else " no video"))
             p.streams.forEach { st ->
-                appendLine("    PID 0x%04X type 0x%02X descriptors %s%s".format(st.pid, st.type, st.descriptorTags.joinToString { "0x%02X".format(it) }, if (st.isAit) "  <- AIT" else ""))
+                val extensions = st.extensionTags.joinToString(prefix = " (extensions ", postfix = ")") { "0x%02X".format(it) }.takeIf { st.extensionTags.isNotEmpty() }.orEmpty()
+                // audio_stream_descriptor: ID 1 = MPEG-1, layer 3/2/1 = layer I/II/III.
+                val mpeg = st.mpegAudioFlags?.let { f -> " (0x03: ID %d, layer code %d, free format %d, variable rate %d)".format((f shr 6) and 1, (f shr 4) and 3, f shr 7, (f shr 3) and 1) }.orEmpty()
+                appendLine("    PID 0x%04X type 0x%02X descriptors %s%s%s%s".format(st.pid, st.type, st.descriptorTags.joinToString { "0x%02X".format(it) }, extensions, mpeg, if (st.isAit) "  <- AIT" else ""))
                 audioTracks[st.pid]?.let { appendLine("      audio: ${it.summary()}") }
             }
         }
@@ -448,6 +472,8 @@ class TsAnalyzer {
         val AUDIO_TYPES = setOf(0x03, 0x04, 0x0F, 0x11, 0x81, 0x87)
         /** DVB audio descriptors in private PES: AC-3, DTS, E-AC-3, AAC. */
         val AUDIO_DESCRIPTORS = setOf(0x6A, 0x7B, 0x7A, 0x7C)
+        /** descriptor_tag_extension of the AC-4 descriptor (EN 300 468). */
+        const val AC4_EXTENSION = 0x15
         private const val MAX_SECTION = 4096
 
         private fun u16(s: ByteArray, i: Int) = ((s[i].toInt() and 0xFF) shl 8) or (s[i + 1].toInt() and 0xFF)

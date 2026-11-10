@@ -38,6 +38,42 @@ class AudioTrackTest {
         assertEquals("AC-3", f?.codec)
         assertEquals(48000, f?.sampleRate)
         assertEquals(6, f?.channels)
+        // frmsizecod 0 is the lowest AC-3 rate.
+        assertEquals(32, f?.bitrate)
+    }
+
+    @Test
+    fun eac3IndependentThreeTwoWithLfeAt256Kbps() {
+        // Syncword, strmtyp 0, frmsiz 511 (1024 bytes), fscod 0 (48 kHz), numblkscod 3 (6 blocks), acmod 7, lfeon 1, bsid 16.
+        val f = AudioFrames.find(
+            TsAnalyzer.Stream(0x100, 0x06, listOf(0x7A)),
+            bytes(0x0B, 0x77, 0x01, 0xFF, 0x3F, 0x80),
+            0, 16,
+        )
+        assertEquals("E-AC-3", f?.codec)
+        assertEquals(48000, f?.sampleRate)
+        assertEquals(6, f?.channels)
+        assertEquals(256, f?.bitrate)
+    }
+
+    @Test
+    fun eac3StereoAt128KbpsSkipsADependentSubstream() {
+        // A dependent substream (strmtyp 1) first, then an independent 2/0 frame of 512 bytes without LFE.
+        val f = AudioFrames.find(
+            TsAnalyzer.Stream(0x100, 0x06, listOf(0x7A)),
+            bytes(0x0B, 0x77, 0x41, 0xFF, 0x3F, 0x80, 0x0B, 0x77, 0x00, 0xFF, 0x34, 0x80),
+            0, 16,
+        )
+        assertEquals(2, f?.channels)
+        assertEquals(128, f?.bitrate)
+    }
+
+    @Test
+    fun ac4SyncWordCountsOnlyAtThePesStart() {
+        val stream = TsAnalyzer.Stream(0x100, 0x06, listOf(0x7F), extensionTags = listOf(0x15))
+        assertEquals("AC-4 sync frame", AudioFrames.find(stream, bytes(0xAC, 0x41), 0, 16)?.codec)
+        assertNull(AudioFrames.find(stream, bytes(0x00, 0xAC, 0x40), 0, 16))
+        assertNull(AudioFrames.find(stream, bytes(0xAC, 0x40), 0, 16, pesStart = false))
     }
 
     @Test

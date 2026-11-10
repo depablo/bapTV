@@ -25,10 +25,10 @@ class AudioTrack(private val stream: TsAnalyzer.Stream) {
             if (i >= TsAnalyzer.PACKET) return
         }
         bytes += TsAnalyzer.PACKET - i
-        if (format == null) format = AudioFrames.find(stream, p, i, TsAnalyzer.PACKET)
+        if (format == null) format = AudioFrames.find(stream, p, i, TsAnalyzer.PACKET, pusi)
     }
 
-    /** One line for the report, e.g. "MPEG-1 layer 2, lang=pol, PES 412, payload 91234 bytes, MPEG-1 layer 2, 48000 Hz, 2 ch". */
+    /** One line for the report, e.g. "MPEG audio, lang=pol, PES 412, payload 91234 bytes, MPEG-1 layer 2, 48000 Hz, 2 ch, 256 kb/s". */
     fun summary(): String {
         val lang = stream.language?.let { ", lang=$it" }.orEmpty()
         val kind = when (stream.audioType) {
@@ -37,16 +37,18 @@ class AudioTrack(private val stream: TsAnalyzer.Stream) {
             0x03 -> ", visual impaired commentary"
             else -> ""
         }
-        val fmt = format?.let { "${it.codec}, ${it.sampleRate?.let { r -> "$r Hz" } ?: "rate ?"}, ${it.channels?.let { c -> "$c ch" } ?: "channels ?"}" }
-            ?: "no frame header found"
+        val fmt = format?.let {
+            "${it.codec}, ${it.sampleRate?.let { r -> "$r Hz" } ?: "rate ?"}, ${it.channels?.let { c -> "$c ch" } ?: "channels ?"}" +
+                it.bitrate?.let { b -> ", $b kb/s" }.orEmpty()
+        } ?: "no frame header found"
         return "${AudioFrames.codecName(stream)}$lang$kind, PES $pes, payload $bytes bytes, $fmt"
     }
 }
 
 /** Frame headers of the audio codecs DVB and ATSC transport streams carry. */
 object AudioFrames {
-    /** [sampleRate] in Hz and [channels] including LFE; null where the header does not give them. */
-    class Format(val codec: String, val sampleRate: Int?, val channels: Int?)
+    /** [sampleRate] in Hz, [channels] including LFE and [bitrate] in kb/s; null where the header does not give them. */
+    class Format(val codec: String, val sampleRate: Int?, val channels: Int?, val bitrate: Int? = null)
 
     fun codecName(stream: TsAnalyzer.Stream): String = when {
         stream.type == 0x03 || stream.type == 0x04 -> "MPEG audio"
@@ -54,16 +56,23 @@ object AudioFrames {
         stream.type == 0x11 -> "AAC (LATM)"
         stream.type == 0x81 || 0x6A in stream.descriptorTags -> "AC-3"
         stream.type == 0x87 || 0x7A in stream.descriptorTags -> "E-AC-3"
+        stream.isAc4 -> "AC-4"
         0x7B in stream.descriptorTags -> "DTS"
         0x7C in stream.descriptorTags -> "AAC"
         else -> "stream type 0x%02X".format(stream.type)
     }
 
-    /** The format from the first header in buf[from until to], or null when none is there yet. */
-    fun find(stream: TsAnalyzer.Stream, buf: ByteArray, from: Int, to: Int): Format? = when {
+    /**
+     * The format from the first header in buf[from until to], or null when none is there yet. [pesStart]: the
+     * range begins a PES payload, where an aligned frame starts.
+     */
+    fun find(stream: TsAnalyzer.Stream, buf: ByteArray, from: Int, to: Int, pesStart: Boolean = true): Format? = when {
         stream.type == 0x03 || stream.type == 0x04 -> mpegAudio(buf, from, to)
         stream.type == 0x0F -> adts(buf, from, to)
         stream.type == 0x81 || 0x6A in stream.descriptorTags -> ac3(buf, from, to)
+        stream.type == 0x87 || 0x7A in stream.descriptorTags -> eac3(buf, from, to)
+        // A two-byte sync word turns up by chance inside the payload; AC-4 PES packets start with a frame.
+        stream.isAc4 -> if (pesStart) ac4(buf, from, to) else null
         // Not read further: the codec alone is what the report can say.
         else -> Format(codecName(stream), null, null)
     }
@@ -115,8 +124,10 @@ object AudioFrames {
 
     private val AC3_RATES = intArrayOf(48000, 44100, 32000)
     private val ACMOD_CHANNELS = intArrayOf(2, 1, 2, 3, 3, 4, 4, 5)
+    /** AC-3 bit rate in kb/s for frmsizecod / 2. */
+    private val AC3_BITRATES = intArrayOf(32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320, 384, 448, 512, 576, 640)
 
-    /** AC-3 syncframe: sync word 0B 77, sampling rate code, bit stream id, audio coding mode, then the LFE bit. */
+    /** AC-3 syncframe: sync word 0B 77, sampling rate code, frame size code, bit stream id, audio coding mode, then the LFE bit. */
     private fun ac3(buf: ByteArray, from: Int, to: Int): Format? {
         for (i in from until to - 7) {
             if (buf[i] != 0x0B.toByte() || buf[i + 1] != 0x77.toByte()) continue
@@ -131,8 +142,49 @@ object AudioFrames {
             if (acmod == 2) bit += 2
             val lfePos = (i + 6) * 8 + bit
             val lfe = (buf[lfePos / 8].toInt() shr (7 - lfePos % 8)) and 0x1
-            return Format("AC-3", AC3_RATES[fscod], ACMOD_CHANNELS[acmod] + lfe)
+            val frmsizecod = (buf[i + 4].toInt() and 0x3F) shr 1
+            return Format("AC-3", AC3_RATES[fscod], ACMOD_CHANNELS[acmod] + lfe, AC3_BITRATES.getOrNull(frmsizecod))
         }
         return null
     }
+
+    private val EAC3_HALF_RATES = intArrayOf(24000, 22050, 16000)
+    private val EAC3_BLOCKS = intArrayOf(1, 2, 3, 6)
+
+    /**
+     * E-AC-3 syncframe (ETSI TS 102 366 Annex E): sync word 0B 77, strmtyp, substreamid, frmsiz (11 bits),
+     * fscod, numblkscod (or fscod2), acmod, lfeon, bsid 11–16. Only independent substreams are read: a
+     * dependent one carries extra channels of the frame before it.
+     */
+    private fun eac3(buf: ByteArray, from: Int, to: Int): Format? {
+        for (i in from until to - 5) {
+            if (buf[i] != 0x0B.toByte() || buf[i + 1] != 0x77.toByte()) continue
+            val b2 = buf[i + 2].toInt() and 0xFF
+            val b4 = buf[i + 4].toInt() and 0xFF
+            val strmtyp = b2 shr 6
+            val bsid = (buf[i + 5].toInt() and 0xFF) shr 3
+            if (strmtyp == 1 || strmtyp == 3 || bsid !in 11..16) continue
+            val fscod = b4 shr 6
+            val code = (b4 shr 4) and 0x3
+            if (fscod == 3 && code == 3) continue
+            val rate = if (fscod == 3) EAC3_HALF_RATES[code] else AC3_RATES[fscod]
+            val blocks = if (fscod == 3) 6 else EAC3_BLOCKS[code]
+            val frameBytes = ((((b2 and 0x7) shl 8) or (buf[i + 3].toInt() and 0xFF)) + 1) * 2
+            val acmod = (b4 shr 1) and 0x7
+            val bitrate = (frameBytes * 8L * rate / (blocks * 256) / 1000).toInt()
+            return Format("E-AC-3", rate, ACMOD_CHANNELS[acmod] + (b4 and 0x1), bitrate)
+        }
+        return null
+    }
+
+    /**
+     * AC-4 sync frame (ETSI TS 103 190, Annex G) at the start of the range: sync word AC 40 or AC 41 (the
+     * latter with a CRC). Only its presence is checked; rate and channels sit in the TOC and presentations.
+     */
+    private fun ac4(buf: ByteArray, from: Int, to: Int): Format? =
+        if (to - from >= 2 && buf[from] == 0xAC.toByte() && (buf[from + 1] == 0x40.toByte() || buf[from + 1] == 0x41.toByte())) {
+            Format("AC-4 sync frame", null, null)
+        } else {
+            null
+        }
 }
