@@ -1,0 +1,1 @@
+More audio details in the diagnostics report (codec format, decoders, audio output setting) and an audio decoding test in Diagnostics for boxes whose tuner gives a channel no sound.

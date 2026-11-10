@@ -1,0 +1,1 @@
+Więcej szczegółów dźwięku w raporcie diagnostycznym (format kodeka, dekodery, ustawienie wyjścia audio) oraz test dekodowania dźwięku w Diagnostyce dla dekoderów, na których kanał nie ma dźwięku.
