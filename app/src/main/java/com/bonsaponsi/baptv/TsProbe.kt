@@ -34,11 +34,12 @@ object TsProbe {
      * completed recording shorter than 1 s as empty) and its observer removes the orphaned directory with
      * dtvinput's own file ownership. dtvinput measures the duration from the dtvfs position sections in the clip
      * (whole seconds, see [TsAnalyzer.positions]), so a clip is kept whenever its content crosses a second. Right
-     * after a tune 100 ms of recording still yields about 0.3-0.6 s of stream; on a set-top box about 1 in 5 such
-     * clips was kept, against most of the 500 ms ones. The service id is in every clip; the AIT often is not.
-     * Used for identification, which needs only the service id.
+     * after a tune the recording replays the catch-up buffer, so a clip holds more stream than it lasts: at 100 ms
+     * about 0.3-0.6 s and about 1 in 5 clips crossed a second and was kept; at 50 ms a full scan on the set-top box
+     * left zero clips (66/66 identified, none with two position values). The service id is in every clip even at
+     * 50 ms; the AIT often is not. Used for identification, which needs only the service id.
      */
-    private const val IDENTIFY_CLIP_MS = 100L
+    private const val IDENTIFY_CLIP_MS = 50L
 
     /**
      * Clip length for HbbTV/EPG learning while a channel is watched. The recording then shares the player's dtvfs
