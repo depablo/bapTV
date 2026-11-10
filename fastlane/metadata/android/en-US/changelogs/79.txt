@@ -1,0 +1,1 @@
+The audio decoding test in Diagnostics now reaches the tuner (in 1.16.2 it had no effect).

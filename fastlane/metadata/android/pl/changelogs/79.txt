@@ -1,0 +1,1 @@
+Test dekodowania dźwięku w Diagnostyce trafia teraz do tunera (w 1.16.2 nie miał żadnego skutku).
