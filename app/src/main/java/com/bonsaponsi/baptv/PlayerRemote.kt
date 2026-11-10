@@ -17,6 +17,8 @@ object PlayerRemote {
     @Volatile var recording: ((String, String?) -> String)? = null
     /** Publishing identified channels to TvContract ([ChannelPublisher]); returns a status line. */
     @Volatile var publish: (() -> String)? = null
+    /** Starts a system confirmation (e.g. MediaStore delete request) from the visible activity (main thread). */
+    @Volatile var startIntentSender: ((android.content.IntentSender) -> Unit)? = null
     /** Colour key delivered by [ColourKeysService] (main thread). */
     @Volatile var colourKey: ((android.view.KeyEvent) -> Unit)? = null
     /** Phone remote ([PhoneRemoteServer]): the player's channel list, the channel on screen, tuning by id (main thread). */

@@ -333,6 +333,9 @@ class MainActivity : Activity() {
         }
         PlayerRemote.timeshiftState = { timeshift.json().put("status", tsStatus) }
         PlayerRemote.publish = { publishChannels(automatic = false) }
+        PlayerRemote.startIntentSender = { sender ->
+            if (!isDestroyed) startIntentSenderForResult(sender, REQUEST_INTENT_SENDER, null, 0, 0, 0)
+        }
         PlayerRemote.colourKey = { event -> if (!isDestroyed) dispatchKeyEvent(event) }
         PlayerRemote.channels = { channels }
         PlayerRemote.currentChannel = { if (playingRecording == null) channels.getOrNull(currentIndex) else null }
@@ -535,6 +538,7 @@ class MainActivity : Activity() {
             PlayerRemote.timeshiftState = null
             PlayerRemote.hbb = null
             PlayerRemote.publish = null
+            PlayerRemote.startIntentSender = null
             PlayerRemote.colourKey = null
             PlayerRemote.channels = null
             PlayerRemote.currentChannel = null
@@ -2613,6 +2617,7 @@ class MainActivity : Activity() {
         )
         private const val SIGNAL_BANNER_MS = 30_000L
         private const val REQUEST_STORAGE = 2
+        private const val REQUEST_INTENT_SENDER = 3
         private const val REQUEST_GUIDE = 3
         /** The instance that set the static hooks (TsProbe, SignalMonitor, PlayerRemote). */
         private var current: java.lang.ref.WeakReference<MainActivity>? = null
