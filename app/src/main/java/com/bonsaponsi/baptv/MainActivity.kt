@@ -1580,7 +1580,8 @@ class MainActivity : Activity() {
             MenuPanel.Entry(getString(R.string.menu_analyse), after = leave) { analyseStream() }
                 .takeIf { caps.streamAnalysis && !ScanSession.running && playingRecording == null && current != null && !current.iptv && !current.virtual },
             MenuPanel.Entry(getString(R.string.menu_audio_class)) { showAudioClassDialog(menu::returned) }
-                .takeIf { TrackVariants.codecClass(audioTestTrack()) != null },
+                // GitHub builds only: the test goes around a framework check (UncheckedTrackSelect).
+                .takeIf { BuildConfig.DISTRIBUTION == "github" && TrackVariants.codecClass(audioTestTrack()) != null },
             MenuPanel.Entry(getString(R.string.menu_send_report)) {
                 ReportSender.offer(this, ReportSender.Reason.USER, null, automatic = false, onClose = menu::returned)
             },
@@ -1761,9 +1762,10 @@ class MainActivity : Activity() {
         val options = (0..TrackVariants.MAX_CLASS).map { TvDialog.Option(getString(R.string.audio_class_option, it)) }
         TvDialog.choose(this, getString(R.string.audio_class_title), options, current, onClose) { which ->
             val variant = TrackVariants.withClass(id, which) ?: return@choose
-            DebugLog.log("Audio", "codec class test: $id -> $variant")
-            tvView.selectTrack(TvTrackInfo.TYPE_AUDIO, variant)
-            showStatusBriefly(getString(R.string.audio_class_selected, which))
+            // TvView.selectTrack would drop the variant: it is not in the input's track list.
+            val refused = UncheckedTrackSelect.select(tvView, TvTrackInfo.TYPE_AUDIO, variant)
+            DebugLog.log("Audio", "codec class test: $id -> $variant: ${refused ?: "sent"}")
+            showStatusBriefly(if (refused == null) getString(R.string.audio_class_selected, which) else getString(R.string.audio_class_refused))
         }
     }
 
@@ -2045,7 +2047,9 @@ class MainActivity : Activity() {
             "seek" -> timeshift.seekBy(arg?.toLongOrNull() ?: return "pass arg=<ms, negative = backward>")
             "panel" -> showInfo(1)
             "live" -> if (timeshift.active) timeshift.goLive() else return "live pause not active"
-            else -> return "actions: pause, resume, toggle, seek&arg=±ms, panel, live"
+            // An audio track id sent to the input as given, also one that is not in its track list.
+            "track" -> return UncheckedTrackSelect.select(tvView, TvTrackInfo.TYPE_AUDIO, arg ?: return "pass arg=<audio track id>") ?: "OK track"
+            else -> return "actions: pause, resume, toggle, seek&arg=±ms, panel, live, track&arg=<audio track id>"
         }
         return "OK $action"
     }

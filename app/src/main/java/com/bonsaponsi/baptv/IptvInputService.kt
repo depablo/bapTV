@@ -147,6 +147,7 @@ class IptvInputService : TvInputService() {
         }
 
         override fun onSelectTrack(type: Int, trackId: String?): Boolean {
+            DebugLog.log("Iptv", "onSelectTrack type=$type id=$trackId")
             val p = player ?: return false
             if (type != TvTrackInfo.TYPE_AUDIO || trackId == null) return false
             val (g, i) = trackId.split(':').map { it.toIntOrNull() ?: return false }.takeIf { it.size == 2 } ?: return false

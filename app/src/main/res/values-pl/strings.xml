@@ -132,6 +132,7 @@
     <string name="audio_class_title">Klasa kodeka dźwięku (test)</string>
     <string name="audio_class_option">Klasa %1$d</string>
     <string name="audio_class_selected">Wybrano klasę %1$d. Jest dźwięk? Wyślij raport.</string>
+    <string name="audio_class_refused">Urządzenie odrzuciło test. Wyślij raport.</string>
     <string name="identify_done">Rozpoznano kanały: %1$d/%2$d</string>
     <string name="identify_cancelled">Rozpoznawanie przerwane</string>
     <string name="identify_no_permission">Rozpoznawanie wymaga zgody na odczyt pamięci – zaakceptuj prośbę i spróbuj ponownie</string>
