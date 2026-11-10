@@ -1579,6 +1579,8 @@ class MainActivity : Activity() {
             MenuPanel.Entry(getString(R.string.menu_diagnostics)) { startActivity(Intent(this, DiagnosticsActivity::class.java)) },
             MenuPanel.Entry(getString(R.string.menu_analyse), after = leave) { analyseStream() }
                 .takeIf { caps.streamAnalysis && !ScanSession.running && playingRecording == null && current != null && !current.iptv && !current.virtual },
+            MenuPanel.Entry(getString(R.string.menu_audio_class)) { showAudioClassDialog(menu::returned) }
+                .takeIf { TrackVariants.codecClass(audioTestTrack()) != null },
             MenuPanel.Entry(getString(R.string.menu_send_report)) {
                 ReportSender.offer(this, ReportSender.Reason.USER, null, automatic = false, onClose = menu::returned)
             },
@@ -1746,6 +1748,23 @@ class MainActivity : Activity() {
             prefs.edit().putString(PREF_AUDIO_LANG, track?.language).apply()
         }
         tvView.selectTrack(type, track?.id)
+    }
+
+    /** The audio track the codec class test works on: the selected one, else the first. */
+    private fun audioTestTrack(): String? =
+        tvView.getSelectedTrack(TvTrackInfo.TYPE_AUDIO) ?: tvView.getTracks(TvTrackInfo.TYPE_AUDIO)?.firstOrNull()?.id
+
+    /** Selects the current audio track again under another codec class (see [TrackVariants]); the result goes to the log. */
+    private fun showAudioClassDialog(onClose: (() -> Unit)? = null) {
+        val id = audioTestTrack() ?: return
+        val current = TrackVariants.codecClass(id) ?: return
+        val options = (0..TrackVariants.MAX_CLASS).map { TvDialog.Option(getString(R.string.audio_class_option, it)) }
+        TvDialog.choose(this, getString(R.string.audio_class_title), options, current, onClose) { which ->
+            val variant = TrackVariants.withClass(id, which) ?: return@choose
+            DebugLog.log("Audio", "codec class test: $id -> $variant")
+            tvView.selectTrack(TvTrackInfo.TYPE_AUDIO, variant)
+            showStatusBriefly(getString(R.string.audio_class_selected, which))
+        }
     }
 
     private fun cycleTrack(type: Int) {
