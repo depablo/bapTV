@@ -36,8 +36,8 @@ android {
     defaultConfig {
         applicationId = "com.bonsaponsi.baptv"
         minSdk = 26
-        versionCode = 79
-        versionName = "1.16.3"
+        versionCode = 80
+        versionName = "1.17.0"
         // Build time in /status (debug server): the deploy script uses it to check that the set-top box runs the
         // version just sent. Release builds keep 0 so that the same source always gives the same APK
         // (reproducible builds, F-Droid).

@@ -1,0 +1,1 @@
+Low system volume: a short hint when a channel starts, so a quiet box is not mistaken for a silent channel.

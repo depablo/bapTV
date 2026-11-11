@@ -1,0 +1,1 @@
+Słaba głośność systemu: krótka podpowiedź po starcie kanału, żeby cichy dekoder nie wyglądał jak kanał bez dźwięku.
