@@ -136,6 +136,7 @@
     <string name="menu_sagemcom_audio">Ustaw dźwięk dekodera na polski</string>
     <string name="sagemcom_audio_result">Preferencja dźwięku dekodera: %1$s</string>
     <string name="sagemcom_audio_no_answer">brak odpowiedzi usługi dekodera</string>
+    <string name="low_volume_hint">Niska głośność systemu (%1$d/%2$d) – podgłośnij, jeśli dźwięk jest za cichy</string>
     <string name="identify_done">Rozpoznano kanały: %1$d/%2$d</string>
     <string name="identify_cancelled">Rozpoznawanie przerwane</string>
     <string name="identify_no_permission">Rozpoznawanie wymaga zgody na odczyt pamięci – zaakceptuj prośbę i spróbuj ponownie</string>

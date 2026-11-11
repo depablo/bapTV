@@ -1833,6 +1833,31 @@ class MainActivity : Activity() {
         }
     }
 
+    /** Last time the low-volume hint was shown, 0 once the volume has been up in between. */
+    private var lowVolumeWarnedAt = 0L
+
+    /**
+     * A quiet box looks exactly like a silent channel (several reports in issue #15 were made at 2/15), so when a
+     * picture arrives with the system volume at a fifth or less, one short hint names the volume. The operator's
+     * own app has such a warning too. Repeated at most once an hour, and armed again once the volume has been up.
+     */
+    private fun maybeWarnLowVolume() {
+        val manager = getSystemService(AUDIO_SERVICE) as android.media.AudioManager
+        val stream = android.media.AudioManager.STREAM_MUSIC
+        val volume = runCatching { manager.getStreamVolume(stream) }.getOrNull() ?: return
+        val max = runCatching { manager.getStreamMaxVolume(stream) }.getOrNull()?.takeIf { it > 0 } ?: return
+        val muted = runCatching { manager.isStreamMute(stream) }.getOrDefault(false)
+        if (!muted && volume * 5 > max) {
+            lowVolumeWarnedAt = 0
+            return
+        }
+        val now = SystemClock.elapsedRealtime()
+        if (lowVolumeWarnedAt != 0L && now - lowVolumeWarnedAt < LOW_VOLUME_REPEAT_MS) return
+        lowVolumeWarnedAt = now
+        DebugLog.log("Audio", "low volume hint shown: $volume/$max${if (muted) " MUTED" else ""}")
+        showStatusFor(getString(R.string.low_volume_hint, volume, max), 5000)
+    }
+
     private fun logAudioTracks() {
         val tracks = tvView.getTracks(TvTrackInfo.TYPE_AUDIO).orEmpty()
         DebugLog.log(
@@ -2502,6 +2527,7 @@ class MainActivity : Activity() {
                 if (!recordingPaused && !recordingClockRunning) scheduleRecordingEnd()
             }
             applyPreferredTracks()
+            if (playingRecording == null) maybeWarnLowVolume()
         }
 
         @android.annotation.SuppressLint("SwitchIntDef") // VIDEO_UNAVAILABLE_REASON_NOT_CONNECTED is a local copy (public since API 31)
@@ -2671,6 +2697,7 @@ class MainActivity : Activity() {
         /** Longest tune seen with a picture on the broadcast input was about 5 s; past this the channel gets a message. */
         private const val TUNE_NO_VIDEO_MS = 15_000L
         private const val SAGEMCOM_BIND_TIMEOUT_MS = 6000L
+        private const val LOW_VOLUME_REPEAT_MS = 60 * 60_000L
         private const val SIGNAL_REFRESH_MS = 1000L
         private const val DIGIT_TIMEOUT_MS = 1500L
 
