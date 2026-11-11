@@ -16,7 +16,7 @@
     <string name="status_not_connected">Antena niepodłączona</string>
     <string name="status_unknown">Brak obrazu</string>
     <string name="status_no_video">Brak obrazu na tym kanale – sprawdź antenę</string>
-    <string name="no_video_rescan_message">Ten kanał wcześniej działał, a teraz nie ma na nim obrazu. Kanały mogły się zmienić – wyszukaj kanały ponownie.</string>
+    <string name="no_video_rescan_message">Ten kanał wcześniej działał, a teraz nie ma na nim obrazu. Kanały mogły się zmienić – wykryj kanały ponownie.</string>
     <string name="status_cas">Kanał kodowany – brak dostępu (CAS)</string>
     <string name="status_blocked">Treść zablokowana (kontrola rodzicielska)</string>
     <string name="status_input_failed">Błąd połączenia z tunerem</string>

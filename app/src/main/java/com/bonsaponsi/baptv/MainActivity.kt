@@ -1913,8 +1913,11 @@ class MainActivity : Activity() {
         noVideoReported = true
         showStatus(getString(if (worked) R.string.status_unknown else R.string.status_no_video))
         if (PlayerRules.mayOfferRescan(worked, menu.visible, TvDialog.anyOpen, hasWindowFocus())) {
+            // Channels found by probing: dtvinput still has them and only their IDs changed, so probing again is enough.
+            val probing = DeviceCapabilities.get(this).channelDiscovery
             TvDialog.confirm(this, getString(R.string.status_unknown), getString(R.string.no_video_rescan_message),
-                getString(R.string.menu_scan), onConfirm = { startActivity(Intent(this, ScanActivity::class.java)) })
+                getString(if (probing) R.string.menu_rediscover else R.string.menu_scan),
+                onConfirm = { if (probing) rediscover() else startActivity(Intent(this, ScanActivity::class.java)) })
         }
     }
 
