@@ -9,8 +9,11 @@
 
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" tools:node="remove" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" tools:node="remove" />
+    <!-- The Sagemcom middleware experiment (SagemcomStb) is a GitHub-build feature, like the codec class test. -->
+    <uses-permission android:name="com.sagemcom.server.BIND_STB_SERVICE" tools:node="remove" />
 
     <application>
+        <uses-library android:name="com.sagemcom.stb" tools:node="remove" />
         <service android:name=".ColourKeysService" tools:node="remove" />
         <service android:name=".DebugServerService" tools:node="remove" />
         <service android:name=".RecordingService" tools:node="remove" />

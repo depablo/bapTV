@@ -1586,6 +1586,9 @@ class MainActivity : Activity() {
             MenuPanel.Entry(getString(R.string.menu_audio_class)) { showAudioClassDialog(menu::returned) }
                 // GitHub builds only: the test goes around a framework check (UncheckedTrackSelect).
                 .takeIf { BuildConfig.DISTRIBUTION == "github" && TrackVariants.codecClass(audioTestTrack()) != null },
+            MenuPanel.Entry(getString(R.string.menu_sagemcom_audio), after = leave) { runSagemcomAudioPreference() }
+                // GitHub builds only, and only on a Sagemcom box with the middleware library (issue #15, silent TVP).
+                .takeIf { BuildConfig.DISTRIBUTION == "github" && SagemcomStb.available(this) },
             MenuPanel.Entry(getString(R.string.menu_send_report)) {
                 ReportSender.offer(this, ReportSender.Reason.USER, null, automatic = false, onClose = menu::returned)
             },
@@ -1770,6 +1773,27 @@ class MainActivity : Activity() {
             val refused = UncheckedTrackSelect.select(tvView, TvTrackInfo.TYPE_AUDIO, variant)
             DebugLog.log("Audio", "codec class test: $id -> $variant: ${refused ?: "sent"}")
             showStatusBriefly(if (refused == null) getString(R.string.audio_class_selected, which) else getString(R.string.audio_class_refused))
+        }
+    }
+
+    /** Sets the Sagemcom middleware audio preference to Polish, like the operator app does (SagemcomStb). */
+    private fun runSagemcomAudioPreference() {
+        var answered = false
+        val timeout = Runnable {
+            if (answered) return@Runnable
+            DebugLog.log("Audio", "sagemcom audio preference: no answer from the STB service")
+            showStatusBriefly(getString(R.string.sagemcom_audio_result, getString(R.string.sagemcom_audio_no_answer)))
+        }
+        val failure = SagemcomStb.setPolishAudioPreference(this) { result ->
+            answered = true
+            handler.removeCallbacks(timeout)
+            if (!isDestroyed) showStatusBriefly(getString(R.string.sagemcom_audio_result, result))
+        }
+        if (failure != null) {
+            DebugLog.log("Audio", "sagemcom audio preference not started: $failure")
+            showStatusBriefly(getString(R.string.sagemcom_audio_result, failure))
+        } else {
+            handler.postDelayed(timeout, SAGEMCOM_BIND_TIMEOUT_MS)
         }
     }
 
@@ -2646,6 +2670,7 @@ class MainActivity : Activity() {
         private const val TUNE_UNKNOWN_GRACE_MS = 2000L
         /** Longest tune seen with a picture on the broadcast input was about 5 s; past this the channel gets a message. */
         private const val TUNE_NO_VIDEO_MS = 15_000L
+        private const val SAGEMCOM_BIND_TIMEOUT_MS = 6000L
         private const val SIGNAL_REFRESH_MS = 1000L
         private const val DIGIT_TIMEOUT_MS = 1500L
 

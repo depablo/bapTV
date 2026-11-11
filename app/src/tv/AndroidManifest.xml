@@ -32,6 +32,13 @@
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
     <!--
+        Binding the Sagemcom STB middleware service (SagemcomStb), the way the operator's Play Now app does –
+        for the audio language preference on the DCTIW362 (issue #15, silent TVP channels). Protection level
+        unknown; the report prints it. Removed from the Play build.
+    -->
+    <uses-permission android:name="com.sagemcom.server.BIND_STB_SERVICE" />
+
+    <!--
         HbbTV experiment: reading dtvinput recordings from Android/media/com.google.android.tv.dtvinput/Records
         (targetSdk 29 + requestLegacyExternalStorage – path-based access to shared storage).
     -->
@@ -51,6 +58,7 @@
         <package android:name="com.android.providers.tv" />
         <package android:name="com.droidlogic.tvinput" />
         <package android:name="com.droidlogic.android.tv" />
+        <package android:name="com.sagemcom.stb.tvinput" />
         <intent>
             <action android:name="android.media.tv.TvInputService" />
         </intent>
@@ -59,6 +67,11 @@
     <application
         android:banner="@drawable/banner"
         android:requestLegacyExternalStorage="true">
+
+        <!-- The Sagemcom middleware classes (SagemcomStb); only their boxes have the library. -->
+        <uses-library
+            android:name="com.sagemcom.stb"
+            android:required="false" />
 
         <activity
             android:name=".MainActivity"

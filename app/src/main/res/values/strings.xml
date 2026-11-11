@@ -132,6 +132,9 @@
     <string name="audio_class_option">Class %1$d</string>
     <string name="audio_class_selected">Class %1$d selected. Is there sound now? Send a report.</string>
     <string name="audio_class_refused">This device refused the test. Send a report.</string>
+    <string name="menu_sagemcom_audio">Set box audio to Polish</string>
+    <string name="sagemcom_audio_result">Box audio preference: %1$s</string>
+    <string name="sagemcom_audio_no_answer">no answer from the box service</string>
     <string name="identify_done">Channels identified: %1$d/%2$d</string>
     <string name="identify_cancelled">Identification stopped</string>
     <string name="identify_no_permission">Identification needs permission to read storage – accept the request and try again</string>
