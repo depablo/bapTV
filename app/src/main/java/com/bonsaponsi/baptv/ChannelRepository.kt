@@ -62,6 +62,7 @@ class ChannelRepository(private val context: Context) {
             val channels = if (fromProvider.isNotEmpty()) {
                 fromProvider
             } else {
+                SharedChannelCheck.adoptIfNeeded(context, store)
                 store.loadDiscovered().also { DebugLog.log("Channels", "TvContract empty – using ${it.size} discovered channels") }
             }
             // Channel settings from before a rescan (old IDs) move to DVB keys.

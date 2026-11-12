@@ -9,10 +9,6 @@ class App : Application() {
         super.onCreate()
         DebugLog.init(this)
         ProcessExits.logNew(this)
-        // Once per start: what the other release builds hold (stage 1 of sharing, logging only).
-        Thread({ SharedChannels.peerDiscovered(this).forEach { (pkg, json) ->
-            DebugLog.log("Shared", "$pkg holds ${json.length} characters of discovered channels")
-        } }, "shared-channels").start()
         val previous = Thread.getDefaultUncaughtExceptionHandler()
         Thread.setDefaultUncaughtExceptionHandler { thread, error ->
             // Write the crash to the log – after a restart it is visible in Diagnostics.

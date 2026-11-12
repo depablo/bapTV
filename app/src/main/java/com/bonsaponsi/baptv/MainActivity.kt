@@ -2212,6 +2212,7 @@ class MainActivity : Activity() {
                 // Longer recording when the EPG needs refreshing – the EIT schedule arrives more slowly than p/f.
                 val learned = TsProbe.learn(applicationContext, channel.id, seconds = if (epgStale) 8 else 4)
                 if (learned != null) {
+                    SharedChannelCheck.onRecognised(applicationContext, channel.id, learned.tsid, learned.sid)
                     changed = entry?.sid != learned.sid || entry?.scrambled != learned.scrambled || entry?.looksVirtual != learned.looksVirtual
                     postIfActive {
                         if (channels.getOrNull(currentIndex)?.id != channel.id || !hbbStore.enabled) return@postIfActive

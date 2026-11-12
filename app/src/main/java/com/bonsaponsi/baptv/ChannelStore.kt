@@ -49,6 +49,28 @@ class ChannelStore(context: Context) {
     /** The stored discovered list as JSON (what the shared provider hands to the other release builds). */
     fun discoveredJson(): String? = prefs.getString(KEY_DISCOVERED, null)
 
+    /** Stores a discovered list as it came from another release build (already JSON). */
+    fun saveDiscoveredJson(json: String) {
+        prefs.edit().putString(KEY_DISCOVERED, json).apply()
+        DebugLog.log("Store", "adopted a discovered list from another build")
+    }
+
+    /**
+     * A list taken from another release build waits here until one of its channels is recognised and matches the
+     * identity the other build recorded for it ([SharedChannelCheck]). [identities]: JSON array of channelId/tsid/sid.
+     */
+    fun setPending(from: String, identities: String) =
+        prefs.edit().putString(KEY_PENDING_FROM, from).putString(KEY_PENDING_IDENTITIES, identities).apply()
+
+    fun pendingIdentities(): JSONArray? = prefs.getString(KEY_PENDING_IDENTITIES, null)?.let { runCatching { JSONArray(it) }.getOrNull() }
+
+    fun clearPending() = prefs.edit().remove(KEY_PENDING_FROM).remove(KEY_PENDING_IDENTITIES).apply()
+
+    /** The list hash that was refused, so the same list is not taken again on the next start. */
+    var refusedListHash: Int?
+        get() = if (prefs.contains(KEY_REFUSED)) prefs.getInt(KEY_REFUSED, 0) else null
+        set(value) { prefs.edit().apply { if (value == null) remove(KEY_REFUSED) else putInt(KEY_REFUSED, value) }.apply() }
+
     /** After a new scan channel IDs change – the list must be discovered again. */
     fun clearDiscovered() {
         prefs.edit().remove(KEY_DISCOVERED).apply()
@@ -210,6 +232,9 @@ class ChannelStore(context: Context) {
             }
 
         private const val KEY_DISCOVERED = "discovered"
+        private const val KEY_PENDING_FROM = "pending_from"
+        private const val KEY_PENDING_IDENTITIES = "pending_identities"
+        private const val KEY_REFUSED = "refused_hash"
         private const val KEY_ORDER = "order"
         private const val KEY_HIDE_SCRAMBLED = "hide_scrambled"
     }
