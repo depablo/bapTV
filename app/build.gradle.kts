@@ -150,6 +150,16 @@ android {
             // Reproducible output: no git state baked into the APK.
             vcsInfo.include = false
         }
+        // A release build under its own package name, to test next to the installed release (never published):
+        // assemble<Flavor>PlayTest, e.g. assemblePlayTvPlayTest → com.bonsaponsi.baptv.playtest.
+        create("playTest") {
+            initWith(getByName("release"))
+            applicationIdSuffix = ".playtest"
+            versionNameSuffix = "-playtest"
+            resValue("string", "colour_keys_package", "com.bonsaponsi.baptv.playtest")
+            resValue("string", "app_name", "bapTV playtest")
+            matchingFallbacks += listOf("release")
+        }
     }
 
     // No Google-encrypted dependency metadata block in the APK (F-Droid rejects it).
