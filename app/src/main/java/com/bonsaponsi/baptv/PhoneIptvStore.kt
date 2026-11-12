@@ -54,6 +54,26 @@ class PhoneIptvStore private constructor(context: Context) {
         return added.size
     }
 
+    /**
+     * Restores a settings backup: [replace] takes [channels] as the whole list, otherwise adds those whose addresses are
+     * not on the list yet. Returns how many channels were added (or are in the list, when replacing).
+     */
+    @Synchronized
+    fun importChannels(channels: List<Channel>, replace: Boolean): Int {
+        if (replace) {
+            val unique = channels.distinctBy { it.url }
+            save(unique)
+            DebugLog.log("PhoneIptv", "replaced the list with ${unique.size} channels from a backup")
+            return unique.size
+        }
+        val current = load()
+        val known = current.mapTo(HashSet()) { it.url }
+        val added = channels.filter { known.add(it.url) }
+        save(current + added)
+        DebugLog.log("PhoneIptv", "added ${added.size} of ${channels.size} channels from a backup")
+        return added.size
+    }
+
     /** Addresses already on the list – the import screen marks those channels. */
     fun urls(): Set<String> = load().mapTo(HashSet()) { it.url }
 

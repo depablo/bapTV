@@ -446,6 +446,16 @@
     <string name="phone_menu_manage">Manage channels</string>
     <string name="phone_menu_check">Check channels</string>
     <string name="phone_menu_remote">Set-top box remote</string>
+    <string name="phone_menu_export">Export settings</string>
+    <string name="phone_menu_import">Import settings</string>
+    <string name="phone_settings_import_title">Import settings</string>
+    <string name="phone_settings_replace">Replace the channel list</string>
+    <string name="phone_settings_merge">Add the channels that are missing</string>
+    <string name="phone_settings_exported">Settings exported</string>
+    <string name="phone_settings_export_failed">Export failed: %1$s</string>
+    <string name="phone_settings_imported">Channels imported: %1$d</string>
+    <string name="phone_settings_import_failed">Import failed: %1$s</string>
+    <string name="phone_settings_bad_file">This is not a bapTV settings file</string>
     <string name="phone_menu_language">Language: %1$s</string>
     <string name="phone_about_message">Internet TV channels on the phone and a remote for the bapTV set-top box app.\n\nContact: %1$s\nSource code, issues and new versions: %2$s\nTarget SDK: %3$s\nLicense: Apache License 2.0</string>
     <string name="phone_about_open">Open project page</string>

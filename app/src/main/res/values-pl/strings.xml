@@ -452,6 +452,16 @@
     <string name="phone_menu_manage">Zarządzaj kanałami</string>
     <string name="phone_menu_check">Sprawdź kanały</string>
     <string name="phone_menu_remote">Pilot dekodera</string>
+    <string name="phone_menu_export">Eksportuj ustawienia</string>
+    <string name="phone_menu_import">Importuj ustawienia</string>
+    <string name="phone_settings_import_title">Import ustawień</string>
+    <string name="phone_settings_replace">Zastąp listę kanałów</string>
+    <string name="phone_settings_merge">Dodaj kanały, których brakuje</string>
+    <string name="phone_settings_exported">Ustawienia wyeksportowane</string>
+    <string name="phone_settings_export_failed">Eksport nie powiódł się: %1$s</string>
+    <string name="phone_settings_imported">Zaimportowano kanałów: %1$d</string>
+    <string name="phone_settings_import_failed">Import nie powiódł się: %1$s</string>
+    <string name="phone_settings_bad_file">To nie jest plik ustawień bapTV</string>
     <string name="phone_menu_language">Język: %1$s</string>
     <string name="phone_about_message">Kanały telewizji internetowej na telefonie i pilot do aplikacji bapTV na dekoderze.\n\nKontakt: %1$s\nKod źródłowy, zgłoszenia i nowe wersje: %2$s\nTargetSdk: %3$s\nLicencja: Apache License 2.0</string>
     <string name="phone_about_open">Otwórz stronę projektu</string>

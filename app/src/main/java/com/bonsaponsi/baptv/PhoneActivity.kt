@@ -332,7 +332,9 @@ class PhoneActivity : Activity() {
             }
         }
         menu.add(Menu.NONE, MENU_LANGUAGE, 6, getString(R.string.phone_menu_language, AppLanguage.label(this, AppLanguage.get(this))))
-        menu.add(Menu.NONE, MENU_ABOUT, 7, R.string.menu_about)
+        menu.add(Menu.NONE, MENU_EXPORT_SETTINGS, 7, R.string.phone_menu_export)
+        menu.add(Menu.NONE, MENU_IMPORT_SETTINGS, 8, R.string.phone_menu_import)
+        menu.add(Menu.NONE, MENU_ABOUT, 9, R.string.menu_about)
         popup.setOnMenuItemClickListener { item ->
             when (item.itemId) {
                 MENU_MANAGE -> startActivity(Intent(this, PhoneChannelsActivity::class.java))
@@ -342,6 +344,8 @@ class PhoneActivity : Activity() {
                 MENU_UPDATE -> updates.check(manual = true)
                 MENU_UPDATE_AUTO -> UpdateChecker.setAutoEnabled(this, !UpdateChecker.autoEnabled(this))
                 MENU_LANGUAGE -> chooseLanguage()
+                MENU_EXPORT_SETTINGS -> exportSettings()
+                MENU_IMPORT_SETTINGS -> pickSettings()
                 MENU_ABOUT -> showAbout()
             }
             true
@@ -402,6 +406,54 @@ class PhoneActivity : Activity() {
         startActivityForResult(Intent(this, PhoneImportActivity::class.java).putExtra(PhoneImportActivity.EXTRA_URL, address), REQUEST_IMPORT)
     }
 
+    private fun exportSettings() {
+        startActivityForResult(Intent(Intent.ACTION_CREATE_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE)
+            .setType("application/json").putExtra(Intent.EXTRA_TITLE, "baptv-phone-settings.json"), REQUEST_EXPORT_SETTINGS)
+    }
+
+    private fun pickSettings() {
+        startActivityForResult(Intent(Intent.ACTION_OPEN_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE).setType("*/*"),
+            REQUEST_IMPORT_SETTINGS)
+    }
+
+    /** Writes the backup on the worker; the result is a toast. */
+    private fun writeSettings(uri: Uri) {
+        io.execute {
+            val text = PhoneSettings.export(store)
+            val message = try {
+                contentResolver.openOutputStream(uri, "wt")?.use { it.write(text.toByteArray(Charsets.UTF_8)) }
+                getString(R.string.phone_settings_exported)
+            } catch (e: java.io.IOException) {
+                DebugLog.error("PhoneIptv", "settings export failed", e)
+                getString(R.string.phone_settings_export_failed, e.message ?: e.javaClass.simpleName)
+            }
+            handler.post { if (!isDestroyed) Toast.makeText(this, message, Toast.LENGTH_LONG).show() }
+        }
+    }
+
+    /** Asks whether the backup replaces the list or only adds to it, then reads it on the worker. */
+    private fun readSettings(uri: Uri) {
+        AlertDialog.Builder(this)
+            .setTitle(R.string.phone_settings_import_title)
+            .setItems(arrayOf(getString(R.string.phone_settings_replace), getString(R.string.phone_settings_merge))) { _, which ->
+                val replace = which == 0
+                io.execute {
+                    val message = try {
+                        val text = contentResolver.openInputStream(uri)?.use { it.readBytes().toString(Charsets.UTF_8) }.orEmpty()
+                        getString(R.string.phone_settings_imported, PhoneSettings.import(store, text, replace))
+                    } catch (e: IllegalArgumentException) {
+                        getString(R.string.phone_settings_bad_file)
+                    } catch (e: java.io.IOException) {
+                        DebugLog.error("PhoneIptv", "settings import failed", e)
+                        getString(R.string.phone_settings_import_failed, e.message ?: e.javaClass.simpleName)
+                    }
+                    handler.post { if (!isDestroyed) reloadList(message) }
+                }
+            }
+            .setNegativeButton(R.string.phone_cancel, null)
+            .show()
+    }
+
     private fun pickFile() {
         startActivityForResult(Intent(Intent.ACTION_OPEN_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE).setType("*/*"), REQUEST_FILE)
     }
@@ -410,6 +462,8 @@ class PhoneActivity : Activity() {
         super.onActivityResult(requestCode, resultCode, data)
         if (resultCode != RESULT_OK || data == null) return
         when (requestCode) {
+            REQUEST_EXPORT_SETTINGS -> data.data?.let { writeSettings(it) }
+            REQUEST_IMPORT_SETTINGS -> data.data?.let { readSettings(it) }
             REQUEST_FILE -> data.data?.let { uri ->
                 startActivityForResult(Intent(this, PhoneImportActivity::class.java).setData(uri)
                     .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION), REQUEST_IMPORT)
@@ -532,6 +586,8 @@ class PhoneActivity : Activity() {
     private companion object {
         const val REQUEST_FILE = 1
         const val REQUEST_IMPORT = 2
+        const val REQUEST_EXPORT_SETTINGS = 3
+        const val REQUEST_IMPORT_SETTINGS = 4
         const val MENU_MANAGE = 1
         const val MENU_ADD = 2
         const val MENU_CHECK = 3
@@ -540,6 +596,8 @@ class PhoneActivity : Activity() {
         const val MENU_UPDATE_AUTO = 6
         const val MENU_LANGUAGE = 7
         const val MENU_ABOUT = 8
+        const val MENU_EXPORT_SETTINGS = 9
+        const val MENU_IMPORT_SETTINGS = 10
         const val MIN_BUFFER_MS = 10_000
         const val MAX_BUFFER_MS = 30_000
         const val START_BUFFER_MS = 2_500
