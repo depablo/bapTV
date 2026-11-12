@@ -368,7 +368,7 @@ class PhoneActivity : Activity() {
     private fun showAbout() {
         AlertDialog.Builder(this)
             .setTitle(getString(R.string.about_title, BuildConfig.VERSION_NAME))
-            .setMessage(getString(R.string.phone_about_message, BuildConfig.CONTACT_EMAIL, BuildConfig.PROJECT_URL))
+            .setMessage(getString(R.string.phone_about_message, BuildConfig.CONTACT_EMAIL, BuildConfig.PROJECT_URL, BuildConfig.TARGET_SDK.toString()))
             .setPositiveButton(R.string.phone_about_open) { _, _ ->
                 runCatching { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(BuildConfig.PROJECT_URL))) }
                     .onFailure { DebugLog.warn("Phone", "no browser for the project page", it) }

@@ -288,7 +288,7 @@
     <string name="menu_send_report">Send report to the developer</string>
     <string name="menu_about">About bapTV</string>
     <string name="about_title">bapTV %1$s</string>
-    <string name="about_message">Terrestrial TV (DVB-T/T2) player for Android TV.\n\nContact: %1$s\nSource code, issues and new versions: scan the code or open the address below.\nLicense: Apache License 2.0</string>
+    <string name="about_message">Terrestrial TV (DVB-T/T2) player for Android TV.\n\nContact: %1$s\nSource code, issues and new versions: scan the code or open the address below.\nTarget SDK: %2$s\nLicense: Apache License 2.0</string>
     <string name="menu_publish">Publish channels to the system</string>
     <plurals name="publish_running">
         <item quantity="one">Publishing %1$d channel to the system… the picture comes back in a minute</item>
@@ -447,7 +447,7 @@
     <string name="phone_menu_check">Check channels</string>
     <string name="phone_menu_remote">Set-top box remote</string>
     <string name="phone_menu_language">Language: %1$s</string>
-    <string name="phone_about_message">Internet TV channels on the phone and a remote for the bapTV set-top box app.\n\nContact: %1$s\nSource code, issues and new versions: %2$s\nLicense: Apache License 2.0</string>
+    <string name="phone_about_message">Internet TV channels on the phone and a remote for the bapTV set-top box app.\n\nContact: %1$s\nSource code, issues and new versions: %2$s\nTarget SDK: %3$s\nLicense: Apache License 2.0</string>
     <string name="phone_about_open">Open project page</string>
     <string name="phone_add_message">The channels are shown first: check them and add the ones that work.</string>
     <string name="import_title">Add channels</string>

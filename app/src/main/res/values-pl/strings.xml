@@ -293,7 +293,7 @@
     <string name="menu_send_report">Wyślij raport do autora</string>
     <string name="menu_about">O aplikacji bapTV</string>
     <string name="about_title">bapTV %1$s</string>
-    <string name="about_message">Odtwarzacz telewizji naziemnej (DVB-T/T2) dla Android TV.\n\nKontakt: %1$s\nKod źródłowy, zgłoszenia i nowe wersje: zeskanuj kod albo otwórz adres poniżej.\nLicencja: Apache License 2.0</string>
+    <string name="about_message">Odtwarzacz telewizji naziemnej (DVB-T/T2) dla Android TV.\n\nKontakt: %1$s\nKod źródłowy, zgłoszenia i nowe wersje: zeskanuj kod albo otwórz adres poniżej.\nTargetSdk: %2$s\nLicencja: Apache License 2.0</string>
     <string name="menu_publish">Opublikuj kanały w systemie</string>
     <plurals name="publish_running">
         <item quantity="one">Publikowanie %1$d kanału w systemie… obraz wróci za minutę</item>
@@ -453,7 +453,7 @@
     <string name="phone_menu_check">Sprawdź kanały</string>
     <string name="phone_menu_remote">Pilot dekodera</string>
     <string name="phone_menu_language">Język: %1$s</string>
-    <string name="phone_about_message">Kanały telewizji internetowej na telefonie i pilot do aplikacji bapTV na dekoderze.\n\nKontakt: %1$s\nKod źródłowy, zgłoszenia i nowe wersje: %2$s\nLicencja: Apache License 2.0</string>
+    <string name="phone_about_message">Kanały telewizji internetowej na telefonie i pilot do aplikacji bapTV na dekoderze.\n\nKontakt: %1$s\nKod źródłowy, zgłoszenia i nowe wersje: %2$s\nTargetSdk: %3$s\nLicencja: Apache License 2.0</string>
     <string name="phone_about_open">Otwórz stronę projektu</string>
     <string name="phone_add_message">Najpierw zobaczysz kanały z listy: sprawdź je i dodaj te, które działają.</string>
     <string name="import_title">Dodaj kanały</string>

@@ -1667,7 +1667,7 @@ class MainActivity : Activity() {
 
     private fun showAbout(onClose: (() -> Unit)? = null) {
         TvDialog.qr(this, getString(R.string.about_title, BuildConfig.VERSION_NAME),
-            getString(R.string.about_message, BuildConfig.CONTACT_EMAIL), BuildConfig.PROJECT_URL, onClose)
+            getString(R.string.about_message, BuildConfig.CONTACT_EMAIL, BuildConfig.TARGET_SDK.toString()), BuildConfig.PROJECT_URL, onClose)
     }
 
     /** Phone remote: pairing by QR code; with phones already paired also forgetting them and turning it off. */

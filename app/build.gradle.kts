@@ -84,6 +84,8 @@ android {
         create("play") {
             dimension = "distribution"
             targetSdk = 35
+            // The distribution dimension comes first, so this value wins over the device flavour (as targetSdk does).
+            buildConfigField("int", "TARGET_SDK", "35")
             buildConfigField("boolean", "SELF_UPDATE", "false")
             buildConfigField("boolean", "RECORDING", "false")
             buildConfigField("boolean", "ACCESSIBILITY_KEYS", "false")
@@ -92,11 +94,13 @@ android {
         create("tv") {
             dimension = "device"
             targetSdk = 29
+            buildConfigField("int", "TARGET_SDK", "29")
             buildConfigField("boolean", "TV", "true")
         }
         create("phone") {
             dimension = "device"
             targetSdk = 35
+            buildConfigField("int", "TARGET_SDK", "35")
             buildConfigField("boolean", "TV", "false")
         }
         // The pilot: a separate app (the phone remote only), GitHub distribution only. Same code, its own manifest in
@@ -105,6 +109,7 @@ android {
             dimension = "device"
             applicationId = "com.bonsaponsi.baptv.pilot"
             targetSdk = 35
+            buildConfigField("int", "TARGET_SDK", "35")
             buildConfigField("boolean", "TV", "false")
         }
     }
