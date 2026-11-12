@@ -1,12 +1,15 @@
 package com.bonsaponsi.baptv
 
 import android.app.Activity
+import android.app.AlertDialog
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.webkit.CookieManager
+import android.webkit.JsResult
+import android.webkit.WebChromeClient
 import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
@@ -64,6 +67,28 @@ class PilotActivity : Activity() {
         web.settings.domStorageEnabled = true
         // Lets the page know it runs inside the app (no "add to home screen" tip).
         web.settings.userAgentString = web.settings.userAgentString + " $APP_AGENT"
+        // WebView answers the page's confirm() and alert() with "no" and nothing shown unless the app handles them,
+        // so the remote's delete buttons did nothing. The app shows the dialogs itself.
+        web.webChromeClient = object : WebChromeClient() {
+            override fun onJsConfirm(view: WebView, url: String, message: String, result: JsResult): Boolean {
+                AlertDialog.Builder(this@PilotActivity)
+                    .setMessage(message)
+                    .setPositiveButton(android.R.string.ok) { _, _ -> result.confirm() }
+                    .setNegativeButton(android.R.string.cancel) { _, _ -> result.cancel() }
+                    .setOnCancelListener { result.cancel() }
+                    .show()
+                return true
+            }
+
+            override fun onJsAlert(view: WebView, url: String, message: String, result: JsResult): Boolean {
+                AlertDialog.Builder(this@PilotActivity)
+                    .setMessage(message)
+                    .setPositiveButton(android.R.string.ok) { _, _ -> result.confirm() }
+                    .setOnCancelListener { result.confirm() }
+                    .show()
+                return true
+            }
+        }
         web.webViewClient = object : WebViewClient() {
             override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {
                 // The remote server runs only while bapTV is on the TV screen (and a minute after).
