@@ -64,7 +64,16 @@ class ChannelStore(context: Context) {
 
     fun pendingIdentities(): JSONArray? = prefs.getString(KEY_PENDING_IDENTITIES, null)?.let { runCatching { JSONArray(it) }.getOrNull() }
 
-    fun clearPending() = prefs.edit().remove(KEY_PENDING_FROM).remove(KEY_PENDING_IDENTITIES).apply()
+    /** Channels of a candidate list that were recognised and matched so far. */
+    fun pendingConfirmed(): List<Long> = runCatching {
+        val a = JSONArray(prefs.getString(KEY_PENDING_CONFIRMED, "[]"))
+        (0 until a.length()).map { a.getLong(it) }
+    }.getOrDefault(emptyList())
+
+    fun setPendingConfirmed(ids: List<Long>) = prefs.edit().putString(KEY_PENDING_CONFIRMED, JSONArray(ids).toString()).apply()
+
+    fun clearPending() = prefs.edit().remove(KEY_PENDING_FROM).remove(KEY_PENDING_IDENTITIES)
+        .remove(KEY_PENDING_CONFIRMED).apply()
 
     /** The list hash that was refused, so the same list is not taken again on the next start. */
     var refusedListHash: Int?
@@ -234,6 +243,7 @@ class ChannelStore(context: Context) {
         private const val KEY_DISCOVERED = "discovered"
         private const val KEY_PENDING_FROM = "pending_from"
         private const val KEY_PENDING_IDENTITIES = "pending_identities"
+        private const val KEY_PENDING_CONFIRMED = "pending_confirmed"
         private const val KEY_REFUSED = "refused_hash"
         private const val KEY_ORDER = "order"
         private const val KEY_HIDE_SCRAMBLED = "hide_scrambled"

@@ -1,16 +1,21 @@
 package com.bonsaponsi.baptv
 
 import android.content.Context
+import org.json.JSONArray
 import org.json.JSONObject
 
 /**
- * Takes over another build's channel list only after a check. The first channel that this build recognises from its
- * own recording and that the other build also recorded decides: the same ONID, TSID and SID means the list belongs
- * to the same scan (the channel IDs come from one tuner database shared by all builds), anything else refuses it.
+ * Takes over another build's channel list only after a check. Channels that this build recognises from its own
+ * recording are compared with what the other build recorded for them: the same ONID, TSID and SID means the list
+ * belongs to the same scan (the channel IDs come from one tuner database shared by all builds). Any mismatch refuses
+ * the list. It is accepted when the matching channels cover [REQUIRED] multiplexes (or all of the list's, if fewer).
  * Accepted: the other build's recognition data (names, numbers, HbbTV marks) is stored for the channels that do not
  * have their own yet, so the channels show as recognised at once.
  */
 object SharedChannelCheck {
+
+    /** Multiplexes that must match before a candidate list is taken over. */
+    const val REQUIRED = 3
 
     /** Takes a candidate list from another build when this build has no list of its own. Main or worker thread. */
     fun adoptIfNeeded(context: Context, store: ChannelStore) {
@@ -31,6 +36,14 @@ object SharedChannelCheck {
         val same = sameOrUnknown(expected, "onid", onid) && sameOrUnknown(expected, "tsid", tsid) &&
             sameOrUnknown(expected, "sid", sid) && expected.optInt("tsid", -1) >= 0
         if (same) {
+            val confirmed = (store.pendingConfirmed() + channelId).distinct()
+            store.setPendingConfirmed(confirmed)
+            val needed = requiredMultiplexes(store)
+            val covered = confirmed.map { multiplexOf(store, it) }.distinct().size
+            if (covered < needed) {
+                DebugLog.log("Shared", "channel $channelId matches; $covered of $needed multiplexes confirmed")
+                return
+            }
             store.clearPending()
             val hbb = HbbTvStore(context)
             var taken = 0
@@ -38,12 +51,32 @@ object SharedChannelCheck {
                 val entry = runCatching { HbbTvStore.Entry.fromJson(o) }.getOrNull() ?: return@forEach
                 if (hbb.get(entry.channelId) == null) { hbb.put(entry); taken++ }
             }
-            DebugLog.log("Shared", "candidate list accepted (channel $channelId matches); recognition taken for $taken channels")
+            DebugLog.log("Shared", "candidate list accepted ($covered multiplexes match); recognition taken for $taken channels")
         } else {
             store.refusedListHash = store.discoveredJson()?.hashCode()
             store.clearDiscovered()
             store.clearPending()
             DebugLog.log("Shared", "candidate list refused: channel $channelId is onid=$onid tsid=$tsid sid=$sid, other build has ${expected.optInt("onid", -1)}/${expected.optInt("tsid", -1)}/${expected.optInt("sid", -1)}")
+        }
+    }
+
+    /** Multiplexes to confirm: [REQUIRED], or fewer when the list has fewer. */
+    private fun requiredMultiplexes(store: ChannelStore): Int {
+        val all = candidates(store).map { multiplexOf(store, it.first) }.distinct().size
+        return minOf(REQUIRED, all).coerceAtLeast(1)
+    }
+
+    /** Frequency of a candidate channel (its multiplex); the channel itself when the list has no frequency for it. */
+    private fun multiplexOf(store: ChannelStore, channelId: Long): String =
+        candidates(store).firstOrNull { it.first == channelId }?.second?.let { "f$it" } ?: "c$channelId"
+
+    /** (channel ID, frequency or null) of the candidate list. */
+    private fun candidates(store: ChannelStore): List<Pair<Long, Double?>> {
+        val list = store.discoveredJson() ?: return emptyList()
+        val array = runCatching { JSONArray(list) }.getOrNull() ?: return emptyList()
+        return (0 until array.length()).map { i ->
+            val o = array.getJSONObject(i)
+            o.getLong("id") to (if (o.has("freq")) o.getDouble("freq") else null)
         }
     }
 
