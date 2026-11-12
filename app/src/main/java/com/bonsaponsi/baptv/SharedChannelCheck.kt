@@ -1,11 +1,14 @@
 package com.bonsaponsi.baptv
 
 import android.content.Context
+import org.json.JSONObject
 
 /**
  * Takes over another build's channel list only after a check. The first channel that this build recognises from its
- * own recording and that the other build also recorded decides: the same TSID and SID means the list belongs to the
- * same scan (the channel IDs come from one tuner database shared by all builds), anything else refuses it.
+ * own recording and that the other build also recorded decides: the same ONID, TSID and SID means the list belongs
+ * to the same scan (the channel IDs come from one tuner database shared by all builds), anything else refuses it.
+ * Accepted: the other build's recognition data (names, numbers, HbbTV marks) is stored for the channels that do not
+ * have their own yet, so the channels show as recognised at once.
  */
 object SharedChannelCheck {
 
@@ -20,21 +23,33 @@ object SharedChannelCheck {
     }
 
     /** Called when a channel was recognised from its recording. */
-    fun onRecognised(context: Context, channelId: Long, tsid: Int?, sid: Int?) {
+    fun onRecognised(context: Context, channelId: Long, onid: Int?, tsid: Int?, sid: Int?) {
         val store = ChannelStore(context)
         val identities = store.pendingIdentities() ?: return
         val expected = (0 until identities.length()).map { identities.getJSONObject(it) }
             .firstOrNull { it.optLong("channelId", -1) == channelId } ?: return
-        val sameTsid = expected.optInt("tsid", -1) == (tsid ?: -2)
-        val sameSid = expected.optInt("sid", -1) == (sid ?: -2)
-        if (sameTsid && sameSid) {
+        val same = sameOrUnknown(expected, "onid", onid) && sameOrUnknown(expected, "tsid", tsid) &&
+            sameOrUnknown(expected, "sid", sid) && expected.optInt("tsid", -1) >= 0
+        if (same) {
             store.clearPending()
-            DebugLog.log("Shared", "candidate list accepted (channel $channelId matches)")
+            val hbb = HbbTvStore(context)
+            var taken = 0
+            (0 until identities.length()).map { identities.getJSONObject(it) }.forEach { o ->
+                val entry = runCatching { HbbTvStore.Entry.fromJson(o) }.getOrNull() ?: return@forEach
+                if (hbb.get(entry.channelId) == null) { hbb.put(entry); taken++ }
+            }
+            DebugLog.log("Shared", "candidate list accepted (channel $channelId matches); recognition taken for $taken channels")
         } else {
             store.refusedListHash = store.discoveredJson()?.hashCode()
             store.clearDiscovered()
             store.clearPending()
-            DebugLog.log("Shared", "candidate list refused: channel $channelId is tsid=$tsid sid=$sid, other build has ${expected.optInt("tsid")}/${expected.optInt("sid")}")
+            DebugLog.log("Shared", "candidate list refused: channel $channelId is onid=$onid tsid=$tsid sid=$sid, other build has ${expected.optInt("onid", -1)}/${expected.optInt("tsid", -1)}/${expected.optInt("sid", -1)}")
         }
+    }
+
+    /** A field the other build did not record cannot be compared; a recorded one must be equal. */
+    private fun sameOrUnknown(expected: JSONObject, key: String, actual: Int?): Boolean {
+        if (expected.isNull(key) || !expected.has(key)) return true
+        return expected.optInt(key, -1) == (actual ?: -2)
     }
 }

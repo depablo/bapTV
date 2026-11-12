@@ -5,7 +5,6 @@ import android.content.ContentValues
 import android.database.Cursor
 import android.database.MatrixCursor
 import android.net.Uri
-import org.json.JSONObject
 
 /**
  * Read-only list of the channels this build discovered, for the other release builds (same signature only: the
@@ -22,12 +21,8 @@ class ChannelsProvider : ContentProvider() {
         val ctx = context ?: return null
         val json = ChannelStore(ctx).discoveredJson().orEmpty()
         // The identities this build recorded (channel ID, TSID, SID): the other build checks a list against them.
-        val identities = org.json.JSONArray().apply {
-            HbbTvStore(ctx).all().forEach { e ->
-                put(org.json.JSONObject().put("channelId", e.channelId).put("tsid", e.tsid ?: JSONObject.NULL)
-                    .put("sid", e.sid ?: JSONObject.NULL))
-            }
-        }.toString()
+        // Everything this build learned per channel (DVB identity, HbbTV, virtual, scrambled, learned time).
+        val identities = org.json.JSONArray().apply { HbbTvStore(ctx).all().forEach { put(it.toJson()) } }.toString()
         return MatrixCursor(arrayOf(COLUMN_JSON, COLUMN_IDENTITIES)).apply { addRow(arrayOf<Any>(json, identities)) }
     }
 
