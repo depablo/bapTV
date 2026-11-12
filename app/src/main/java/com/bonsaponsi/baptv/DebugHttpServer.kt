@@ -290,6 +290,11 @@ class DebugHttpServer(private val context: Context, val port: Int = DEFAULT_PORT
         "GET" to "/channels" -> HttpResponse("200 OK", JSON, channelsJson().toString(2))
         // What is on screen, as text – for test scripts (screenshots of the video layer come out black).
         "GET" to "/ui" -> HttpResponse("200 OK", JSON, (onMain { uiJson() } ?: JSONObject().put("error", "main thread busy")).toString(2))
+        // Test scripts pair a client without the menu: the server runs as after "Pair" in the TV menu.
+        "POST" to "/debug/remote/on" -> {
+            PhoneRemote.setEnabled(context, request.query["on"] != "0")
+            text("Phone remote running: ${PhoneRemote.isRunning}\n")
+        }
         "POST" to "/debug/remote/forget" -> {
             val name = request.query["name"] ?: return text("Specify ?name=<phone name>\n", "400 Bad Request")
             text("Forgotten: ${PhoneRemote.forget(context, name)}\n")
@@ -516,7 +521,7 @@ class DebugHttpServer(private val context: Context, val port: Int = DEFAULT_PORT
         private const val JSON = "application/json; charset=utf-8"
         private val RECORDING_FILE = Regex("/recordings/(\\d+)\\.ts")
         private val QUIET_PATHS = setOf("/status", "/log.txt", "/probe.ts", "/screenshot.png", "/hbbtv", "/signal.json")
-        private val KNOWN_PATHS = setOf("/", "/report.txt", "/log.txt", "/log", "/logcat.txt", "/status", "/install", "/launch", "/restart", "/probe", "/probe.ts", "/key", "/hbbtv", "/hbbtv/eval", "/hbbtv/age", "/screenshot.png", "/channels", "/ui", "/debug/remote/forget", "/epg", "/open", "/capabilities", "/recordings", "/timeshift", "/signal", "/signal.json", "/signal/cycle", "/signal/stop", "/signal/tune", "/signal/probe", "/signal/probe/stop", "/signal/lna", "/signal/rediscover", "/publish", "/tvchannels", "/tvchannels/delete", "/tvchannels/update", "/dtv/install", "/dtv/action", "/dtv/selfclean", "/dtv/records", "/dtv/mediastore", "/dtv/mediastore/delete", "/debug/no-tuner")
+        private val KNOWN_PATHS = setOf("/", "/report.txt", "/log.txt", "/log", "/logcat.txt", "/status", "/install", "/launch", "/restart", "/probe", "/probe.ts", "/key", "/hbbtv", "/hbbtv/eval", "/hbbtv/age", "/screenshot.png", "/channels", "/ui", "/debug/remote/forget", "/debug/remote/on", "/epg", "/open", "/capabilities", "/recordings", "/timeshift", "/signal", "/signal.json", "/signal/cycle", "/signal/stop", "/signal/tune", "/signal/probe", "/signal/probe/stop", "/signal/lna", "/signal/rediscover", "/publish", "/tvchannels", "/tvchannels/delete", "/tvchannels/update", "/dtv/install", "/dtv/action", "/dtv/selfclean", "/dtv/records", "/dtv/mediastore", "/dtv/mediastore/delete", "/debug/no-tuner")
 
         /** One server per process – kept alive by [DebugServerService]. */
         @Volatile var instance: DebugHttpServer? = null
