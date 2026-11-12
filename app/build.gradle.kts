@@ -50,6 +50,8 @@ android {
         buildConfigField("String", "PROJECT_URL", "\"https://github.com/depablo/bapTV\"")
         // Phone remote (PhoneRemoteServer). A debug build installed next to the release one uses its own port.
         buildConfigField("int", "PHONE_REMOTE_PORT", "8090")
+        // Permission guarding the shared channel list (ChannelsProvider); debug overrides it, see buildTypes.
+        manifestPlaceholders["sharePermission"] = "com.bonsaponsi.baptv.permission.SHARE_CHANNELS"
         // ColourKeysService only receives events of this package (res/xml/colour_keys_service.xml).
         resValue("string", "colour_keys_package", "com.bonsaponsi.baptv")
     }
@@ -135,6 +137,7 @@ android {
     buildTypes {
         debug {
             versionNameSuffix = "-debug"
+            manifestPlaceholders["sharePermission"] = "com.bonsaponsi.baptv.debug.permission.SHARE_CHANNELS"
             if (debugSuffix) {
                 applicationIdSuffix = ".debug"
                 buildConfigField("int", "PHONE_REMOTE_PORT", "8091")

@@ -46,6 +46,9 @@ class ChannelStore(context: Context) {
         DebugLog.log("Store", "saved ${channels.size} discovered channels: ${channels.joinToString { "${it.number}=#${it.id}" }}")
     }
 
+    /** The stored discovered list as JSON (what the shared provider hands to the other release builds). */
+    fun discoveredJson(): String? = prefs.getString(KEY_DISCOVERED, null)
+
     /** After a new scan channel IDs change – the list must be discovered again. */
     fun clearDiscovered() {
         prefs.edit().remove(KEY_DISCOVERED).apply()

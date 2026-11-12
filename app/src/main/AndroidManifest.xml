@@ -9,6 +9,17 @@
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     <!-- Internet channels; the set-top box remote; update checks. -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Channel lists shared between release builds (same signature only). The name is ${sharePermission}: one per
+         build type, so a debug build installed next to a release one does not define the same permission. -->
+    <permission
+        android:name="${sharePermission}"
+        android:protectionLevel="signature" />
+    <uses-permission android:name="${sharePermission}" />
+    <!-- Android 11+ hides other packages unless they are named: the release builds that may share a list. -->
+    <queries>
+        <package android:name="com.bonsaponsi.baptv" />
+        <package android:name="com.bonsaponsi.baptv.playtest" />
+    </queries>
 
     <application
         android:name=".App"
@@ -60,6 +71,13 @@
             android:exported="false"
             android:screenOrientation="portrait"
             android:theme="@style/PhoneTheme" />
+
+        <!-- Read-only list of the discovered channels, for the other release builds (see SharedChannels). -->
+        <provider
+            android:name=".ChannelsProvider"
+            android:authorities="${applicationId}.channels"
+            android:exported="true"
+            android:permission="${sharePermission}" />
 
         <!-- Installation results and the restart after an update; the TV build adds BOOT_COMPLETED. -->
         <receiver
