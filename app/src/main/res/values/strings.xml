@@ -287,6 +287,14 @@
     <string name="report_failed">Could not send the report: %1$s. Check the network connection, save the report to a file in Diagnostics, or write to bap@bonsaponsi.com.</string>
     <string name="menu_send_report">Send report to the developer</string>
     <string name="menu_settings_export">Export settings</string>
+    <string name="menu_settings_import">Import settings</string>
+    <string name="settings_import_replace">Replace the organisation</string>
+    <string name="settings_import_merge">Add what is missing</string>
+    <string name="settings_import_replace_confirm">The order, names, categories and hidden channels come from the file; the current ones are lost.</string>
+    <string name="settings_import_done">Internet channels added: %1$d, settings applied: %2$d, skipped: %3$d</string>
+    <string name="settings_import_missing">No backup at %1$s. Export one first, or put the file there.</string>
+    <string name="settings_import_bad_file">This is not a bapTV settings file</string>
+    <string name="settings_import_failed">Import failed: %1$s</string>
     <string name="settings_export_done">Settings saved to: %1$s</string>
     <string name="settings_export_failed">Export failed: %1$s</string>
     <string name="menu_about">About bapTV</string>

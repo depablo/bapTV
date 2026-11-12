@@ -1,5 +1,6 @@
 package com.bonsaponsi.baptv
 
+import android.content.ContentUris
 import android.content.ContentValues
 import android.content.Context
 import android.os.Build
@@ -138,6 +139,31 @@ object TvBackup {
         val file = File(dir, FILE_NAME)
         file.writeBytes(bytes)
         return file.absolutePath
+    }
+
+    /** Where [save] writes the backup and [read] looks for it (shown to the user). */
+    fun location(context: Context): String =
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) RELATIVE_PATH + FILE_NAME
+        else File(File(context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS), "bapTV"), FILE_NAME).absolutePath
+
+    /**
+     * Reads the backup from [location], or null when there is none. On Android 10 and later the file is found in
+     * the Downloads collection (a file the app did not write is found there too, if the storage permission allows).
+     */
+    @Throws(IOException::class)
+    fun read(context: Context): String? {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            val resolver = context.contentResolver
+            val collection = MediaStore.Downloads.EXTERNAL_CONTENT_URI
+            val uri = resolver.query(collection, arrayOf(MediaStore.Downloads._ID),
+                "${MediaStore.Downloads.DISPLAY_NAME}=? AND ${MediaStore.Downloads.RELATIVE_PATH}=?",
+                arrayOf(FILE_NAME, RELATIVE_PATH), null)?.use { c ->
+                if (c.moveToFirst()) ContentUris.withAppendedId(collection, c.getLong(0)) else null
+            } ?: return null
+            return resolver.openInputStream(uri)?.use { it.readBytes().toString(Charsets.UTF_8) }
+        }
+        val file = File(File(context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS), "bapTV"), FILE_NAME)
+        return if (file.isFile) file.readText(Charsets.UTF_8) else null
     }
 
     private fun stringList(root: JSONObject, key: String): List<String>? =

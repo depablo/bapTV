@@ -1551,6 +1551,7 @@ class MainActivity : Activity() {
             MenuPanel.Entry(getString(R.string.menu_about), BuildConfig.VERSION_NAME) { showAbout(menu::returned) },
             MenuPanel.Entry(getString(R.string.menu_tour)) { Tour.show(this, onDone = menu::returned) },
             MenuPanel.Entry(getString(R.string.menu_settings_export)) { exportSettings(menu::returned) },
+            MenuPanel.Entry(getString(R.string.menu_settings_import)) { importSettings(menu::returned) },
             MenuPanel.Entry(getString(R.string.menu_tips), onOff(Tips.dailyEnabled(this)), stay) {
                 Tips.setDailyEnabled(this, !Tips.dailyEnabled(this))
             },
@@ -1677,6 +1678,44 @@ class MainActivity : Activity() {
             }
             handler.post { if (!isDestroyed) TvDialog.message(this, getString(R.string.menu_settings_export), message, onClose) }
         }, "settings-export").start()
+    }
+
+    /** Asks for the mode, then reads the backup from [TvBackup.location] on the worker. */
+    private fun importSettings(onClose: (() -> Unit)? = null) {
+        val title = getString(R.string.menu_settings_import)
+        TvDialog.choose(this, title, listOf(
+            TvDialog.Option(getString(R.string.settings_import_replace)),
+            TvDialog.Option(getString(R.string.settings_import_merge)),
+        ), onClose = onClose) { pick ->
+            if (pick == 0) {
+                TvDialog.confirm(this, title, getString(R.string.settings_import_replace_confirm),
+                    getString(R.string.settings_import_replace), onClose = onClose) { runSettingsImport(replace = true, onClose) }
+            } else {
+                runSettingsImport(replace = false, onClose)
+            }
+        }
+    }
+
+    private fun runSettingsImport(replace: Boolean, onClose: (() -> Unit)?) {
+        Thread({
+            val message = try {
+                val text = TvBackup.read(this)
+                if (text == null) getString(R.string.settings_import_missing, TvBackup.location(this))
+                else TvBackup.import(this, text, replace).let {
+                    getString(R.string.settings_import_done, it.added, it.applied, it.skipped)
+                }
+            } catch (e: IllegalArgumentException) {
+                getString(R.string.settings_import_bad_file)
+            } catch (e: java.io.IOException) {
+                DebugLog.error("Backup", "settings import failed", e)
+                getString(R.string.settings_import_failed, e.message ?: e.javaClass.simpleName)
+            }
+            handler.post {
+                if (isDestroyed) return@post
+                reloadChannels()
+                TvDialog.message(this, getString(R.string.menu_settings_import), message, onClose)
+            }
+        }, "settings-import").start()
     }
 
     private fun showAbout(onClose: (() -> Unit)? = null) {
