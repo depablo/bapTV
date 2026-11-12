@@ -172,6 +172,12 @@ object Iptv {
         (0 until array.length()).map { array.getString(it) }
     }.getOrDefault(emptyList())
 
+    /** Replaces the playlist addresses (a backup restores them); the list keeps its size limit. */
+    @Synchronized
+    fun setSources(context: Context, urls: List<String>) {
+        prefs(context).edit().putString(KEY_SOURCES, org.json.JSONArray(urls.distinct().take(MAX_SOURCES)).toString()).apply()
+    }
+
     /** Addresses the user does not want added; they are skipped when channels are added from a playlist. */
     fun blacklist(context: Context): List<String> = runCatching {
         val array = org.json.JSONArray(prefs(context).getString(KEY_BLACKLIST, "[]"))

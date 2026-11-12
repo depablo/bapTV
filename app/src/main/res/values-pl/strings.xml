@@ -291,6 +291,9 @@
     <string name="report_failed_title">Raport nie został wysłany</string>
     <string name="report_failed">Nie udało się wysłać raportu: %1$s. Sprawdź połączenie z siecią, zapisz raport do pliku w Diagnostyce albo napisz na bap@bonsaponsi.com.</string>
     <string name="menu_send_report">Wyślij raport do autora</string>
+    <string name="menu_settings_export">Eksport ustawień</string>
+    <string name="settings_export_done">Zapisano kopię ustawień: %1$s</string>
+    <string name="settings_export_failed">Eksport nie powiódł się: %1$s</string>
     <string name="menu_about">O aplikacji bapTV</string>
     <string name="about_title">bapTV %1$s</string>
     <string name="about_message">Odtwarzacz telewizji naziemnej (DVB-T/T2) dla Android TV.\n\nKontakt: %1$s\nKod źródłowy, zgłoszenia i nowe wersje: zeskanuj kod albo otwórz adres poniżej.\nTargetSdk: %2$s\nLicencja: Apache License 2.0</string>

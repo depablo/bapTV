@@ -286,6 +286,9 @@
     <string name="report_failed_title">Report not sent</string>
     <string name="report_failed">Could not send the report: %1$s. Check the network connection, save the report to a file in Diagnostics, or write to bap@bonsaponsi.com.</string>
     <string name="menu_send_report">Send report to the developer</string>
+    <string name="menu_settings_export">Export settings</string>
+    <string name="settings_export_done">Settings saved to: %1$s</string>
+    <string name="settings_export_failed">Export failed: %1$s</string>
     <string name="menu_about">About bapTV</string>
     <string name="about_title">bapTV %1$s</string>
     <string name="about_message">Terrestrial TV (DVB-T/T2) player for Android TV.\n\nContact: %1$s\nSource code, issues and new versions: scan the code or open the address below.\nTarget SDK: %2$s\nLicense: Apache License 2.0</string>

@@ -1,8 +1,14 @@
 package com.bonsaponsi.baptv
 
+import android.content.ContentValues
 import android.content.Context
+import android.os.Build
+import android.os.Environment
+import android.provider.MediaStore
 import org.json.JSONArray
 import org.json.JSONObject
+import java.io.File
+import java.io.IOException
 
 /**
  * Backup of the TV's channel organisation: the order of all channels, hidden ones, names and categories the user
@@ -11,6 +17,9 @@ import org.json.JSONObject
  * Broadcast channels are identified by their DVB identity (multiplex and service number), so the backup survives a
  * rescan. Internet channels are identified by their playlist address and carry the stream itself, so a new set-top
  * box can add them. A broadcast channel that is not identified yet has no stable identity and is left out ("skipped").
+ *
+ * Also kept: the playlist addresses (the player's list of sources) and the TV guide addresses (XMLTV), and the
+ * blacklist.
  *
  * Import: the file's entries win for the channels it lists (name, hidden flag, category), and the file's order
  * places them; channels it does not list keep their settings in merge mode and get defaults in replace mode.
@@ -49,6 +58,8 @@ object TvBackup {
             .put("app", BuildConfig.VERSION_NAME)
             .put("hideScrambled", store.hideScrambled)
             .put("channels", channels)
+            .put("sources", JSONArray(Iptv.sources(context)))
+            .put("guideSources", JSONArray(IptvGuide.sources(context)))
             .put("blacklist", JSONArray(Iptv.blacklist(context)))
             .put("skipped", skipped)
     }
@@ -68,9 +79,16 @@ object TvBackup {
         val store = ChannelStore(context)
 
         if (replace) store.clearOrganisation()
-        val blacklist = root.optJSONArray("blacklist")?.let { a -> (0 until a.length()).map { a.getString(it) } }
+        val blacklist = stringList(root, "blacklist")
         if (blacklist != null) {
             if (replace) Iptv.blacklistSet(context, blacklist) else blacklist.forEach { Iptv.blacklistAdd(context, it) }
+        }
+        stringList(root, "sources")?.let { playlists ->
+            Iptv.setSources(context, if (replace) playlists else playlists + Iptv.sources(context))
+        }
+        stringList(root, "guideSources")?.let { guides ->
+            if (replace) IptvGuide.sources(context).forEach { IptvGuide.removeSource(context, it) }
+            if (IptvGuide.addSources(context, guides)) IptvGuide.refreshInBackground(context)
         }
         // Internet channels this TV does not have yet (the blacklist is applied first, so it is respected).
         val present = Iptv.streams(context).map { it.second.url }.toHashSet()
@@ -97,5 +115,35 @@ object TvBackup {
         return Result(added, items.size - skipped, skipped)
     }
 
+    /** Writes the backup to the Downloads folder (a bapTV subfolder) and returns where it is. */
+    @Throws(IOException::class)
+    fun save(context: Context): String {
+        val bytes = export(context).toString(2).toByteArray(Charsets.UTF_8)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            val resolver = context.contentResolver
+            val collection = MediaStore.Downloads.EXTERNAL_CONTENT_URI
+            // The previous backup is replaced, not numbered.
+            resolver.delete(collection, "${MediaStore.Downloads.DISPLAY_NAME}=? AND ${MediaStore.Downloads.RELATIVE_PATH}=?",
+                arrayOf(FILE_NAME, RELATIVE_PATH))
+            val uri = resolver.insert(collection, ContentValues().apply {
+                put(MediaStore.Downloads.DISPLAY_NAME, FILE_NAME)
+                put(MediaStore.Downloads.MIME_TYPE, "application/json")
+                put(MediaStore.Downloads.RELATIVE_PATH, RELATIVE_PATH)
+            }) ?: throw IOException("cannot create the file")
+            resolver.openOutputStream(uri)?.use { it.write(bytes) } ?: throw IOException("cannot write the file")
+            return RELATIVE_PATH + FILE_NAME
+        }
+        // Before Android 10 the app's own folder needs no permission.
+        val dir = File(context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS), "bapTV").apply { mkdirs() }
+        val file = File(dir, FILE_NAME)
+        file.writeBytes(bytes)
+        return file.absolutePath
+    }
+
+    private fun stringList(root: JSONObject, key: String): List<String>? =
+        root.optJSONArray(key)?.let { a -> (0 until a.length()).map { a.getString(it) } }
+
     private const val DVB_PREFIX = "dvb_"
+    private const val FILE_NAME = "baptv-settings.json"
+    private const val RELATIVE_PATH = "Download/bapTV/"
 }

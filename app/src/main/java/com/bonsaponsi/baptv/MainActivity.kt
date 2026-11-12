@@ -1550,6 +1550,7 @@ class MainActivity : Activity() {
         val settings = listOfNotNull(
             MenuPanel.Entry(getString(R.string.menu_about), BuildConfig.VERSION_NAME) { showAbout(menu::returned) },
             MenuPanel.Entry(getString(R.string.menu_tour)) { Tour.show(this, onDone = menu::returned) },
+            MenuPanel.Entry(getString(R.string.menu_settings_export)) { exportSettings(menu::returned) },
             MenuPanel.Entry(getString(R.string.menu_tips), onOff(Tips.dailyEnabled(this)), stay) {
                 Tips.setDailyEnabled(this, !Tips.dailyEnabled(this))
             },
@@ -1663,6 +1664,19 @@ class MainActivity : Activity() {
                     }
             }
         }
+    }
+
+    /** Saves the settings backup to Downloads on a worker and tells where it went. */
+    private fun exportSettings(onClose: (() -> Unit)? = null) {
+        Thread({
+            val message = try {
+                getString(R.string.settings_export_done, TvBackup.save(this))
+            } catch (e: java.io.IOException) {
+                DebugLog.error("Backup", "settings export failed", e)
+                getString(R.string.settings_export_failed, e.message ?: e.javaClass.simpleName)
+            }
+            handler.post { if (!isDestroyed) TvDialog.message(this, getString(R.string.menu_settings_export), message, onClose) }
+        }, "settings-export").start()
     }
 
     private fun showAbout(onClose: (() -> Unit)? = null) {
