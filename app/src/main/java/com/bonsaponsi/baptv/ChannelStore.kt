@@ -159,6 +159,27 @@ class ChannelStore(context: Context) {
         }
     }
 
+    /**
+     * Sets a channel's settings by its key ([settingsKey]), as a backup restores them. A null [name] and a false
+     * [hidden] clear them, a null [category] goes back to the guessed one.
+     */
+    fun putSettings(key: String, name: String?, hidden: Boolean, category: Int?) {
+        prefs.edit().apply {
+            if (name.isNullOrBlank()) remove("name_$key") else putString("name_$key", name.trim())
+            if (hidden) putBoolean("hidden_$key", true) else remove("hidden_$key")
+            if (category == null) remove("category_$key") else putInt("category_$key", category)
+        }.apply()
+    }
+
+    /** Forgets every name, hidden flag, category and the order: the defaults again. The scrambled switch stays. */
+    fun clearOrganisation() {
+        val editor = prefs.edit()
+        prefs.all.keys.filter { it.startsWith("name_") || it.startsWith("hidden_") || it.startsWith("category_") }
+            .forEach { editor.remove(it) }
+        editor.remove(KEY_ORDER).apply()
+        DebugLog.log("Store", "organisation cleared")
+    }
+
     /** Hide all scrambled channels at once. */
     var hideScrambled: Boolean
         get() = prefs.getBoolean(KEY_HIDE_SCRAMBLED, false)

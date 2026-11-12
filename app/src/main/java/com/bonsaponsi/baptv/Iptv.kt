@@ -185,6 +185,11 @@ object Iptv {
     }
 
     @Synchronized
+    fun blacklistSet(context: Context, urls: List<String>) {
+        prefs(context).edit().putString(KEY_BLACKLIST, org.json.JSONArray(urls.distinct()).toString()).apply()
+    }
+
+    @Synchronized
     fun blacklistRemove(context: Context, url: String) {
         val list = blacklist(context).filter { it != url }
         prefs(context).edit().putString(KEY_BLACKLIST, org.json.JSONArray(list).toString()).apply()

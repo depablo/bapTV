@@ -144,6 +144,9 @@ h2:first-child { margin-top: 0; }
 .blockedRow .p { grid-column: 1; }
 .blockedRow .block { grid-column: 2; }
 .blocked { margin-top: 10px; }
+.backup { margin-top: 14px; }
+.backup summary { cursor: pointer; color: var(--muted); padding: 6px 0; }
+.backup textarea { width: 100%; box-sizing: border-box; font: 12px monospace; background: var(--surface2); color: inherit; border: 1px solid var(--surface2); border-radius: 6px; padding: 8px; }
 .blocked summary { cursor: pointer; color: var(--muted); padding: 6px 0; }
 .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--surface2); }
 .dot.OK { background: #2e9d4f; } .dot.BLOCKED, .dot.TIMEOUT, .dot.SLOW { background: #e0a020; }
@@ -260,6 +263,17 @@ table.results td:last-child { text-align: right; font-variant-numeric: tabular-n
       </div>
       <p class="tip" data-t="organiseTip"></p>
       <div class="list" id="orgList"></div>
+      <details class="backup">
+        <summary data-t="backupTitle"></summary>
+        <p class="tip" data-t="backupTip"></p>
+        <div class="tools">
+          <button class="key" id="backupExport" data-t="backupExport"></button>
+          <button class="key" id="backupImportReplace" data-t="backupImportReplace"></button>
+          <button class="key" id="backupImportMerge" data-t="backupImportMerge"></button>
+        </div>
+        <textarea id="backupText" rows="8" spellcheck="false"></textarea>
+        <p class="summary" id="backupResult"></p>
+      </details>
     </section>
     <button class="fab hidden" id="editFab"></button>
     <section id="tab-signal" class="hidden">
@@ -345,6 +359,7 @@ const STRINGS = {
     editList: "✎ Edit list", done: "✓ Done", reset: "Restore defaults",
     holdTip: "Hold a channel to move it, rename or hide it. “Edit list” shows all channels, hidden ones too, and their categories.",
     hiddenNotice: name => `${name} hidden – “Edit list” shows it again`, renameLabel: "rename", hideLabel: "hide", scrambledHidden: "Scrambled: hidden", scrambledShown: "Scrambled: shown",
+    backupTitle: "Settings backup", backupTip: "Export copies the order, hidden channels, names, categories, internet channels and the blacklist into the text box – save it in a file. Import takes the text back: replace the organisation, or add to this set-top box what is missing. Channels with no identity yet (not identified after a scan) are left out.", backupExport: "Export", backupImportReplace: "Import – replace", backupImportMerge: "Import – add missing", backupEmpty: "Paste a backup into the box first.", backupDone: (a, b, s) => `Added internet channels: ${a}, settings applied: ${b}, skipped: ${s}`, backupExported: "Backup in the box – copy it and keep it.",
     organiseTip: "Drag ≡ to move a channel, tap its name to rename it; the eye hides it from the list and zapping. Pick a category to group channels on the TV (◀ ▶ on the channel list).",
     categories: ["No category", "Film", "News", "Entertainment", "Sport", "Children", "Music", "Arts", "Society", "Education", "Leisure"],
     allCategories: "All", radioFilter: "Radio", iptvFilter: "IPTV", categoryAuto: name => `Auto: ${name}`,
@@ -385,6 +400,7 @@ const STRINGS = {
     editList: "✎ Edytuj listę", done: "✓ Gotowe", reset: "Przywróć domyślne",
     holdTip: "Przytrzymaj kanał, aby go przenieść, zmienić nazwę albo ukryć. „Edytuj listę” pokazuje wszystkie kanały, także ukryte, i ich kategorie.",
     hiddenNotice: name => `Ukryto ${name} – przywrócisz go w „Edytuj listę”`, renameLabel: "zmień nazwę", hideLabel: "ukryj", scrambledHidden: "Kodowane: ukryte", scrambledShown: "Kodowane: widoczne",
+    backupTitle: "Kopia ustawień", backupTip: "Eksport przepisuje do pola tekstowego kolejność, ukryte kanały, nazwy, kategorie, kanały internetowe i czarną listę – zapisz to w pliku. Import przywraca z tekstu: zastępuje układ albo dodaje na tym dekoderze to, czego brakuje. Kanały bez tożsamości (jeszcze nie rozpoznane po skanie) są pomijane.", backupExport: "Eksportuj", backupImportReplace: "Importuj – zastąp", backupImportMerge: "Importuj – dodaj brakujące", backupEmpty: "Najpierw wklej kopię do pola.", backupDone: (a, b, s) => `Dodane kanały internetowe: ${a}, ustawienia zastosowane: ${b}, pominięte: ${s}`, backupExported: "Kopia w polu – skopiuj i zachowaj.",
     organiseTip: "Przeciągnij ≡, aby przenieść kanał, dotknij nazwy, aby ją zmienić; oko ukrywa kanał z listy i przełączania. Kategoria grupuje kanały na telewizorze (◀ ▶ na liście kanałów).",
     categories: ["Bez kategorii", "Film", "Informacje", "Rozrywka", "Sport", "Dla dzieci", "Muzyka", "Kultura", "Społeczne", "Edukacja", "Hobby"],
     allCategories: "Wszystkie", radioFilter: "Radio", iptvFilter: "IPTV", categoryAuto: name => `Auto: ${name}`,
@@ -847,6 +863,30 @@ function toggleHidden(c) {
 
 $("scrambledToggle").addEventListener("click", () => change(`/api/manage/hide-scrambled?on=${!organised.hideScrambled}`));
 $("resetOrder").addEventListener("click", () => { if (confirm(T.resetConfirm)) change("/api/manage/reset"); });
+// ---- Settings backup (organisation and internet channels; the same file as the TV's /api/settings) ----
+
+$("backupExport").addEventListener("click", async () => {
+  try {
+    const backup = await api("/api/settings/export");
+    $("backupText").value = JSON.stringify(backup, null, 2);
+    $("backupResult").textContent = T.backupExported;
+  } catch (e) { explain(e); }
+});
+
+async function backupImport(mode) {
+  const text = $("backupText").value.trim();
+  if (!text) { $("backupResult").textContent = T.backupEmpty; return; }
+  try {
+    const result = await api(`/api/settings/import?mode=${mode}`, "POST", text);
+    $("backupResult").textContent = T.backupDone(result.added, result.applied, result.skipped);
+    await loadOrganise();
+    await loadMine();
+  } catch (e) {
+    if (e.status === 400) $("backupResult").textContent = e.message; else explain(e);
+  }
+}
+$("backupImportReplace").addEventListener("click", () => { if (confirm(T.resetConfirm)) backupImport("replace"); });
+$("backupImportMerge").addEventListener("click", () => backupImport("merge"));
 
 /** Drag by the handle: the row follows the finger, the others make room; the order is sent on release. */
 function startDrag(handle, row) {

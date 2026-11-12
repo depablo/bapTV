@@ -165,6 +165,18 @@ class PhoneRemoteServer(private val context: Context, val port: Int) {
             }
             "POST" to "/api/manage/hide-scrambled" -> manage(request) { store, _ -> store.hideScrambled = request.query["on"] == "true" }
             "POST" to "/api/manage/reset" -> manage(request) { store, _ -> store.resetOrganisation() }
+            "GET" to "/api/settings/export" -> json(TvBackup.export(context))
+            "POST" to "/api/settings/import" -> {
+                val replace = request.query["mode"] == "replace"
+                val text = body(request, input, MAX_BACKUP)
+                val result = try {
+                    TvBackup.import(context, text, replace)
+                } catch (e: IllegalArgumentException) {
+                    return error("400 Bad Request", e.message ?: "not a settings file")
+                }
+                channelsChanged()
+                json(result.toJson())
+            }
             "GET" to "/api/signal" -> json(SignalMonitor.poll(context).apply { remove("raw"); remove("probe"); remove("lna") })
             "POST" to "/api/signal/tune" -> {
                 val frequency = request.query["freq"]?.toDoubleOrNull() ?: return error("400 Bad Request", "missing freq")
@@ -399,6 +411,7 @@ class PhoneRemoteServer(private val context: Context, val port: Int) {
         private const val MAX_NAME = 60
         private const val MAX_BODY = 4 * 1024 * 1024
         private const val MAX_PLAYLIST = 30 * 1024 * 1024
+        private const val MAX_BACKUP = 4 * 1024 * 1024
         /** Streams checked per request – the phone asks in batches, so the page can show progress. */
         private const val MAX_PROBE = 24
 
