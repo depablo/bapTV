@@ -20,7 +20,8 @@ import java.net.Socket
  *   as on the Manage channels screen (paired devices only),
  * - `GET /api/signal`, `POST /api/signal/{tune,cycle,stop}` – signal measurement for aiming the antenna
  *   ([SignalMonitor]; paired devices only),
- * - `GET /api/iptv`, `POST /api/iptv/{load,probe,add,check,remove}`, `POST /api/iptv/guide/{add,remove,refresh}` – internet
+ * - `GET /api/iptv`, `POST /api/iptv/{load,probe,add,check,remove}`, `POST /api/iptv/blacklist/{add,remove}`,
+ *   `POST /api/iptv/guide/{add,remove,refresh}` – internet
  *   channels ([Iptv]) and their TV guide ([IptvGuide]): reading a playlist,
  *   checking streams, adding, re-checking and removing channels (paired devices only).
  * The Host and cross-site checks of [ServerAccess] apply to every request.
@@ -221,6 +222,16 @@ class PhoneRemoteServer(private val context: Context, val port: Int) {
                 }
                 json(iptvList())
             }
+            "POST" to "/api/iptv/blacklist/add" -> {
+                val url = request.query["url"].orEmpty()
+                if (url.isBlank()) return error("400 Bad Request", "address missing")
+                Iptv.blacklistAdd(context, url)
+                json(iptvList())
+            }
+            "POST" to "/api/iptv/blacklist/remove" -> {
+                Iptv.blacklistRemove(context, request.query["url"].orEmpty())
+                json(iptvList())
+            }
             "POST" to "/api/iptv/remove" -> {
                 val ids = request.query["ids"].orEmpty().split(',').mapNotNull { it.trim().toLongOrNull() }
                 val removed = Iptv.remove(context, ids)
@@ -300,7 +311,8 @@ class PhoneRemoteServer(private val context: Context, val port: Int) {
         }
         val guide = JSONObject().put("sources", JSONArray(IptvGuide.sources(context))).put("refreshing", IptvGuide.isRefreshing)
             .put("status", IptvGuide.status(context)?.toJson() ?: JSONObject.NULL)
-        return JSONObject().put("channels", channels).put("sources", JSONArray(Iptv.sources(context))).put("guide", guide)
+        return JSONObject().put("channels", channels).put("sources", JSONArray(Iptv.sources(context)))
+            .put("blacklist", JSONArray(Iptv.blacklist(context))).put("guide", guide)
     }
 
     /** A playlist from an address (fetched here – the phone's browser may not reach it across origins) or uploaded as the body. */

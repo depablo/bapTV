@@ -96,9 +96,10 @@ object Iptv {
     }
 
     /** Adds channels (streams already stored are skipped); returns how many were added. */
+    @Synchronized
     fun add(context: Context, streams: List<Stream>): Int {
         val existing = query(context)
-        val known = existing.map { it.second.url }.toSet()
+        val known = existing.map { it.second.url }.toHashSet().apply { addAll(blacklist(context)) }
         var number = (existing.mapNotNull { it.first.number.toIntOrNull() }.maxOrNull() ?: (FIRST_NUMBER - 1)) + 1
         val inputId = inputId(context)
         var added = 0
@@ -118,6 +119,7 @@ object Iptv {
         return added
     }
 
+    @Synchronized
     fun remove(context: Context, channelIds: Collection<Long>): Int {
         val own = query(context).map { it.first.id }.toSet()
         val removed = channelIds.filter { it in own }.sumOf { context.contentResolver.delete(TvContract.buildChannelUri(it), null, null) }
@@ -170,6 +172,24 @@ object Iptv {
         (0 until array.length()).map { array.getString(it) }
     }.getOrDefault(emptyList())
 
+    /** Addresses the user does not want added; they are skipped when channels are added from a playlist. */
+    fun blacklist(context: Context): List<String> = runCatching {
+        val array = org.json.JSONArray(prefs(context).getString(KEY_BLACKLIST, "[]"))
+        (0 until array.length()).map { array.getString(it) }
+    }.getOrDefault(emptyList())
+
+    @Synchronized
+    fun blacklistAdd(context: Context, url: String) {
+        val list = (blacklist(context) + url).distinct()
+        prefs(context).edit().putString(KEY_BLACKLIST, org.json.JSONArray(list).toString()).apply()
+    }
+
+    @Synchronized
+    fun blacklistRemove(context: Context, url: String) {
+        val list = blacklist(context).filter { it != url }
+        prefs(context).edit().putString(KEY_BLACKLIST, org.json.JSONArray(list).toString()).apply()
+    }
+
     fun rememberSource(context: Context, url: String) {
         val list = (listOf(url) + sources(context).filter { it != url }).take(MAX_SOURCES)
         prefs(context).edit().putString(KEY_SOURCES, org.json.JSONArray(list).toString()).apply()
@@ -208,6 +228,7 @@ object Iptv {
 
     private fun prefs(context: Context) = context.getSharedPreferences("iptv", Context.MODE_PRIVATE)
     private const val KEY_SOURCES = "sources"
+    private const val KEY_BLACKLIST = "blacklist"
     private const val MAX_SOURCES = 8
 
     /**

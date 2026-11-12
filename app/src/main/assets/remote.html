@@ -138,6 +138,13 @@ h2:first-child { margin-top: 0; }
 .stream .t { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .stream .p { grid-column: 3; color: var(--muted); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .stream.added { opacity: .5; }
+.stream { grid-template-columns: 34px 14px 1fr auto; }
+.stream .block { grid-column: 4; grid-row: 1 / span 2; font-size: 12px; padding: 4px 8px; }
+.blockedRow { grid-template-columns: 1fr auto; }
+.blockedRow .p { grid-column: 1; }
+.blockedRow .block { grid-column: 2; }
+.blocked { margin-top: 10px; }
+.blocked summary { cursor: pointer; color: var(--muted); padding: 6px 0; }
 .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--surface2); }
 .dot.OK { background: #2e9d4f; } .dot.BLOCKED, .dot.TIMEOUT, .dot.SLOW { background: #e0a020; }
 .dot.DEAD, .dot.DRM, .dot.ERROR { background: var(--danger); } .dot.busy { background: var(--accent); }
@@ -314,6 +321,7 @@ table.results td:last-child { text-align: right; font-variant-numeric: tabular-n
         </div>
         <p class="summary" id="summary"></p>
         <div class="list" id="streamList"></div>
+        <details class="blocked hidden" id="blockedBox"><summary id="blockedSummary"></summary><div class="list" id="blockedList"></div></details>
         <button class="key more hidden" id="showMore" data-t="showMore"></button>
         <div class="addbar"><button class="key" id="addSelected" disabled></button></div>
       </div>
@@ -353,7 +361,7 @@ const STRINGS = {
     loadFailed: "Could not load the playlist: ", allGroups: "All groups", searchStreams: "Search", workingOnly: "Only working",
     probe: "Check shown", probing: "Checking… ", stop: "Stop", selectWorking: "Select working",
     summary: (n, checked, ok, sel) => `${n} channels · checked ${checked} · working ${ok} · selected ${sel}`,
-    showMore: "Show more", add: n => `Add selected (${n})`, added: n => `Added ${n} channels`, alreadyAdded: "added",
+    showMore: "Show more", add: n => `Add selected (${n})`, added: n => `Added ${n} channels`, alreadyAdded: "added", blockLabel: "don't add", blockedCount: n => `Not added (${n})`, unblockLabel: "allow",
     removeConfirm: name => `Remove “${name}”?`,
     status: { OK: "works", SLOW: "server too slow", BLOCKED: "blocked (often outside its country)", DEAD: "dead", TIMEOUT: "no answer", DRM: "DRM – cannot play", ERROR: "error" },
     slowSpeed: x => `data ${x.toFixed(1)}× playback speed, needs 1.2×`, lowMargin: x => `little margin (${x.toFixed(1)}×), may buffer`,
@@ -393,7 +401,7 @@ const STRINGS = {
     loadFailed: "Nie udało się wczytać listy: ", allGroups: "Wszystkie grupy", searchStreams: "Szukaj", workingOnly: "Tylko działające",
     probe: "Sprawdź widoczne", probing: "Sprawdzanie… ", stop: "Zatrzymaj", selectWorking: "Zaznacz działające",
     summary: (n, checked, ok, sel) => `${n} kanałów · sprawdzone ${checked} · działa ${ok} · zaznaczone ${sel}`,
-    showMore: "Pokaż więcej", add: n => `Dodaj zaznaczone (${n})`, added: n => `Dodano kanałów: ${n}`, alreadyAdded: "dodany",
+    showMore: "Pokaż więcej", add: n => `Dodaj zaznaczone (${n})`, added: n => `Dodano kanałów: ${n}`, alreadyAdded: "dodany", blockLabel: "nie dodawaj", blockedCount: n => `Nie dodawane (${n})`, unblockLabel: "dopuść",
     removeConfirm: name => `Usunąć „${name}”?`,
     status: { OK: "działa", SLOW: "serwer za wolny", BLOCKED: "zablokowany (często poza krajem nadawcy)", DEAD: "nie działa", TIMEOUT: "brak odpowiedzi", DRM: "DRM – nie do odtworzenia", ERROR: "błąd" },
     slowSpeed: x => `dane w tempie ${x.toFixed(1).replace(".", ",")}× odtwarzania, potrzeba 1,2×`, lowMargin: x => `mały zapas (${x.toFixed(1).replace(".", ",")}×), może buforować`,
@@ -892,6 +900,7 @@ async function loadMine() {
 }
 
 function renderMine() {
+  renderBlocked();
   $("mineTitle").textContent = `${T.mineTitle} (${mine.channels.length})`;
   const list = $("mineList");
   list.textContent = "";
@@ -992,6 +1001,7 @@ async function loadPlaylist(url, file) {
 }
 
 function addedUrls() { return new Set(mine.channels.map(c => c.url)); }
+function blockedSet() { return new Set(mine.blacklist || []); }
 
 /** Indexes of the streams that pass the filters. */
 function filtered() {
@@ -1003,6 +1013,7 @@ function filtered() {
     if (group && s.group !== group) return;
     if (query && !s.name.toLowerCase().includes(query)) return;
     if (working && s.status !== "OK") return;
+    if (blockedSet().has(s.url)) return;
     result.push(i);
   });
   return result;
@@ -1025,10 +1036,42 @@ function renderStreams() {
     const p = document.createElement("span"); p.className = "p";
     p.textContent = [s.group, isAdded ? T.alreadyAdded : describe(s)].filter(Boolean).join(" · ");
     row.append(box, dot, t, p);
+    if (!isAdded) {
+      const block = document.createElement("button"); block.className = "key block"; block.textContent = T.blockLabel;
+      block.addEventListener("click", async (event) => {
+        event.preventDefault();
+        selected.delete(i);
+        try { mine = await api(`/api/iptv/blacklist/add?url=${encodeURIComponent(s.url)}`, "POST"); renderStreams(); } catch (e) { explain(e); }
+      });
+      row.appendChild(block);
+    }
     list.appendChild(row);
   });
   $("showMore").classList.toggle("hidden", shown.length <= shownLimit);
+  renderBlocked();
   updateSummary();
+}
+
+/** Addresses the user keeps out of the list; each can be allowed again. */
+function renderBlocked() {
+  const urls = mine.blacklist || [];
+  const box = $("blockedBox");
+  box.classList.toggle("hidden", urls.length === 0);
+  $("blockedSummary").textContent = T.blockedCount(urls.length);
+  const list = $("blockedList");
+  list.textContent = "";
+  urls.forEach(url => {
+    const row = document.createElement("div"); row.className = "stream blockedRow";
+    const t = document.createElement("span"); t.className = "t";
+    t.textContent = (streams.find(s => s.url === url) || {}).name || url;
+    const p = document.createElement("span"); p.className = "p"; p.textContent = url;
+    const allow = document.createElement("button"); allow.className = "key block"; allow.textContent = T.unblockLabel;
+    allow.addEventListener("click", async () => {
+      try { mine = await api(`/api/iptv/blacklist/remove?url=${encodeURIComponent(url)}`, "POST"); renderStreams(); } catch (e) { explain(e); }
+    });
+    row.append(t, p, allow);
+    list.appendChild(row);
+  });
 }
 
 /** Check result for the list: status, and for HLS the speed (a small margin is worth knowing even when it works). */
