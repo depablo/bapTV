@@ -1,9 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Developer tools merged into debug builds only: an accessibility service that confirms
-     installs requested over the local network (debug HTTP server). -->
+<!-- Developer tools merged into debug builds only: the debug HTTP server and an accessibility service that
+     confirms installs requested over the local network. -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <application>
+        <!-- The debug HTTP server (installs over the local network): debug builds only. Declared here, not in the
+             TV manifest – a release APK that carries it is flagged by Play Protect on installation. -->
+        <service
+            android:name=".DebugServerService"
+            android:exported="false" />
         <!-- Remote operation without adb: confirming updates and restarting afterwards. -->
         <service
             android:name=".InstallClickService"

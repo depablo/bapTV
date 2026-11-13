@@ -97,24 +97,6 @@
             android:exported="false"
             android:screenOrientation="landscape" />
 
-        <service
-            android:name=".DebugServerService"
-            android:exported="false" />
-
-        <!-- Internet channels (Iptv): a TV input of its own, so they play through TvView like broadcast channels. -->
-        <service
-            android:name=".IptvInputService"
-            android:exported="true"
-            android:label="@string/iptv_input_label"
-            android:permission="android.permission.BIND_TV_INPUT">
-            <intent-filter>
-                <action android:name="android.media.tv.TvInputService" />
-            </intent-filter>
-            <meta-data
-                android:name="android.media.tv.input"
-                android:resource="@xml/iptv_input" />
-        </service>
-
         <receiver
             android:name=".RecordingAlarmReceiver"
             android:exported="false" />
