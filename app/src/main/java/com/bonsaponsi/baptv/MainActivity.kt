@@ -281,7 +281,7 @@ class MainActivity : Activity() {
             tuneTo(channels.indexOfFirst { it.id == channel.id })
         }
         tvView.setCallback(PlayerCallback())
-        if (prefs.getBoolean(PREF_DEBUG_OVERLAY, false)) debugOverlay.visibility = View.VISIBLE
+        if (BuildConfig.DEBUG && prefs.getBoolean(PREF_DEBUG_OVERLAY, false)) debugOverlay.visibility = View.VISIBLE
         hbbStore = HbbTvStore(this)
         hbb = HbbTvBrowser(this, tvView.parent as android.view.ViewGroup, HbbHost())
         PlayerRemote.hbb = hbb
