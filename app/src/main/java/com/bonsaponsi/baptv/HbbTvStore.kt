@@ -61,6 +61,10 @@ class HbbTvStore(context: Context) {
     fun get(channelId: Long): Entry? =
         prefs.getString("ch_$channelId", null)?.let { runCatching { Entry.fromJson(JSONObject(it)) }.getOrNull() }
 
+    fun remove(channelId: Long) {
+        prefs.edit().remove("ch_$channelId").apply()
+    }
+
     fun put(entry: Entry) {
         prefs.edit().putString("ch_${entry.channelId}", entry.toJson().toString()).apply()
     }

@@ -72,6 +72,14 @@ class ChannelStore(context: Context) {
 
     fun setPendingConfirmed(ids: List<Long>) = prefs.edit().putString(KEY_PENDING_CONFIRMED, JSONArray(ids).toString()).apply()
 
+    /** Channels whose recognition data was taken from a candidate list before its check (removed if it is refused). */
+    fun pendingImported(): List<Long> = runCatching {
+        val a = JSONArray(prefs.getString(KEY_PENDING_IMPORTED, "[]"))
+        (0 until a.length()).map { a.getLong(it) }
+    }.getOrDefault(emptyList())
+
+    fun setPendingImported(ids: List<Long>) = prefs.edit().putString(KEY_PENDING_IMPORTED, JSONArray(ids).toString()).apply()
+
     fun clearPending() = prefs.edit().remove(KEY_PENDING_FROM).remove(KEY_PENDING_IDENTITIES)
         .remove(KEY_PENDING_CONFIRMED).apply()
 
@@ -244,6 +252,7 @@ class ChannelStore(context: Context) {
         private const val KEY_PENDING_FROM = "pending_from"
         private const val KEY_PENDING_IDENTITIES = "pending_identities"
         private const val KEY_PENDING_CONFIRMED = "pending_confirmed"
+        private const val KEY_PENDING_IMPORTED = "pending_imported"
         private const val KEY_REFUSED = "refused_hash"
         private const val KEY_ORDER = "order"
         private const val KEY_HIDE_SCRAMBLED = "hide_scrambled"

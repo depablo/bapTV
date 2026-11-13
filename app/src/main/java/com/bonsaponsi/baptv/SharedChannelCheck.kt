@@ -9,8 +9,9 @@ import org.json.JSONObject
  * recording are compared with what the other build recorded for them: the same ONID, TSID and SID means the list
  * belongs to the same scan (the channel IDs come from one tuner database shared by all builds). Any mismatch refuses
  * the list. It is accepted when the matching channels cover [REQUIRED] multiplexes (or all of the list's, if fewer).
- * Accepted: the other build's recognition data (names, numbers, HbbTV marks) is stored for the channels that do not
- * have their own yet, so the channels show as recognised at once.
+ * The other build's recognition data (names, numbers, HbbTV marks) is stored for the listed channels that have none
+ * of their own, so the channels show their names at once. Until the check passes these are candidates: a refused
+ * list takes them back.
  */
 object SharedChannelCheck {
 
@@ -24,7 +25,20 @@ object SharedChannelCheck {
         if (store.refusedListHash == peer.discovered.hashCode()) return
         store.saveDiscoveredJson(peer.discovered)
         store.setPending(peer.pkg, peer.identities)
-        DebugLog.log("Shared", "candidate list from ${peer.pkg} – waiting for a check")
+        // Names at once; the check either keeps them (accepted) or takes them back (refused).
+        val hbb = HbbTvStore(context)
+        val listed = candidates(store).map { it.first }.toSet()
+        val imported = mutableListOf<Long>()
+        val identities = runCatching { JSONArray(peer.identities) }.getOrNull() ?: JSONArray()
+        (0 until identities.length()).forEach { i ->
+            val entry = runCatching { HbbTvStore.Entry.fromJson(identities.getJSONObject(i)) }.getOrNull() ?: return@forEach
+            if (entry.channelId in listed && hbb.get(entry.channelId) == null) {
+                hbb.put(entry)
+                imported += entry.channelId
+            }
+        }
+        store.setPendingImported(imported)
+        DebugLog.log("Shared", "candidate list from ${peer.pkg}: ${imported.size} channels named – waiting for a check")
     }
 
     /** Called when a channel was recognised from its recording. */
@@ -46,17 +60,13 @@ object SharedChannelCheck {
                 DebugLog.log("Shared", "channel $channelId matches; $covered of $needed multiplexes, ${confirmed.size} of $neededChannels channels confirmed")
                 return
             }
+            store.setPendingImported(emptyList())
             store.clearPending()
-            val hbb = HbbTvStore(context)
-            var taken = 0
-            // Only the channels of the candidate list: the other build may hold data for channels it no longer has.
-            val listed = candidates(store).map { it.first }.toSet()
-            (0 until identities.length()).map { identities.getJSONObject(it) }.forEach { o ->
-                val entry = runCatching { HbbTvStore.Entry.fromJson(o) }.getOrNull() ?: return@forEach
-                if (entry.channelId in listed && hbb.get(entry.channelId) == null) { hbb.put(entry); taken++ }
-            }
-            DebugLog.log("Shared", "candidate list accepted ($covered multiplexes match); recognition taken for $taken channels")
+            DebugLog.log("Shared", "candidate list accepted ($covered multiplexes match)")
         } else {
+            val hbb = HbbTvStore(context)
+            store.pendingImported().forEach { hbb.remove(it) }
+            store.setPendingImported(emptyList())
             store.refusedListHash = store.discoveredJson()?.hashCode()
             store.clearDiscovered()
             store.clearPending()

@@ -285,9 +285,9 @@
     <string name="menu_send_report">Send report to the developer</string>
     <string name="menu_settings_export">Export settings</string>
     <string name="menu_settings_import">Import settings</string>
-    <string name="shared_config_title">Channels from another bapTV</string>
-    <string name="shared_config_message">Another bapTV on this set-top box already has its channels. Use its list? The channels are checked while you watch them (several multiplexes); if they do not match, the channels are scanned from the start.</string>
-    <string name="shared_config_use">Use that list</string>
+    <string name="shared_config_title">Existing configuration found</string>
+    <string name="shared_config_message">Use it? Its channels are checked while you watch them (several multiplexes). If they do not match, the channels are scanned from the start.</string>
+    <string name="shared_config_use">Use it</string>
     <string name="shared_config_scan">Scan from the start</string>
     <string name="settings_import_replace">Replace the organisation</string>
     <string name="settings_import_merge">Add what is missing</string>
