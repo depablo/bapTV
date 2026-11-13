@@ -434,6 +434,8 @@
     <string name="whats_new_start_over">“Watch from the start” under the blue button (e.g. TVP): the broadcaster\'s player now looks like bapTV, ⏯ works, “Live” returns to the antenna picture, and holding BACK leaves the app.</string>
     <string name="whats_new_pair_on_tv">Pairing the bapTV phone app without a code: choose the box on the phone and accept it here with the remote.</string>
     <string name="whats_new_address_change">When the box gets a new network address, bapTV says so and shows a new code for the phone remote in the browser.</string>
+    <string name="whats_new_shared_config">A fresh install can use the channels another bapTV already found on this box, after a check on the first channels you watch.</string>
+    <string name="whats_new_settings_backup">Settings can be exported and imported from the TV menu: channel order, names, hidden channels, playlists and the blacklist.</string>
     <string name="whats_new_low_volume">When a channel starts with the system volume very low, bapTV shows a short hint to turn it up, so a quiet box is not mistaken for a silent channel.</string>
 
     <!-- "Did you know?" tips (Tips). -->

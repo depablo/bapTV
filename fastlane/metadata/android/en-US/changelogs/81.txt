@@ -1,0 +1,1 @@
+Channel lists are shared between bapTV builds on the same box, and a fresh install can use an existing configuration. Settings can be exported and imported from the TV menu.

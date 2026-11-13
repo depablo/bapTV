@@ -1,0 +1,1 @@
+Listy kanałów są współdzielone między wersjami bapTV na tym samym dekoderze, a świeża instalacja może użyć istniejącej konfiguracji. Ustawienia można eksportować i importować z menu telewizora.

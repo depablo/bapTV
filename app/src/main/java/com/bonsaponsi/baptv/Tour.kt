@@ -29,6 +29,7 @@ object Tour {
         69 to listOf(R.string.whats_new_start_over),
         71 to listOf(R.string.whats_new_pair_on_tv, R.string.whats_new_address_change),
         80 to listOf(R.string.whats_new_low_volume),
+        81 to listOf(R.string.whats_new_shared_config, R.string.whats_new_settings_backup),
     )
 
     /** [image] – name of the screenshot in [Illustrations]. */
