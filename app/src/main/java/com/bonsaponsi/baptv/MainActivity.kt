@@ -576,6 +576,7 @@ class MainActivity : Activity() {
         // First start of a fresh install: the introduction, whose welcome page offers the channel scan.
         if (!tourChecked) {
             tourChecked = true
+            if (offerSharedConfiguration()) return
             val offer = firstStartScanOffer()
             if (Tour.showIfFirstStart(this, offer) { if (started) loadChannelsAndPlay() }) {
                 // The user was asked – the scan screen does not open by itself, whatever the answer.
@@ -812,6 +813,31 @@ class MainActivity : Activity() {
      * with the scan screen's defaults (VHF where the country plan has it, DVB-T2); where only the system wizard
      * can scan, the scan screen opens.
      */
+    /**
+     * A fresh install next to another bapTV build that already has channels: offers to use its channel list (it is
+     * checked while watching) or to scan from the start. Returns false when there is nothing to offer.
+     */
+    private fun offerSharedConfiguration(): Boolean {
+        val store = ChannelStore(this)
+        if (store.loadDiscovered().isNotEmpty()) return false
+        val peer = SharedChannels.peers(this).firstOrNull { it.discovered.length > 2 } ?: return false
+        if (store.refusedListHash == peer.discovered.hashCode()) return false
+        Tour.markSeen(this)
+        val scan = firstStartScanOffer()
+        TvDialog.confirm(this, getString(R.string.shared_config_title), getString(R.string.shared_config_message),
+            getString(R.string.shared_config_use), getString(R.string.shared_config_scan),
+            onCancel = {
+                DebugLog.log("Player", "shared configuration declined – scanning")
+                if (scan != null) { autoScanOpened = true; prefs.edit().putBoolean(PREF_FIRST_SCAN_OPENED, true).apply(); scan() }
+                else if (started) loadChannelsAndPlay()
+            }) {
+            SharedChannelCheck.adoptIfNeeded(this, store)
+            DebugLog.log("Player", "shared configuration chosen – it is checked while watching")
+            if (started) loadChannelsAndPlay()
+        }
+        return true
+    }
+
     private fun firstStartScanOffer(): (() -> Unit)? {
         if (Dtv.findTunerInput(this) == null) return null
         return {

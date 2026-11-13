@@ -293,6 +293,10 @@
     <string name="menu_send_report">Wyślij raport do autora</string>
     <string name="menu_settings_export">Eksport ustawień</string>
     <string name="menu_settings_import">Import ustawień</string>
+    <string name="shared_config_title">Kanały z innego bapTV</string>
+    <string name="shared_config_message">Inny bapTV na tym dekoderze ma już kanały. Użyć jego listy? Kanały będą sprawdzane podczas oglądania (kilka multipleksów); przy niezgodności kanały zostaną przeskanowane od początku.</string>
+    <string name="shared_config_use">Użyj tej listy</string>
+    <string name="shared_config_scan">Przeskanuj od początku</string>
     <string name="settings_import_replace">Zastąp układ</string>
     <string name="settings_import_merge">Dodaj brakujące</string>
     <string name="settings_import_replace_confirm">Kolejność, nazwy, kategorie i ukryte kanały zostaną wzięte z pliku; obecne przepadną.</string>

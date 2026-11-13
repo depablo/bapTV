@@ -40,16 +40,20 @@ object SharedChannelCheck {
             store.setPendingConfirmed(confirmed)
             val needed = requiredMultiplexes(store)
             val covered = confirmed.map { multiplexOf(store, it) }.distinct().size
-            if (covered < needed) {
-                DebugLog.log("Shared", "channel $channelId matches; $covered of $needed multiplexes confirmed")
+            // Several channels must match as well: one matching channel says little about the whole list.
+            val neededChannels = minOf(REQUIRED, candidates(store).size).coerceAtLeast(1)
+            if (covered < needed || confirmed.size < neededChannels) {
+                DebugLog.log("Shared", "channel $channelId matches; $covered of $needed multiplexes, ${confirmed.size} of $neededChannels channels confirmed")
                 return
             }
             store.clearPending()
             val hbb = HbbTvStore(context)
             var taken = 0
+            // Only the channels of the candidate list: the other build may hold data for channels it no longer has.
+            val listed = candidates(store).map { it.first }.toSet()
             (0 until identities.length()).map { identities.getJSONObject(it) }.forEach { o ->
                 val entry = runCatching { HbbTvStore.Entry.fromJson(o) }.getOrNull() ?: return@forEach
-                if (hbb.get(entry.channelId) == null) { hbb.put(entry); taken++ }
+                if (entry.channelId in listed && hbb.get(entry.channelId) == null) { hbb.put(entry); taken++ }
             }
             DebugLog.log("Shared", "candidate list accepted ($covered multiplexes match); recognition taken for $taken channels")
         } else {

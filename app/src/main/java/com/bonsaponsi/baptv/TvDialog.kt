@@ -144,7 +144,19 @@ object TvDialog {
         dialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
         val root = activity.layoutInflater.inflate(R.layout.dialog_tv, null)
         root.findViewById<TextView>(R.id.tv_dialog_title).text = title
-        dialog.setContentView(root)
+        // Taller than the screen (long text with a picture): the panel scrolls instead of being cut off at the bottom.
+        val scroll = android.widget.ScrollView(activity)
+        scroll.addView(root, android.view.ViewGroup.LayoutParams(android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+            android.view.ViewGroup.LayoutParams.WRAP_CONTENT))
+        val maxHeight = (activity.resources.displayMetrics.heightPixels * 0.92).toInt()
+        scroll.viewTreeObserver.addOnGlobalLayoutListener {
+            val lp = scroll.layoutParams
+            if (scroll.height > maxHeight && lp.height != maxHeight) {
+                lp.height = maxHeight
+                scroll.layoutParams = lp
+            }
+        }
+        dialog.setContentView(scroll)
         // Fixed width like the layout's 520dp: without it the window shrinks to the content (e.g. the QR image).
         dialog.window?.setLayout((520 * activity.resources.displayMetrics.density).toInt(), WindowManager.LayoutParams.WRAP_CONTENT)
         dialog.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))

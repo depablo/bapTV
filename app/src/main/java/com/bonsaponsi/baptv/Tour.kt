@@ -54,6 +54,11 @@ object Tour {
         return true
     }
 
+    /** The introduction is not shown again on this install (used when the user chose a shared configuration instead). */
+    fun markSeen(activity: Activity) {
+        prefs(activity).edit().putInt(KEY_SEEN_VERSION, BuildConfig.VERSION_CODE).apply()
+    }
+
     /**
      * After an update: the major features added since the version seen last (without a record –
      * an update from a version before this tracking – those of the running version).
