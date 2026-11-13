@@ -33,7 +33,6 @@ class Diagnostics(private val context: Context) {
         section("Network") { line("IP addresses: ${localAddresses().ifEmpty { listOf("none") }.joinToString()}") }
         section("App permissions") { permissions() }
         section("DTV system packages") { packages() }
-        section("Sagemcom middleware") { SagemcomStb.describe(context).forEach { line(it) } }
         section("TV inputs (TvInputManager)") { inputs() }
         section("Channels in TvContract") { channels(includeChannels) }
         section("Discovered channels (probing)") { discoveredChannels() }
