@@ -1191,6 +1191,36 @@ class MainActivity : Activity() {
 
     private var colourKeysOfferPending = false
 
+    /** Address of the HbbTV app the colour hint was last shown for: once per app, not on every key-set change. */
+    private var colourHintUrl: String? = null
+    /** The ▲ key has been held long enough to open the colour chooser (its release is then not forwarded). */
+    private var upHeld = false
+    private val upLongPress = Runnable {
+        upHeld = true
+        showColourChooser()
+    }
+
+    /** The HbbTV app wants colour keys: a hint at the bottom for [COLOUR_HINT_MS]; holding ▲ opens the chooser. */
+    private fun showColourHint() {
+        val url = hbb.currentUrl ?: return
+        if (url == colourHintUrl) return
+        colourHintUrl = url
+        showStatusFor(getString(R.string.colour_hint), COLOUR_HINT_MS)
+        DebugLog.log("Hbb", "colour hint shown for $url")
+    }
+
+    /** Four colour buttons to choose from; the pick goes to the HbbTV app as the remote's colour key. */
+    private fun showColourChooser(onClose: (() -> Unit)? = null) {
+        val names = listOf(R.string.colour_red, R.string.colour_green, R.string.colour_yellow, R.string.colour_blue)
+            .map { TvDialog.Option(getString(it)) }
+        val codes = listOf(KeyEvent.KEYCODE_PROG_RED, KeyEvent.KEYCODE_PROG_GREEN, KeyEvent.KEYCODE_PROG_YELLOW, KeyEvent.KEYCODE_PROG_BLUE)
+        TvDialog.choose(this, getString(R.string.colour_chooser_title), names, onClose = onClose) { pick ->
+            val code = codes[pick]
+            val handled = hbb.onKey(KeyEvent(KeyEvent.ACTION_DOWN, code)) && hbb.onKey(KeyEvent(KeyEvent.ACTION_UP, code))
+            if (!handled) showStatusFor(getString(R.string.colour_not_used), 4000)
+        }
+    }
+
     /** Service watched before publishing – after reloading, the player returns to it under its new ID. */
     private var lastPublishedService: Pair<Int?, Int?>? = null
 
@@ -1537,6 +1567,9 @@ class MainActivity : Activity() {
             MenuPanel.Entry(getString(R.string.menu_subtitles), selectedTrackLabel(TvTrackInfo.TYPE_SUBTITLE)) {
                 showTrackDialog(TvTrackInfo.TYPE_SUBTITLE, menu::returned)
             },
+            // While an HbbTV app wants colour keys, they stay reachable here (the arrows belong to the app).
+            MenuPanel.Entry(getString(R.string.menu_colour_buttons)) { showColourChooser(menu::returned) }
+                .takeIf { hbb.isActive && hbb.wantsColourKeys },
             if (timeshift.active) MenuPanel.Entry(getString(R.string.menu_live),
                 getString(R.string.menu_live_value, TimeShiftModel.formatDelay(timeshift.delayMs())), leave) { timeshift.goLive() }
             else MenuPanel.Entry(getString(R.string.menu_pause), after = leave) { startPause() }
@@ -2000,6 +2033,29 @@ class MainActivity : Activity() {
         if (menu.onKey(event)) return true
         val infoNav = infoLevel > 0 && event.keyCode in INFO_PANEL_KEYS
         if (infoLevel >= 2 && event.action == KeyEvent.ACTION_DOWN) scheduleInfoHide()
+        // With an HbbTV app that wants colour keys, holding ▲ opens the chooser; a short press still goes to the app,
+        // on release (the press is held back until then to tell the two apart).
+        if (event.keyCode == KeyEvent.KEYCODE_DPAD_UP && !infoNav && channelPanel.visibility != View.VISIBLE &&
+            hbb.isActive && hbb.wantsColourKeys) {
+            when (event.action) {
+                KeyEvent.ACTION_DOWN -> {
+                    if (event.repeatCount == 0) {
+                        upHeld = false
+                        handler.postDelayed(upLongPress, UP_LONG_PRESS_MS)
+                    }
+                    return true
+                }
+                KeyEvent.ACTION_UP -> {
+                    handler.removeCallbacks(upLongPress)
+                    if (upHeld) { upHeld = false; return true }
+                    val down = KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DPAD_UP)
+                    val up = KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_DPAD_UP)
+                    if (!hbb.onKey(down)) super.dispatchKeyEvent(down)
+                    if (!hbb.onKey(up)) super.dispatchKeyEvent(up)
+                    return true
+                }
+            }
+        }
         // Keys in the HbbTV app's key set go to it (when the channel list is not open).
         if (channelPanel.visibility != View.VISIBLE && !infoNav && hbb.onKey(event)) return true
         return super.dispatchKeyEvent(event)
@@ -2429,7 +2485,10 @@ class MainActivity : Activity() {
             // The app plays its own (internet) video now – a tuner status such as "No picture" must not stay on it.
             showStatus(null)
         }
-        override fun hbbColourKeysWanted() = offerColourKeys()
+        override fun hbbColourKeysWanted() {
+            offerColourKeys()
+            showColourHint()
+        }
         override fun hbbAppUnavailable(offline: Boolean) {
             val channel = channels.getOrNull(currentIndex)
             if (channel == null || hbbNoticeShownFor == channel.id) return
@@ -2720,6 +2779,10 @@ class MainActivity : Activity() {
         private const val PREF_DEBUG_OVERLAY = "debug_overlay"
         private const val SUBTITLES_OFF = "off"
         private const val BANNER_MS = 5000L
+        /** How long the colour hint stays at the bottom; ▲ opens the colour chooser meanwhile. */
+        private const val COLOUR_HINT_MS = 10_000L
+        /** Holding ▲ this long opens the colour chooser. */
+        private const val UP_LONG_PRESS_MS = 600L
         private val INFO_PANEL_KEYS = setOf(
             KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN, KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT,
             KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_BACK,

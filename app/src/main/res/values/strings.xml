@@ -285,6 +285,14 @@
     <string name="menu_send_report">Send report to the developer</string>
     <string name="menu_settings_export">Export settings</string>
     <string name="menu_settings_import">Import settings</string>
+    <string name="menu_colour_buttons">Colour buttons</string>
+    <string name="colour_hint">Colour buttons: hold ▲ to choose a colour</string>
+    <string name="colour_chooser_title">Colour button</string>
+    <string name="colour_red">Red</string>
+    <string name="colour_green">Green</string>
+    <string name="colour_yellow">Yellow</string>
+    <string name="colour_blue">Blue</string>
+    <string name="colour_not_used">This app does not use that button</string>
     <string name="shared_config_title">Existing configuration found</string>
     <string name="shared_config_message">Use it? Its channels are checked while you watch them (several multiplexes). If they do not match, the channels are scanned from the start.</string>
     <string name="shared_config_use">Use it</string>

@@ -290,6 +290,14 @@
     <string name="menu_send_report">Wyślij raport do autora</string>
     <string name="menu_settings_export">Eksport ustawień</string>
     <string name="menu_settings_import">Import ustawień</string>
+    <string name="menu_colour_buttons">Przyciski kolorowe</string>
+    <string name="colour_hint">Przyciski kolorowe: przytrzymaj ▲, aby wybrać kolor</string>
+    <string name="colour_chooser_title">Przycisk kolorowy</string>
+    <string name="colour_red">Czerwony</string>
+    <string name="colour_green">Zielony</string>
+    <string name="colour_yellow">Żółty</string>
+    <string name="colour_blue">Niebieski</string>
+    <string name="colour_not_used">Ta aplikacja nie używa tego przycisku</string>
     <string name="shared_config_title">Wykryto istniejącą konfigurację</string>
     <string name="shared_config_message">Czy jej użyć? Kanały zostaną potwierdzone podczas oglądania (kilka multipleksów). Przy niezgodności przeskanujemy od początku.</string>
     <string name="shared_config_use">Użyj</string>

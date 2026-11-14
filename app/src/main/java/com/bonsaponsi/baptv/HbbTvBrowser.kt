@@ -77,6 +77,9 @@ class HbbTvBrowser(private val activity: Activity, private val container: ViewGr
 
     val isActive get() = webView != null && currentUrl != null
 
+    /** The app has colour keys in its key set (it has functions under them). */
+    val wantsColourKeys get() = keyset and COLOUR_KEYS != 0
+
     /**
      * Covered by a player menu: the app keeps running but doesn't show through the semi-transparent
      * panel. Uses alpha, not visibility – the app controls that itself (show/hide).
