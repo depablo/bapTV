@@ -29,7 +29,6 @@
     <!-- The web server runs in a foreground service so it survives the app's screens being closed. -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <!-- Restores the web server after a set-top box reboot (if it was enabled). -->
-    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
     <!--
         HbbTV experiment: reading dtvinput recordings from Android/media/com.google.android.tv.dtvinput/Records
@@ -119,11 +118,5 @@
                 android:name="android.accessibilityservice"
                 android:resource="@xml/colour_keys_service" />
         </service>
-
-        <receiver android:name=".UpdateReceiver">
-            <intent-filter>
-                <action android:name="android.intent.action.BOOT_COMPLETED" />
-            </intent-filter>
-        </receiver>
     </application>
 </manifest>
