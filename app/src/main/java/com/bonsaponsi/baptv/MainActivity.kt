@@ -1224,6 +1224,15 @@ class MainActivity : Activity() {
     /** Service watched before publishing – after reloading, the player returns to it under its new ID. */
     private var lastPublishedService: Pair<Int?, Int?>? = null
 
+    /** Recognition of the channels in the list; with channel discovery also a choice to start the discovery afresh. */
+    private fun identifyOrRediscover() {
+        if (!DeviceCapabilities.get(this).channelDiscovery) return identifyAll()
+        TvDialog.choose(this, getString(R.string.menu_identify), listOf(
+            TvDialog.Option(getString(R.string.menu_identify)),
+            TvDialog.Option(getString(R.string.menu_rediscover)),
+        )) { pick -> if (pick == 0) identifyAll() else rediscover() }
+    }
+
     private fun rediscover() {
         val tuner = input ?: return
         // Discovery does not start during a scan – clearing the list now would leave it empty.
@@ -1600,8 +1609,9 @@ class MainActivity : Activity() {
                 reloadChannels()
             },
             // Not during a background scan: each of these needs the tuner, and publishing would break the scan.
-            MenuPanel.Entry(getString(R.string.menu_identify), after = leave) { identifyAll() }.takeIf { caps.streamAnalysis && !ScanSession.running },
-            MenuPanel.Entry(getString(R.string.menu_rediscover), after = leave) { rediscover() }.takeIf { caps.channelDiscovery && !ScanSession.running },
+            // One entry for recognition; on devices that find channels by probing it also offers the fresh start.
+            MenuPanel.Entry(getString(R.string.menu_identify), after = leave) { identifyOrRediscover() }
+                .takeIf { (caps.streamAnalysis || caps.channelDiscovery) && !ScanSession.running },
             // Debug builds only: published channels outlive the app and cannot be removed by it (see publish_warning).
             MenuPanel.Entry(getString(R.string.menu_publish)) { confirmPublish(menu::returned) }
                 .takeIf { BuildConfig.DEBUG && caps.inAppScan && !ScanSession.running && channels.any { it.discovered && it.identified } },

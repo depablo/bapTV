@@ -6,7 +6,7 @@
     <string name="no_tuner_title">No TV tuner</string>
     <string name="no_tuner_iptv">This device has no TV tuner, or the system does not make it available. Internet channels (IPTV) work as usual – add them on your phone: Menu → Settings → Phone remote, then the IPTV tab.</string>
     <string name="no_tuner_status">No TV tuner – add internet channels on your phone (Menu → Settings → Phone remote).</string>
-    <string name="no_broadcast_iptv">No channels from the antenna – internet channels only for now. To search: Menu → Channels → Search for channels.</string>
+    <string name="no_broadcast_iptv">No channels from the antenna – internet channels only for now. To search: Menu → Channels → Scan multiplexes.</string>
     <string name="scan_iptv_hint">Internet channels (IPTV) work without the tuner – add them on your phone: Menu → Settings → Phone remote.</string>
     <string name="need_permission">The app needs access to the TV channel list.</string>
 
@@ -29,7 +29,7 @@
     <string name="menu_audio">Audio track</string>
     <string name="menu_subtitles">Subtitles</string>
     <string name="menu_signal">Signal information</string>
-    <string name="menu_scan">Search for channels</string>
+    <string name="menu_scan">Scan multiplexes</string>
     <string name="subtitles_off">Off</string>
     <string name="no_tracks">No tracks available</string>
     <string name="track_default">Track %1$d</string>
@@ -40,21 +40,21 @@
 
     <string name="scan_title">Channel search</string>
     <string name="scan_mode_wizard">This device searches for channels with its own tuner wizard. Choose “System wizard” and come back to the app when it finishes.</string>
-    <string name="scan_mode_none">This device\'s tuner does not let other apps search for channels. Search for channels in the TV settings.</string>
+    <string name="scan_mode_none">This device\'s tuner does not let other apps scan multiplexes. Scan multiplexes in the TV settings.</string>
     <string name="no_channels_scan">No channels – opening channel search.</string>
-    <string name="no_channels">No channels. Press OK to open the menu – search for channels under Channels → Search for channels.</string>
+    <string name="no_channels">No channels. Press OK to open the menu – scan multiplexes under Channels → Scan multiplexes.</string>
 
     <string name="menu_diagnostics">Diagnostics</string>
-    <string name="menu_rediscover">Detect channels again</string>
+    <string name="menu_rediscover">Identify again</string>
     <string name="rename_title">Name of channel %1$s</string>
     <string name="discovered_name">Channel %1$d</string>
     <string name="discovery_progress">Checking #%1$d · found %2$d</string>
-    <string name="discovery_cancelled">Channel detection stopped. It will resume when the app is opened again (or MENU → Detect channels again).</string>
+    <string name="discovery_cancelled">Channel detection stopped. It will resume when the app is opened again (or MENU → Identify again).</string>
     <string name="discovery_done_detail">Detected: TV %1$d, radio %2$d, encrypted %3$d. Names: MENU → Rename.</string>
-    <string name="discovery_none">No channels detected. Search for channels (OK) or check Diagnostics.</string>
+    <string name="discovery_none">No channels detected. Scan multiplexes (OK) or check Diagnostics.</string>
     <string name="menu_debug_overlay">Debug overlay</string>
 
-    <string name="scan_method_service">Search for channels</string>
+    <string name="scan_method_service">Scan multiplexes</string>
     <string name="scan_method_direct">Scan (system permission)</string>
     <string name="scan_method_setup">System wizard</string>
     <string name="scan_include_vhf">Include the VHF band (177.5–230 MHz)</string>
@@ -77,7 +77,7 @@
     <string name="scan_progress">Searching… %1$d%% · found: %2$d</string>
     <string name="scan_complete">Finished. Channels found: %1$d</string>
     <string name="scan_failed">No channels found. Check the antenna and try again.</string>
-    <string name="scan_rejected">The tuner rejected the search request straight away – this is not an antenna problem. Search for channels with “%1$s”; bapTV will show them afterwards.</string>
+    <string name="scan_rejected">The tuner rejected the search request straight away – this is not an antenna problem. Scan multiplexes with “%1$s”; bapTV will show them afterwards.</string>
     <string name="scan_tuner_busy_retry">The tuner is in use by another app – trying again in %1$d s…</string>
     <string name="scan_tuner_busy">The tuner seemed to be in use by another app (for example a preview on the home screen).</string>
     <string name="scan_cancelled">Scan stopped.</string>
@@ -119,10 +119,10 @@
     <string name="guide_now">NOW</string>
     <string name="guide_today">Today</string>
     <string name="guide_tomorrow">Tomorrow</string>
-    <string name="guide_no_epg">No programme data for this channel. It will appear after watching a channel from this multiplex for a while, or after “Identify channels and get the guide” in the menu.</string>
-    <string name="guide_unidentified">Channel not identified – the guide will appear once the channel is identified (menu → “Identify channels and get the guide”).</string>
+    <string name="guide_no_epg">No programme data for this channel. It will appear after watching a channel from this multiplex for a while, or after “Identify channels and guide” in the menu.</string>
+    <string name="guide_unidentified">Channel not identified – the guide will appear once the channel is identified (menu → “Identify channels and guide”).</string>
     <string name="menu_guide">TV guide</string>
-    <string name="menu_identify">Identify channels and get the guide</string>
+    <string name="menu_identify">Identify channels and guide</string>
     <string name="menu_analyse">Analyse the stream</string>
     <string name="analyse_running">Analysing the stream…</string>
     <string name="analyse_done">Stream analysis saved. It is added to the next report.</string>
@@ -407,8 +407,8 @@
     <string name="tour_skip">Skip</string>
     <string name="tour_start">Let\'s start</string>
     <string name="tour_open">Introduction</string>
-    <string name="tour_scan_offer">First, let\'s search for antenna channels. The scan runs in the background, so you can go through this guide in the meantime. You can also search later: Menu → Channels → Search for channels.</string>
-    <string name="tour_scan">Search for channels</string>
+    <string name="tour_scan_offer">First, let\'s search for antenna channels. The scan runs in the background, so you can go through this guide in the meantime. You can also search later: Menu → Channels → Scan multiplexes.</string>
+    <string name="tour_scan">Scan multiplexes</string>
     <string name="tour_no_scan">Not now</string>
     <string name="tour_welcome_title">Welcome to bapTV</string>
     <string name="tour_welcome_text">Antenna and internet TV in one player. Change channels with P+/P− or the number keys, OK opens the menu and the down arrow shows what is on.</string>

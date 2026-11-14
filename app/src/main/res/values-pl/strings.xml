@@ -5,7 +5,7 @@
     <string name="no_tuner_title">Brak tunera TV</string>
     <string name="no_tuner_iptv">To urządzenie nie ma tunera telewizji naziemnej albo system go nie udostępnia. Kanały internetowe (IPTV) działają normalnie – dodasz je w telefonie: Menu → Ustawienia → Pilot w telefonie, zakładka IPTV.</string>
     <string name="no_tuner_status">Brak tunera TV – dodaj kanały internetowe w telefonie (Menu → Ustawienia → Pilot w telefonie).</string>
-    <string name="no_broadcast_iptv">Brak kanałów z anteny – na razie tylko kanały internetowe. Wyszukiwanie: Menu → Kanały → Wyszukaj kanały.</string>
+    <string name="no_broadcast_iptv">Brak kanałów z anteny – na razie tylko kanały internetowe. Wyszukiwanie: Menu → Kanały → Skanuj multipleksy.</string>
     <string name="scan_iptv_hint">Kanały internetowe (IPTV) działają bez tunera – dodasz je w telefonie: Menu → Ustawienia → Pilot w telefonie.</string>
     <string name="need_permission">Aplikacja potrzebuje dostępu do listy kanałów TV.</string>
 
@@ -28,7 +28,7 @@
     <string name="menu_audio">Ścieżka dźwiękowa</string>
     <string name="menu_subtitles">Napisy</string>
     <string name="menu_signal">Informacje o sygnale</string>
-    <string name="menu_scan">Wyszukaj kanały</string>
+    <string name="menu_scan">Skanuj multipleksy</string>
     <string name="subtitles_off">Wyłączone</string>
     <string name="no_tracks">Brak dostępnych ścieżek</string>
     <string name="track_default">Ścieżka %1$d</string>
@@ -39,18 +39,18 @@
 
     <string name="scan_title">Wyszukiwanie kanałów</string>
     <string name="scan_mode_wizard">To urządzenie wyszukuje kanały własnym kreatorem tunera. Wybierz „Kreator systemowy”, a po zakończeniu wróć do aplikacji.</string>
-    <string name="scan_mode_none">Tuner tego urządzenia nie udostępnia wyszukiwania kanałów innym aplikacjom. Wyszukaj kanały w ustawieniach telewizora.</string>
+    <string name="scan_mode_none">Tuner tego urządzenia nie udostępnia wyszukiwania kanałów innym aplikacjom. Skanuj multipleksy w ustawieniach telewizora.</string>
     <string name="no_channels_scan">Brak kanałów – otwieram wyszukiwanie kanałów.</string>
-    <string name="no_channels">Brak kanałów. Naciśnij OK, aby otworzyć menu – kanały wyszukasz w sekcji Kanały → Wyszukaj kanały.</string>
+    <string name="no_channels">Brak kanałów. Naciśnij OK, aby otworzyć menu – kanały wyszukasz w sekcji Kanały → Skanuj multipleksy.</string>
 
     <string name="menu_diagnostics">Diagnostyka</string>
-    <string name="menu_rediscover">Wykryj kanały ponownie</string>
+    <string name="menu_rediscover">Rozpoznaj od nowa</string>
     <string name="rename_title">Nazwa kanału %1$s</string>
     <string name="discovered_name">Kanał %1$d</string>
     <string name="discovery_progress">Sprawdzam #%1$d · znaleziono %2$d</string>
-    <string name="discovery_cancelled">Wykrywanie kanałów przerwane. Wznowi się po ponownym otwarciu aplikacji (lub MENU → Wykryj kanały ponownie).</string>
+    <string name="discovery_cancelled">Wykrywanie kanałów przerwane. Wznowi się po ponownym otwarciu aplikacji (lub MENU → Rozpoznaj od nowa).</string>
     <string name="discovery_done_detail">Wykryto: TV %1$d, radio %2$d, kodowane %3$d. Nazwy: MENU → Zmień nazwę.</string>
-    <string name="discovery_none">Nie wykryto kanałów. Wyszukaj kanały (OK) lub sprawdź Diagnostykę.</string>
+    <string name="discovery_none">Nie wykryto kanałów. Skanuj multipleksy (OK) lub sprawdź Diagnostykę.</string>
     <string name="menu_debug_overlay">Nakładka debugowania</string>
 
     <string name="scan_method_service">Szukaj kanałów</string>
@@ -78,7 +78,7 @@
     <string name="scan_progress">Szukam kanałów… %1$d%% · znaleziono: %2$d</string>
     <string name="scan_complete">Zakończono. Znaleziono kanałów: %1$d</string>
     <string name="scan_failed">Nie znaleziono kanałów. Sprawdź antenę i spróbuj ponownie.</string>
-    <string name="scan_rejected">Tuner od razu odrzucił żądanie wyszukiwania – to nie jest problem z anteną. Wyszukaj kanały przyciskiem „%1$s”; bapTV pokaże je potem.</string>
+    <string name="scan_rejected">Tuner od razu odrzucił żądanie wyszukiwania – to nie jest problem z anteną. Skanuj multipleksy przyciskiem „%1$s”; bapTV pokaże je potem.</string>
     <string name="scan_tuner_busy_retry">Tuner jest używany przez inną aplikację – ponowna próba za %1$d s…</string>
     <string name="scan_tuner_busy">Tuner wyglądał na używany przez inną aplikację (np. podgląd na ekranie głównym).</string>
     <string name="scan_cancelled">Skanowanie przerwane.</string>
@@ -120,10 +120,10 @@
     <string name="guide_now">TERAZ</string>
     <string name="guide_today">Dziś</string>
     <string name="guide_tomorrow">Jutro</string>
-    <string name="guide_no_epg">Brak programu dla tego kanału. Program pojawi się po chwili oglądania kanału z tego multipleksu albo po „Rozpoznaj kanały i pobierz program” w menu.</string>
-    <string name="guide_unidentified">Kanał nierozpoznany – program pojawi się po rozpoznaniu kanału (menu → „Rozpoznaj kanały i pobierz program”).</string>
+    <string name="guide_no_epg">Brak programu dla tego kanału. Program pojawi się po chwili oglądania kanału z tego multipleksu albo po „Rozpoznaj kanały i program” w menu.</string>
+    <string name="guide_unidentified">Kanał nierozpoznany – program pojawi się po rozpoznaniu kanału (menu → „Rozpoznaj kanały i program”).</string>
     <string name="menu_guide">Program TV</string>
-    <string name="menu_identify">Rozpoznaj kanały i pobierz program</string>
+    <string name="menu_identify">Rozpoznaj kanały i program</string>
     <string name="menu_analyse">Analizuj strumień</string>
     <string name="analyse_running">Analizuję strumień…</string>
     <string name="analyse_done">Analiza strumienia zapisana. Trafi do następnego raportu.</string>
@@ -413,7 +413,7 @@
     <string name="tour_skip">Pomiń</string>
     <string name="tour_start">Zaczynamy</string>
     <string name="tour_open">Przewodnik</string>
-    <string name="tour_scan_offer">Najpierw wyszukajmy kanały z anteny. Wyszukiwanie trwa w tle, więc w tym czasie możesz przejrzeć ten przewodnik. Możesz też zrobić to później: Menu → Kanały → Wyszukaj kanały.</string>
+    <string name="tour_scan_offer">Najpierw wyszukajmy kanały z anteny. Wyszukiwanie trwa w tle, więc w tym czasie możesz przejrzeć ten przewodnik. Możesz też zrobić to później: Menu → Kanały → Skanuj multipleksy.</string>
     <string name="tour_scan">Szukaj kanałów</string>
     <string name="tour_no_scan">Nie teraz</string>
     <string name="tour_welcome_title">Witaj w bapTV</string>
