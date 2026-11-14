@@ -80,7 +80,7 @@ android {
             dimension = "distribution"
             buildConfigField("boolean", "SELF_UPDATE", "true")
             buildConfigField("boolean", "RECORDING", "true")
-            buildConfigField("boolean", "ACCESSIBILITY_KEYS", "true")
+            buildConfigField("boolean", "ACCESSIBILITY_KEYS", "false")
             buildConfigField("String", "DISTRIBUTION", "\"github\"")
         }
         create("play") {
