@@ -1,0 +1,1 @@
+Colour buttons for HbbTV apps: hold the up arrow or use the menu to pick a colour. Clearer channel menu names. The TV build no longer carries the accessibility service, so it installs from a file.

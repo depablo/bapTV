@@ -444,6 +444,8 @@
     <string name="whats_new_address_change">When the box gets a new network address, bapTV says so and shows a new code for the phone remote in the browser.</string>
     <string name="whats_new_shared_config">A fresh install can use the channels another bapTV already found on this box, after a check on the first channels you watch.</string>
     <string name="whats_new_settings_backup">Settings can be exported and imported from the TV menu: channel order, names, hidden channels, playlists and the blacklist.</string>
+    <string name="whats_new_colour_buttons">When an HbbTV app uses the colour buttons, a hint appears: hold the up arrow to pick a colour, or use the menu.</string>
+    <string name="whats_new_channel_menu">The channel menu has clearer names: scan multiplexes, recognise channels and guide, and start recognition afresh.</string>
     <string name="whats_new_low_volume">When a channel starts with the system volume very low, bapTV shows a short hint to turn it up, so a quiet box is not mistaken for a silent channel.</string>
 
     <!-- "Did you know?" tips (Tips). -->

@@ -1,0 +1,1 @@
+Przyciski kolorowe dla aplikacji HbbTV: przytrzymaj strzałkę w górę albo skorzystaj z menu. Wyraźniejsze nazwy w menu kanałów. Wersja TV nie zawiera już usługi dostępności, więc instaluje się z pliku.
