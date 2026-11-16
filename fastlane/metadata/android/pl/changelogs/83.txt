@@ -1,0 +1,1 @@
+Kanały internetowe (IPTV) znów działają na dekoderze: od wersji 1.19.0 pokazywały błąd połączenia z tunerem.

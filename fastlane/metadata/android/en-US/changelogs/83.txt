@@ -1,0 +1,1 @@
+Internet channels (IPTV) play again on the set-top box: since 1.19.0 they showed a tuner connection error.
