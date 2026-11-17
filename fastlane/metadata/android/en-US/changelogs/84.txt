@@ -1,0 +1,1 @@
+The audio decoding test now records in the report whether the set-top box applied the chosen codec class, to help find channels without sound.

@@ -1,0 +1,1 @@
+Test dekodowania dźwięku zapisuje w raporcie, czy dekoder przyjął wybraną klasę – to pomoże znaleźć kanały bez dźwięku.
