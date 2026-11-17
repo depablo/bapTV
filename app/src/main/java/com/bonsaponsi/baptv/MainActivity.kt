@@ -1891,8 +1891,28 @@ class MainActivity : Activity() {
             // TvView.selectTrack would drop the variant: it is not in the input's track list.
             val refused = UncheckedTrackSelect.select(tvView, TvTrackInfo.TYPE_AUDIO, variant)
             DebugLog.log("Audio", "codec class test: $id -> $variant: ${refused ?: "sent"}")
+            if (refused == null) {
+                val changesBefore = tracksChangedCount
+                handler.postDelayed({ logAudioClassResult(variant, changesBefore) }, CLASS_TEST_SETTLE_MS)
+            }
             showStatusBriefly(if (refused == null) getString(R.string.audio_class_selected, which) else getString(R.string.audio_class_refused))
         }
+    }
+
+    /**
+     * Records what the input did after a codec class test: whether it re-reported its tracks, which track is
+     * selected now, and the track list with the output state. Without this, a "sent" line says nothing about sound.
+     */
+    private fun logAudioClassResult(variant: String, changesBefore: Int) {
+        val tracks = tvView.getTracks(TvTrackInfo.TYPE_AUDIO).orEmpty()
+        val changes = tracksChangedCount - changesBefore
+        val listed = tracks.any { it.id == variant }
+        DebugLog.log(
+            "Audio",
+            "codec class test result: $variant listed=$listed, tracksChanged=$changes, " +
+                "selected=${tvView.getSelectedTrack(TvTrackInfo.TYPE_AUDIO)}, " +
+                "tracks=${tracks.joinToString(" | ") { PlayerAudio.describeTrack(it) }}; ${audio.systemState()}"
+        )
     }
 
     private fun cycleTrack(type: Int) {
@@ -1933,6 +1953,9 @@ class MainActivity : Activity() {
 
     /** Last time the low-volume hint was shown, 0 once the volume has been up in between. */
     private var lowVolumeWarnedAt = 0L
+
+    /** Number of times the tuner input has re-reported its tracks; read by the codec class test log. */
+    private var tracksChangedCount = 0
 
     /**
      * A quiet box looks exactly like a silent channel (several reports in issue #15 were made at 2/15), so when a
@@ -2698,6 +2721,7 @@ class MainActivity : Activity() {
         }
 
         override fun onTracksChanged(inputId: String, tracks: MutableList<TvTrackInfo>?) {
+            tracksChangedCount++
             if (prober?.onTracks(tracks.orEmpty()) == true) return
             onPlayerEvent("onTracksChanged " + tracks.orEmpty().joinToString { "${trackType(it.type)}:${it.id}:${it.language}" })
         }
@@ -2835,6 +2859,9 @@ class MainActivity : Activity() {
         private const val PROBE_TIMEOUT_MS = 8000L
         private const val UNKNOWN_GRACE_MS = 1500L
         private const val TRACKS_GRACE_MS = 4000L
+
+        /** Time the tuner input gets to re-report its tracks after a codec class test before the result is logged. */
+        private const val CLASS_TEST_SETTLE_MS = 1500L
 
         /** CAS denial reasons (TvInputManager.VIDEO_UNAVAILABLE_REASON_INSUFFICIENT_RESOLUTION..CAS_UNKNOWN, API 31). */
         private val CAS_REASONS = 6..18
