@@ -149,20 +149,26 @@ class DebugHttpServer(private val context: Context, val port: Int = DEFAULT_PORT
                 else -> {
                     // Injection into our own window (like the remote: focus, buttons, dialogs);
                     // when another app's window is on screen the system refuses – then straight to the activity.
-                    // long=1: a held key – the press, one repeat (marked as a long press) and the release.
+                    // long=1: a held key – the press, one repeat (marked as a long press) and the release. The key is
+                    // really held for LONG_KEY_HOLD_MS, because the player tells a hold apart by elapsed time.
+                    val held = request.query["long"] == "1"
                     val now = android.os.SystemClock.uptimeMillis()
-                    val events = buildList {
-                        add(android.view.KeyEvent(now, now, android.view.KeyEvent.ACTION_DOWN, code, 0))
-                        if (request.query["long"] == "1") add(android.view.KeyEvent(now, now + 500, android.view.KeyEvent.ACTION_DOWN, code, 1,
+                    val press = android.view.KeyEvent(now, now, android.view.KeyEvent.ACTION_DOWN, code, 0)
+                    val rest = buildList {
+                        if (held) add(android.view.KeyEvent(now, now + LONG_KEY_HOLD_MS, android.view.KeyEvent.ACTION_DOWN, code, 1,
                             0, android.view.KeyCharacterMap.VIRTUAL_KEYBOARD, 0, android.view.KeyEvent.FLAG_LONG_PRESS))
-                        add(android.view.KeyEvent(now, now + 600, android.view.KeyEvent.ACTION_UP, code, 0))
+                        add(android.view.KeyEvent(now, now + LONG_KEY_HOLD_MS + 100, android.view.KeyEvent.ACTION_UP, code, 0))
                     }
                     val how = try {
                         val instrumentation = android.app.Instrumentation()
-                        events.forEach { instrumentation.sendKeySync(it) }
+                        instrumentation.sendKeySync(press)
+                        if (held) Thread.sleep(LONG_KEY_HOLD_MS)
+                        rest.forEach { instrumentation.sendKeySync(it) }
                         "injected"
                     } catch (e: SecurityException) {
-                        onMain { events.forEach { activity.dispatchKeyEvent(it) } }
+                        onMain { activity.dispatchKeyEvent(press) }
+                        if (held) Thread.sleep(LONG_KEY_HOLD_MS)
+                        onMain { rest.forEach { activity.dispatchKeyEvent(it) } }
                         "to activity"
                     }
                     text("OK ${android.view.KeyEvent.keyCodeToString(code)} -> ${activity.javaClass.simpleName} ($how)\n")
@@ -521,6 +527,9 @@ class DebugHttpServer(private val context: Context, val port: Int = DEFAULT_PORT
         private const val JSON = "application/json; charset=utf-8"
         private val RECORDING_FILE = Regex("/recordings/(\\d+)\\.ts")
         private val QUIET_PATHS = setOf("/status", "/log.txt", "/probe.ts", "/screenshot.png", "/hbbtv", "/signal.json")
+        /** How long `/key?long=1` holds the key – longer than the player's hold threshold (600 ms). */
+        private const val LONG_KEY_HOLD_MS = 900L
+
         private val KNOWN_PATHS = setOf("/", "/report.txt", "/log.txt", "/log", "/logcat.txt", "/status", "/install", "/launch", "/restart", "/probe", "/probe.ts", "/key", "/hbbtv", "/hbbtv/eval", "/hbbtv/age", "/screenshot.png", "/channels", "/ui", "/debug/remote/forget", "/debug/remote/on", "/epg", "/open", "/capabilities", "/recordings", "/timeshift", "/signal", "/signal.json", "/signal/cycle", "/signal/stop", "/signal/tune", "/signal/probe", "/signal/probe/stop", "/signal/lna", "/signal/rediscover", "/publish", "/tvchannels", "/tvchannels/delete", "/tvchannels/update", "/dtv/install", "/dtv/action", "/dtv/selfclean", "/dtv/records", "/dtv/mediastore", "/dtv/mediastore/delete", "/debug/no-tuner")
 
         /** One server per process – kept alive by [DebugServerService]. */
