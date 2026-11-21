@@ -882,7 +882,8 @@ class MainActivity : Activity() {
 
     // ---- Discovery of channels not visible in TvContract ----
 
-    private fun startDiscovery(tuner: TvInputInfo) {
+    /** [previousIds]: the last discovered list, when the caller has already cleared it from the store. */
+    private fun startDiscovery(tuner: TvInputInfo, previousIds: Set<Long> = store.loadDiscovered().map { it.id }.toSet()) {
         if (prober != null || ScanSession.running) return
         showSetupBanner(
             getString(if (SetupProgress.inPipeline(this)) R.string.banner_setup_stage2 else R.string.banner_discovery),
@@ -891,14 +892,18 @@ class MainActivity : Activity() {
         io.execute {
             val ceiling = repository.findChannelIdCeiling()
             val epg = repository.epgChannelIds()
+            val others = repository.otherInputChannelIds(tuner.id)
             postIfActive {
-                val start = ceiling ?: epg.keys.maxOrNull()?.plus(BLOCK_SPAN)
+                val start = ceiling ?: epg.keys.filter { it !in others }.maxOrNull()?.plus(ProbeOrder.BLOCK_SPAN)
                 DebugLog.log(
                     "Discovery",
-                    "start: id ceiling=$ceiling, EPG=${epg.keys.sorted()}, " +
-                        if (start != null) "probing down from ${start - 1}" else "no starting point – searching every $COARSE_STEP from $COARSE_MAX"
+                    "start: id ceiling=$ceiling, EPG=${epg.keys.sorted()}, previous list ${previousIds.size}, " +
+                        "other inputs' ids skipped ${others.size}, " +
+                        if (start != null) "probing down from ${start - 1}"
+                        else "no starting point – searching every ${ProbeOrder.COARSE_STEP} from ${ProbeOrder.COARSE_MAX}"
                 )
-                Prober(tuner, start?.minus(1), epg.keys).also { prober = it }.step()
+                val order = ProbeOrder(start?.minus(1), epg.keys + previousIds, others)
+                Prober(tuner, order).also { prober = it }.step()
             }
         }
     }
@@ -909,20 +914,14 @@ class MainActivity : Activity() {
      * denial (reason 6–18, e.g. 18 = CAS_UNKNOWN) is saved as scrambled. For a nonexistent one
      * UNKNOWN(0) arrives immediately – after a short grace period we treat it as missing.
      *
-     * Without a known highest id we first look for a block of channels every [COARSE_STEP] (channels from one scan
-     * have consecutive ids), then check the neighborhood of the hit one by one.
+     * Which ids are probed, and in which order, is decided by [ProbeOrder].
      */
-    private inner class Prober(private val tuner: TvInputInfo, startId: Long?, extraIds: Set<Long>) {
+    private inner class Prober(private val tuner: TvInputInfo, private val order: ProbeOrder) {
         private inner class Found(val id: Long, val radio: Boolean, val scrambled: Boolean, val freq: Double?)
         private val tunerSettings = TunerSettings(this@MainActivity)
 
         private val found = ArrayList<Found>()
-        private val checkedIds = HashSet<Long>()
-        private val pendingExtra = extraIds.toMutableSet()
-        private var coarse = startId == null
-        private var nextId = startId ?: COARSE_MAX
         private var misses = 0
-        private var missLimitBeforeFirst = MAX_MISSES_BEFORE_FIRST
         private var probingId = -1L
         private var tracksVideo = false
         private var tracksAudio = false
@@ -956,8 +955,7 @@ class MainActivity : Activity() {
                 finish(save = true)
                 return
             }
-            probingId = nextCandidate() ?: run { finish(save = true); return }
-            checkedIds += probingId
+            probingId = order.next() ?: run { finish(save = true); return }
             tracksVideo = false
             tracksAudio = false
             casDenied = false
@@ -970,24 +968,11 @@ class MainActivity : Activity() {
             handler.postDelayed(timeout, PROBE_TIMEOUT_MS)
         }
 
-        private fun nextCandidate(): Long? {
-            if (checkedIds.size >= MAX_PROBES) return pendingExtra.firstOrNull()?.also { pendingExtra.remove(it) }
-            if (coarse) {
-                while (nextId >= 1 && nextId in checkedIds) nextId -= COARSE_STEP
-                if (nextId >= 1) return nextId.also { nextId -= COARSE_STEP }
-            } else {
-                val limit = if (found.isEmpty()) missLimitBeforeFirst else MAX_MISSES
-                while (nextId >= 1 && nextId in checkedIds) nextId--
-                if (misses < limit && nextId >= 1) return nextId--
-            }
-            return pendingExtra.firstOrNull { it !in checkedIds }?.also { pendingExtra.remove(it) }
-        }
-
         private fun progressText(): String {
             if (expected <= 0) return getString(R.string.discovery_progress, probingId, found.size)
             val rates = SetupProgress.rates(this@MainActivity)
             val elapsed = (SystemClock.elapsedRealtime() - startedAt) / 1000.0
-            val perProbe = if (checkedIds.size > 3) elapsed / (checkedIds.size - 1) else rates.perProbe
+            val perProbe = if (order.probed > 3) elapsed / (order.probed - 1) else rates.perProbe
             val probesLeft = (expected - found.size + SetupProgress.PROBE_OVERHEAD / 2).coerceAtLeast(1)
             val left = SetupProgress.format(probesLeft * perProbe + expected * rates.perChannel)
             return if (pipeline) getString(R.string.setup_stage2, found.size, expected, left)
@@ -1031,19 +1016,13 @@ class MainActivity : Activity() {
             handler.removeCallbacks(tracksGrace)
             val id = probingId
             probingId = -1
+            order.report(id, exists)
             if (exists) {
                 // The tuner is now tuned to the channel's multiplex – remember the frequency.
                 val fe = tunerSettings.readFrontend()
                 DebugLog.log("Discovery", "#$id frontend: ${fe?.describe()}")
                 found += Found(id, radio, scrambled, fe?.frequencyMhz)
                 misses = 0
-                if (coarse) {
-                    // Hit a block – now go one by one from the top of the block downward.
-                    coarse = false
-                    nextId = id + BLOCK_SPAN
-                    missLimitBeforeFirst = BLOCK_SPAN.toInt() + 1
-                    DebugLog.log("Discovery", "block hit at #$id – checking one by one from #${nextId}")
-                }
             } else {
                 misses++
             }
@@ -1073,7 +1052,7 @@ class MainActivity : Activity() {
             }
             DebugLog.log(
                 "Discovery",
-                "done: checked ${checkedIds.size} ids, found ${list.size} " +
+                "done: checked ${order.probed} ids, found ${list.size} " +
                     "(TV ${list.count { !it.isRadio && !it.scrambled }}, radio ${list.count { it.isRadio && !it.scrambled }}, scrambled ${list.count { it.scrambled }}): " +
                     list.joinToString { "${it.number}=#${it.id}${if (it.isRadio) "♪" else ""}${if (it.scrambled) "🔒" else ""}" }
             )
@@ -1088,7 +1067,7 @@ class MainActivity : Activity() {
                 SetupProgress.endPipeline(this@MainActivity)
                 return
             }
-            SetupProgress.learn(this@MainActivity, "perProbe", (SystemClock.elapsedRealtime() - startedAt) / 1000.0, checkedIds.size)
+            SetupProgress.learn(this@MainActivity, "perProbe", (SystemClock.elapsedRealtime() - startedAt) / 1000.0, order.probed)
             store.saveDiscovered(list)
             identifyAfterLoad = true
             // Stage 3 starts after the list loads – the banner stays meanwhile.
@@ -1237,11 +1216,12 @@ class MainActivity : Activity() {
         val tuner = input ?: return
         // Discovery does not start during a scan – clearing the list now would leave it empty.
         if (ScanSession.running) return showStatusBriefly(getString(R.string.banner_setup_stage1))
+        val previousIds = store.loadDiscovered().map { it.id }.toSet()
         store.clearDiscovered()
         channels = emptyList()
         currentIndex = -1
         adapter.notifyDataSetChanged()
-        startDiscovery(tuner)
+        startDiscovery(tuner, previousIds)
     }
 
     private fun renameChannel(channel: Channel) {
@@ -2815,12 +2795,6 @@ class MainActivity : Activity() {
 
         /** CAS denial reasons (TvInputManager.VIDEO_UNAVAILABLE_REASON_INSUFFICIENT_RESOLUTION..CAS_UNKNOWN, API 31). */
         private val CAS_REASONS = 6..18
-        private const val MAX_MISSES = 8
-        private const val MAX_MISSES_BEFORE_FIRST = 20
-        private const val MAX_PROBES = 600
-        private const val COARSE_MAX = 3000L
-        private const val COARSE_STEP = 30L
-        private const val BLOCK_SPAN = 60L
 
         /** TvInputManager.VIDEO_UNAVAILABLE_REASON_NOT_CONNECTED, public since API 31. */
         private const val VIDEO_UNAVAILABLE_REASON_NOT_CONNECTED = 5

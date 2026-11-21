@@ -296,6 +296,21 @@ class ChannelRepository(private val context: Context) {
     }
 
     /**
+     * IDs of the channels this app can see that belong to other inputs (internet channels, preview channels).
+     * They share the id sequence with the tuner's hidden channels, so discovery skips them without probing.
+     */
+    fun otherInputChannelIds(tunerInputId: String): Set<Long> {
+        val result = HashSet<Long>()
+        try {
+            context.contentResolver.query(Channels.CONTENT_URI, arrayOf(Channels._ID, Channels.COLUMN_INPUT_ID), null, null, null)
+                ?.use { c -> while (c.moveToNext()) if (c.getStringOrNull(1) != tunerInputId) result += c.getLong(0) }
+        } catch (e: Exception) {
+            DebugLog.warn("Channels", "reading channel ids of other inputs failed", e)
+        }
+        return result
+    }
+
+    /**
      * Highest ID in the TvProvider channels table (without system-reserved columns, e.g. browsable). The _id column is AUTOINCREMENT, so
      * we insert and immediately delete our own row – channels from the last scan sit just below it.
      */
