@@ -59,8 +59,73 @@ object Iptv {
     fun inputId(context: Context): String = TvContract.buildInputId(ComponentName(context, IptvInputService::class.java))
 
     /** Internet channels as player channels, by display number. */
-    fun load(context: Context): List<Channel> = query(context).map { (channel, _) -> channel }
-        .sortedWith(compareBy({ ChannelRepository.numberKey(it.number) }, { it.name }))
+    fun load(context: Context): List<Channel> {
+        adoptStrayRowsOnce(context)
+        return query(context).map { (channel, _) -> channel }
+            .sortedWith(compareBy({ ChannelRepository.numberKey(it.number) }, { it.name }))
+    }
+
+    @Volatile private var strayRowsChecked = false
+
+    /**
+     * Version 1.19.0 had no input declaration in the TV manifest, so the release build shrank the input's class name
+     * and stored internet channels under an input id like "com.bonsaponsi.baptv/G0.I0". From 1.19.1 the app reads
+     * only its real input id, so those channels were invisible. This moves the app's own rows with an internet
+     * channel stream under another input id of this package back to [inputId]; a stream already there is dropped.
+     */
+    @Synchronized
+    private fun adoptStrayRowsOnce(context: Context) {
+        if (strayRowsChecked) return
+        strayRowsChecked = true
+        val inputId = inputId(context)
+        val prefix = context.packageName + "/"
+        val stray = ArrayList<Pair<Long, Stream>>()
+        var rows = 0
+        var ownOther = 0
+        try {
+            context.contentResolver.query(
+                Channels.CONTENT_URI,
+                arrayOf(Channels._ID, Channels.COLUMN_INPUT_ID, Channels.COLUMN_PACKAGE_NAME, Channels.COLUMN_INTERNAL_PROVIDER_DATA),
+                null, null, null,
+            )?.use { c ->
+                while (c.moveToNext()) {
+                    rows++
+                    val rowInput = c.getString(1) ?: continue
+                    if (rowInput == inputId || !rowInput.startsWith(prefix)) continue
+                    ownOther++
+                    if (c.getString(2) != context.packageName) continue
+                    val stream = c.getBlob(3)?.let { runCatching { Stream.fromJson(JSONObject(String(it))) }.getOrNull() } ?: continue
+                    stray += c.getLong(0) to stream
+                }
+            }
+        } catch (e: Exception) {
+            DebugLog.warn("Iptv", "looking for internet channels under an old input id failed", e)
+            return
+        }
+        if (BuildConfig.DEBUG) DebugLog.log("Iptv", "old input id check: $rows rows, $ownOther under another input id of this package, ${stray.size} with a stream")
+        if (stray.isEmpty()) return
+        val existing = query(context)
+        val known = existing.map { it.second.url }.toHashSet().apply { addAll(blacklist(context)) }
+        var number = (existing.mapNotNull { it.first.number.toIntOrNull() }.maxOrNull() ?: (FIRST_NUMBER - 1)) + 1
+        var moved = 0
+        var dropped = 0
+        for ((id, stream) in stray) {
+            val uri = TvContract.buildChannelUri(id)
+            val ok = runCatching {
+                if (stream.url in known) {
+                    context.contentResolver.delete(uri, null, null).also { if (it > 0) dropped++ }
+                } else {
+                    val values = ContentValues().apply {
+                        put(Channels.COLUMN_INPUT_ID, inputId)
+                        put(Channels.COLUMN_DISPLAY_NUMBER, (number++).toString())
+                    }
+                    context.contentResolver.update(uri, values, null, null).also { if (it > 0) { moved++; known += stream.url } }
+                }
+            }
+            ok.exceptionOrNull()?.let { DebugLog.warn("Iptv", "cannot move internet channel #$id", it) }
+        }
+        DebugLog.log("Iptv", "internet channels under an old input id: ${stray.size}, moved $moved, duplicates removed $dropped")
+    }
 
     /** Stored internet channels with their streams. */
     fun streams(context: Context): List<Pair<Channel, Stream>> = query(context)
