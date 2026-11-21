@@ -423,8 +423,9 @@ Live pause uses the tuner input's own timeshift buffer through `TvView.timeShift
   tuner together, so the target moves on the bar without overloading the input.
 - ▼ shows the banner with the pause bar (buffer, position, delay). With the banner open, OK pauses
   or resumes.
-- **Back to live TV** in the menu (or ⏹) returns to live; the channel is tuned again and the buffer
-  is discarded.
+- **Back to live TV** returns to live; the channel is tuned again and the buffer is discarded. It is
+  in the menu, as the pause button at info panel level 3, on ⏹, and seeking with ▶ to the end of the
+  buffer does the same. ▲ does not return to live: it only steps back through the info panel.
 - The pause survives opening the TV guide and other app screens.
 - A running HbbTV application is hidden during live pause and comes back after returning to live.
 - Changing the channel ends the pause; the app asks for confirmation first because the buffered
