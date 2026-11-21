@@ -1,0 +1,1 @@
+Wracają kanały internetowe dodane w wersji 1.19.0, które zniknęły z listy. Wykrywanie kanałów znajduje wszystkie multipleksy także wtedy, gdy po skanie dodano kanały internetowe. Po wyborze przycisku kolorowego aplikacja podpowiada, by wybrać go jeszcze raz, jeśli nic się nie stało. Usunięto test dekodowania dźwięku.

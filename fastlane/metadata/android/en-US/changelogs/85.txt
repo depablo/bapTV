@@ -1,0 +1,1 @@
+Internet channels added in version 1.19.0 that disappeared from the list are back. Channel discovery finds all multiplexes when internet channels were added after a scan. After choosing a colour button, the app says to choose it again if nothing happened. The audio decoding test was removed.
