@@ -127,11 +127,6 @@
     <string name="analyse_running">Analysing the stream…</string>
     <string name="analyse_done">Stream analysis saved. It is added to the next report.</string>
     <string name="analyse_failed">No stream could be read. The reason is in the next report.</string>
-    <string name="menu_audio_class">Audio decoding test</string>
-    <string name="audio_class_title">Audio codec class (test)</string>
-    <string name="audio_class_option">Class %1$d</string>
-    <string name="audio_class_selected">Class %1$d selected. Is there sound now? Send a report.</string>
-    <string name="audio_class_refused">This device refused the test. Send a report.</string>
     <string name="low_volume_hint">System volume is low (%1$d/%2$d) – turn it up if the sound is too quiet</string>
     <string name="identify_done">Channels identified: %1$d/%2$d</string>
     <string name="identify_cancelled">Identification stopped</string>

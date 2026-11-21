@@ -1654,9 +1654,6 @@ class MainActivity : Activity() {
             MenuPanel.Entry(getString(R.string.menu_diagnostics)) { startActivity(Intent(this, DiagnosticsActivity::class.java)) },
             MenuPanel.Entry(getString(R.string.menu_analyse), after = leave) { analyseStream() }
                 .takeIf { caps.streamAnalysis && !ScanSession.running && playingRecording == null && current != null && !current.iptv && !current.virtual },
-            MenuPanel.Entry(getString(R.string.menu_audio_class)) { showAudioClassDialog(menu::returned) }
-                // GitHub builds only: the test goes around a framework check (UncheckedTrackSelect).
-                .takeIf { BuildConfig.DISTRIBUTION == "github" && TrackVariants.codecClass(audioTestTrack()) != null },
             MenuPanel.Entry(getString(R.string.menu_send_report)) {
                 ReportSender.offer(this, ReportSender.Reason.USER, null, automatic = false, onClose = menu::returned)
             },
@@ -1877,44 +1874,6 @@ class MainActivity : Activity() {
         tvView.selectTrack(type, track?.id)
     }
 
-    /** The audio track the codec class test works on: the selected one, else the first. */
-    private fun audioTestTrack(): String? =
-        tvView.getSelectedTrack(TvTrackInfo.TYPE_AUDIO) ?: tvView.getTracks(TvTrackInfo.TYPE_AUDIO)?.firstOrNull()?.id
-
-    /** Selects the current audio track again under another codec class (see [TrackVariants]); the result goes to the log. */
-    private fun showAudioClassDialog(onClose: (() -> Unit)? = null) {
-        val id = audioTestTrack() ?: return
-        val current = TrackVariants.codecClass(id) ?: return
-        val options = (0..TrackVariants.MAX_CLASS).map { TvDialog.Option(getString(R.string.audio_class_option, it)) }
-        TvDialog.choose(this, getString(R.string.audio_class_title), options, current, onClose) { which ->
-            val variant = TrackVariants.withClass(id, which) ?: return@choose
-            // TvView.selectTrack would drop the variant: it is not in the input's track list.
-            val refused = UncheckedTrackSelect.select(tvView, TvTrackInfo.TYPE_AUDIO, variant)
-            DebugLog.log("Audio", "codec class test: $id -> $variant: ${refused ?: "sent"}")
-            if (refused == null) {
-                val changesBefore = tracksChangedCount
-                handler.postDelayed({ logAudioClassResult(variant, changesBefore) }, CLASS_TEST_SETTLE_MS)
-            }
-            showStatusBriefly(if (refused == null) getString(R.string.audio_class_selected, which) else getString(R.string.audio_class_refused))
-        }
-    }
-
-    /**
-     * Records what the input did after a codec class test: whether it re-reported its tracks, which track is
-     * selected now, and the track list with the output state. Without this, a "sent" line says nothing about sound.
-     */
-    private fun logAudioClassResult(variant: String, changesBefore: Int) {
-        val tracks = tvView.getTracks(TvTrackInfo.TYPE_AUDIO).orEmpty()
-        val changes = tracksChangedCount - changesBefore
-        val listed = tracks.any { it.id == variant }
-        DebugLog.log(
-            "Audio",
-            "codec class test result: $variant listed=$listed, tracksChanged=$changes, " +
-                "selected=${tvView.getSelectedTrack(TvTrackInfo.TYPE_AUDIO)}, " +
-                "tracks=${tracks.joinToString(" | ") { PlayerAudio.describeTrack(it) }}; ${audio.systemState()}"
-        )
-    }
-
     private fun cycleTrack(type: Int) {
         val tracks = tvView.getTracks(type).orEmpty()
         if (tracks.isEmpty()) return
@@ -1953,9 +1912,6 @@ class MainActivity : Activity() {
 
     /** Last time the low-volume hint was shown, 0 once the volume has been up in between. */
     private var lowVolumeWarnedAt = 0L
-
-    /** Number of times the tuner input has re-reported its tracks; read by the codec class test log. */
-    private var tracksChangedCount = 0
 
     /**
      * A quiet box looks exactly like a silent channel (several reports in issue #15 were made at 2/15), so when a
@@ -2247,9 +2203,7 @@ class MainActivity : Activity() {
             "seek" -> timeshift.seekBy(arg?.toLongOrNull() ?: return "pass arg=<ms, negative = backward>")
             "panel" -> showInfo(1)
             "live" -> if (timeshift.active) timeshift.goLive() else return "live pause not active"
-            // An audio track id sent to the input as given, also one that is not in its track list.
-            "track" -> return UncheckedTrackSelect.select(tvView, TvTrackInfo.TYPE_AUDIO, arg ?: return "pass arg=<audio track id>") ?: "OK track"
-            else -> return "actions: pause, resume, toggle, seek&arg=±ms, panel, live, track&arg=<audio track id>"
+            else -> return "actions: pause, resume, toggle, seek&arg=±ms, panel, live"
         }
         return "OK $action"
     }
@@ -2721,7 +2675,6 @@ class MainActivity : Activity() {
         }
 
         override fun onTracksChanged(inputId: String, tracks: MutableList<TvTrackInfo>?) {
-            tracksChangedCount++
             if (prober?.onTracks(tracks.orEmpty()) == true) return
             onPlayerEvent("onTracksChanged " + tracks.orEmpty().joinToString { "${trackType(it.type)}:${it.id}:${it.language}" })
         }
@@ -2859,9 +2812,6 @@ class MainActivity : Activity() {
         private const val PROBE_TIMEOUT_MS = 8000L
         private const val UNKNOWN_GRACE_MS = 1500L
         private const val TRACKS_GRACE_MS = 4000L
-
-        /** Time the tuner input gets to re-report its tracks after a codec class test before the result is logged. */
-        private const val CLASS_TEST_SETTLE_MS = 1500L
 
         /** CAS denial reasons (TvInputManager.VIDEO_UNAVAILABLE_REASON_INSUFFICIENT_RESOLUTION..CAS_UNKNOWN, API 31). */
         private val CAS_REASONS = 6..18
