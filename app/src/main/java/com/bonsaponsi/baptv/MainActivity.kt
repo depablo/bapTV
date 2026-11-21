@@ -1197,22 +1197,23 @@ class MainActivity : Activity() {
             // The app's reaction should be visible: a returning menu would cover the HbbTV layer (it is hidden
             // while the menu is open), so a pick from the menu does not bring the menu back.
             menu.cancelReturn()
-            sendColourKeyWhenFocused(codes[pick])
+            sendColourKeyWhenFocused(codes[pick], names[pick].label)
         }
     }
 
     /**
      * Sends a colour key to the HbbTV app once the chooser has closed and the player window has the focus again,
-     * so the app gets it in the same state as a key from the remote.
+     * so the app gets it in the same state as a key from the remote. TVP's apps often ignore the first colour key
+     * after they load, so the status line says to choose the colour again when nothing happened.
      */
-    private fun sendColourKeyWhenFocused(code: Int, triesLeft: Int = COLOUR_KEY_FOCUS_TRIES) {
+    private fun sendColourKeyWhenFocused(code: Int, label: String, triesLeft: Int = COLOUR_KEY_FOCUS_TRIES) {
         if (!hasWindowFocus() && triesLeft > 0) {
-            handler.postDelayed({ sendColourKeyWhenFocused(code, triesLeft - 1) }, COLOUR_KEY_FOCUS_POLL_MS)
+            handler.postDelayed({ sendColourKeyWhenFocused(code, label, triesLeft - 1) }, COLOUR_KEY_FOCUS_POLL_MS)
             return
         }
         handler.postDelayed({
             val handled = hbb.onKey(KeyEvent(KeyEvent.ACTION_DOWN, code)) && hbb.onKey(KeyEvent(KeyEvent.ACTION_UP, code))
-            if (!handled) showStatusFor(getString(R.string.colour_not_used), 4000)
+            showStatusFor(if (handled) getString(R.string.colour_sent, label) else getString(R.string.colour_not_used), COLOUR_SENT_MS)
         }, COLOUR_KEY_FOCUS_POLL_MS)
     }
 
@@ -2810,6 +2811,7 @@ class MainActivity : Activity() {
         private const val TRACKS_GRACE_MS = 4000L
         private const val COLOUR_KEY_FOCUS_POLL_MS = 100L
         private const val COLOUR_KEY_FOCUS_TRIES = 20
+        private const val COLOUR_SENT_MS = 5000L
 
         /** CAS denial reasons (TvInputManager.VIDEO_UNAVAILABLE_REASON_INSUFFICIENT_RESOLUTION..CAS_UNKNOWN, API 31). */
         private val CAS_REASONS = 6..18

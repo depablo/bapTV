@@ -293,6 +293,7 @@
     <string name="colour_yellow">Żółty</string>
     <string name="colour_blue">Niebieski</string>
     <string name="colour_not_used">Ta aplikacja nie używa tego przycisku</string>
+    <string name="colour_sent">Wysłano: %1$s. Jeśli nic się nie stało, wybierz go jeszcze raz – niektóre aplikacje (np. TVP) reagują dopiero na drugie naciśnięcie.</string>
     <string name="shared_config_title">Wykryto istniejącą konfigurację</string>
     <string name="shared_config_message">Czy jej użyć? Kanały zostaną potwierdzone podczas oglądania (kilka multipleksów). Przy niezgodności przeskanujemy od początku.</string>
     <string name="shared_config_use">Użyj</string>

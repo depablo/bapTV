@@ -288,6 +288,7 @@
     <string name="colour_yellow">Yellow</string>
     <string name="colour_blue">Blue</string>
     <string name="colour_not_used">This app does not use that button</string>
+    <string name="colour_sent">%1$s sent. If nothing happened, choose it again – some apps (e.g. TVP) react only to the second press.</string>
     <string name="shared_config_title">Existing configuration found</string>
     <string name="shared_config_message">Use it? Its channels are checked while you watch them (several multiplexes). If they do not match, the channels are scanned from the start.</string>
     <string name="shared_config_use">Use it</string>
