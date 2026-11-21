@@ -1194,10 +1194,26 @@ class MainActivity : Activity() {
             .map { TvDialog.Option(getString(it)) }
         val codes = listOf(KeyEvent.KEYCODE_PROG_RED, KeyEvent.KEYCODE_PROG_GREEN, KeyEvent.KEYCODE_PROG_YELLOW, KeyEvent.KEYCODE_PROG_BLUE)
         TvDialog.choose(this, getString(R.string.colour_chooser_title), names, onClose = onClose) { pick ->
-            val code = codes[pick]
+            // The app's reaction should be visible: a returning menu would cover the HbbTV layer (it is hidden
+            // while the menu is open), so a pick from the menu does not bring the menu back.
+            menu.cancelReturn()
+            sendColourKeyWhenFocused(codes[pick])
+        }
+    }
+
+    /**
+     * Sends a colour key to the HbbTV app once the chooser has closed and the player window has the focus again,
+     * so the app gets it in the same state as a key from the remote.
+     */
+    private fun sendColourKeyWhenFocused(code: Int, triesLeft: Int = COLOUR_KEY_FOCUS_TRIES) {
+        if (!hasWindowFocus() && triesLeft > 0) {
+            handler.postDelayed({ sendColourKeyWhenFocused(code, triesLeft - 1) }, COLOUR_KEY_FOCUS_POLL_MS)
+            return
+        }
+        handler.postDelayed({
             val handled = hbb.onKey(KeyEvent(KeyEvent.ACTION_DOWN, code)) && hbb.onKey(KeyEvent(KeyEvent.ACTION_UP, code))
             if (!handled) showStatusFor(getString(R.string.colour_not_used), 4000)
-        }
+        }, COLOUR_KEY_FOCUS_POLL_MS)
     }
 
     /** Service watched before publishing – after reloading, the player returns to it under its new ID. */
@@ -2792,6 +2808,8 @@ class MainActivity : Activity() {
         private const val PROBE_TIMEOUT_MS = 8000L
         private const val UNKNOWN_GRACE_MS = 1500L
         private const val TRACKS_GRACE_MS = 4000L
+        private const val COLOUR_KEY_FOCUS_POLL_MS = 100L
+        private const val COLOUR_KEY_FOCUS_TRIES = 20
 
         /** CAS denial reasons (TvInputManager.VIDEO_UNAVAILABLE_REASON_INSUFFICIENT_RESOLUTION..CAS_UNKNOWN, API 31). */
         private val CAS_REASONS = 6..18
