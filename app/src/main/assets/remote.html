@@ -271,6 +271,7 @@ table.results td:last-child { text-align: right; font-variant-numeric: tabular-n
           <button class="key" id="backupImportReplace" data-t="backupImportReplace"></button>
           <button class="key" id="backupImportMerge" data-t="backupImportMerge"></button>
         </div>
+        <input type="file" id="backupFile" accept=".json,application/json" class="hidden">
         <textarea id="backupText" rows="8" spellcheck="false"></textarea>
         <p class="summary" id="backupResult"></p>
       </details>
@@ -359,7 +360,7 @@ const STRINGS = {
     editList: "✎ Edit list", done: "✓ Done", reset: "Restore defaults",
     holdTip: "Hold a channel to move it, rename or hide it. “Edit list” shows all channels, hidden ones too, and their categories.",
     hiddenNotice: name => `${name} hidden – “Edit list” shows it again`, renameLabel: "rename", hideLabel: "hide", scrambledHidden: "Scrambled: hidden", scrambledShown: "Scrambled: shown",
-    backupTitle: "Settings backup", backupTip: "Export copies the order, hidden channels, names, categories, internet channels and the blacklist into the text box – save it in a file. Import takes the text back: replace the organisation, or add to this set-top box what is missing. Channels with no identity yet (not identified after a scan) are left out.", backupExport: "Export", backupImportReplace: "Import – replace", backupImportMerge: "Import – add missing", backupEmpty: "Paste a backup into the box first.", backupDone: (a, b, s) => `Added internet channels: ${a}, settings applied: ${b}, skipped: ${s}`, backupExported: "Backup in the box – copy it and keep it.",
+    backupTitle: "Settings backup", backupTip: "Export copies the order, hidden channels, names, categories, internet channels and the blacklist into the text box – save it in a file. Import reads a saved file back: replace the organisation, or add to this set-top box what is missing. Channels with no identity yet (not identified after a scan) are left out.", backupExport: "Export to file", backupImportReplace: "Import – replace", backupImportMerge: "Import – add missing", backupEmpty: "The file is empty.", backupDone: (a, b, s) => `Added internet channels: ${a}, settings applied: ${b}, skipped: ${s}`, backupExported: "Saved as baptv-settings.json in Downloads.",
     organiseTip: "Drag ≡ to move a channel, tap its name to rename it; the eye hides it from the list and zapping. Pick a category to group channels on the TV (◀ ▶ on the channel list).",
     categories: ["No category", "Film", "News", "Entertainment", "Sport", "Children", "Music", "Arts", "Society", "Education", "Leisure"],
     allCategories: "All", radioFilter: "Radio", iptvFilter: "IPTV", categoryAuto: name => `Auto: ${name}`,
@@ -400,7 +401,7 @@ const STRINGS = {
     editList: "✎ Edytuj listę", done: "✓ Gotowe", reset: "Przywróć domyślne",
     holdTip: "Przytrzymaj kanał, aby go przenieść, zmienić nazwę albo ukryć. „Edytuj listę” pokazuje wszystkie kanały, także ukryte, i ich kategorie.",
     hiddenNotice: name => `Ukryto ${name} – przywrócisz go w „Edytuj listę”`, renameLabel: "zmień nazwę", hideLabel: "ukryj", scrambledHidden: "Kodowane: ukryte", scrambledShown: "Kodowane: widoczne",
-    backupTitle: "Kopia ustawień", backupTip: "Eksport przepisuje do pola tekstowego kolejność, ukryte kanały, nazwy, kategorie, kanały internetowe i czarną listę – zapisz to w pliku. Import przywraca z tekstu: zastępuje układ albo dodaje na tym dekoderze to, czego brakuje. Kanały bez tożsamości (jeszcze nie rozpoznane po skanie) są pomijane.", backupExport: "Eksportuj", backupImportReplace: "Importuj – zastąp", backupImportMerge: "Importuj – dodaj brakujące", backupEmpty: "Najpierw wklej kopię do pola.", backupDone: (a, b, s) => `Dodane kanały internetowe: ${a}, ustawienia zastosowane: ${b}, pominięte: ${s}`, backupExported: "Kopia w polu – skopiuj i zachowaj.",
+    backupTitle: "Kopia ustawień", backupTip: "Eksport przepisuje do pola tekstowego kolejność, ukryte kanały, nazwy, kategorie, kanały internetowe i czarną listę – zapisz to w pliku. Import przywraca z zapisanego pliku: zastępuje układ albo dodaje na tym dekoderze to, czego brakuje. Kanały bez tożsamości (jeszcze nie rozpoznane po skanie) są pomijane.", backupExport: "Eksportuj do pliku", backupImportReplace: "Importuj – zastąp", backupImportMerge: "Importuj – dodaj brakujące", backupEmpty: "Plik jest pusty.", backupDone: (a, b, s) => `Dodane kanały internetowe: ${a}, ustawienia zastosowane: ${b}, pominięte: ${s}`, backupExported: "Zapisano jako baptv-settings.json w Pobranych.",
     organiseTip: "Przeciągnij ≡, aby przenieść kanał, dotknij nazwy, aby ją zmienić; oko ukrywa kanał z listy i przełączania. Kategoria grupuje kanały na telewizorze (◀ ▶ na liście kanałów).",
     categories: ["Bez kategorii", "Film", "Informacje", "Rozrywka", "Sport", "Dla dzieci", "Muzyka", "Kultura", "Społeczne", "Edukacja", "Hobby"],
     allCategories: "Wszystkie", radioFilter: "Radio", iptvFilter: "IPTV", categoryAuto: name => `Auto: ${name}`,
@@ -868,13 +869,34 @@ $("resetOrder").addEventListener("click", () => { if (confirm(T.resetConfirm)) c
 $("backupExport").addEventListener("click", async () => {
   try {
     const backup = await api("/api/settings/export");
-    $("backupText").value = JSON.stringify(backup, null, 2);
+    const text = JSON.stringify(backup, null, 2);
+    $("backupText").value = text;
+    // Download as a file; the phone's browser saves it to its Downloads folder.
+    const url = URL.createObjectURL(new Blob([text], { type: "application/json" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "baptv-settings.json";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
     $("backupResult").textContent = T.backupExported;
   } catch (e) { explain(e); }
 });
 
-async function backupImport(mode) {
-  const text = $("backupText").value.trim();
+// Import takes its text from a file the user picks; the mode waits for the picker to return.
+let backupMode = null;
+function backupImport(mode) {
+  backupMode = mode;
+  $("backupFile").value = "";
+  $("backupFile").click();
+}
+$("backupFile").addEventListener("change", async () => {
+  const file = $("backupFile").files[0];
+  const mode = backupMode;
+  backupMode = null;
+  if (!file || !mode) return;
+  const text = (await file.text()).trim();
   if (!text) { $("backupResult").textContent = T.backupEmpty; return; }
   try {
     const result = await api(`/api/settings/import?mode=${mode}`, "POST", text);
@@ -884,7 +906,7 @@ async function backupImport(mode) {
   } catch (e) {
     if (e.status === 400) $("backupResult").textContent = e.message; else explain(e);
   }
-}
+});
 $("backupImportReplace").addEventListener("click", () => { if (confirm(T.resetConfirm)) backupImport("replace"); });
 $("backupImportMerge").addEventListener("click", () => backupImport("merge"));
 
