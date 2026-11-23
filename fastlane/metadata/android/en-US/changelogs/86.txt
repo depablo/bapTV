@@ -1,0 +1,1 @@
+The tuner is chosen by its channels, not by list order: on Sony TVs with a CAM module the terrestrial channels come back. The settings backup can be saved to and loaded from a file.

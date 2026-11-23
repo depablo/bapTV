@@ -1,0 +1,1 @@
+Tuner wybierany jest według kanałów, a nie kolejności na liście: na telewizorach Sony z modułem CAM wracają kanały naziemne. Kopię ustawień można zapisać i wczytać z pliku.
