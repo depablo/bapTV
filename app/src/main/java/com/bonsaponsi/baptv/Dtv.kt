@@ -113,8 +113,17 @@ object Dtv {
         // The app's own internet input ([IptvInputService]) is a TUNER-type input too – never the broadcast tuner.
         // Matched by class, so a debug build installed next to the release one skips that one's input as well.
         val tuners = inputs.filter { it.type == TvInputInfo.TYPE_TUNER && !it.isPassthroughInput && it.serviceInfo.name != IptvInputService::class.java.name }
-        return tuners.firstOrNull { isDeviceInput(it) } ?: tuners.firstOrNull()
+        val devices = tuners.filter { isDeviceInput(it) }
+        // A device can have several of its own TUNER inputs, for example a CAM module's channel list next to the
+        // terrestrial tuner (Sony BRAVIA: the CAM list came first and had no channels). The one with channels wins,
+        // then a terrestrial one; on a tie the list order stays.
+        if (devices.size > 1) devices.maxByOrNull { tunerScore(context, it) }?.let { return it }
+        return devices.firstOrNull() ?: tuners.firstOrNull()
     }
+
+    private fun tunerScore(context: Context, input: TvInputInfo): Int =
+        (if (DeviceCapabilities.countChannels(context, input.id) > 0) 2 else 0) +
+            (if (input.serviceInfo.name.contains("Terr")) 1 else 0)
 
     /**
      * The input belongs to the device: the system builds a hardware input's id as "<service>/HW<device id>", and
