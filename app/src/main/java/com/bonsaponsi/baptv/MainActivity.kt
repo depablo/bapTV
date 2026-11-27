@@ -321,6 +321,7 @@ class MainActivity : Activity() {
             onShowBanner = { if (infoLevel == 0) showInfo(1) else scheduleInfoHide() })
         PlayerRemote.timeshift = { action, arg -> timeshiftAction(action, arg) }
         PlayerRemote.recording = { action, arg -> recordingAction(action, arg) }
+        if (BuildConfig.DEBUG) PlayerRemote.session = { action, args -> sessionAction(action, args) }
         PlayerRemote.releaseTuner = {
             DebugLog.log("Player", "releasing tuner before installing update")
             timeshift.reset()
@@ -533,6 +534,7 @@ class MainActivity : Activity() {
             SignalMonitor.player = null
             PlayerRemote.timeshift = null
             PlayerRemote.recording = null
+            PlayerRemote.session = null
             PlayerRemote.releaseTuner = null
             PlayerRemote.restoreTuner = null
             PlayerRemote.timeshiftState = null
@@ -2203,6 +2205,114 @@ class MainActivity : Activity() {
             else -> return "actions: pause, resume, toggle, seek&arg=±ms, panel, live"
         }
         return "OK $action"
+    }
+
+    /**
+     * Debug builds only (POST /tvsession): direct control of the tuner session for experiments on a device, e.g. why a
+     * set-top box's input plays some audio tracks and not others. Bundle values come as typed query keys:
+     * s.<key>=text, i.<key>=int, l.<key>=long, b.<key>=true|false.
+     */
+    private fun sessionAction(action: String, args: Map<String, String>): String {
+        DebugLog.log("Session", "remote: $action ${args.filterKeys { it != "token" && it != "action" }}")
+        // A tune while the player is off screen would open a tuner session in the background.
+        if (action in setOf("retune", "tuneid", "vod") && (!started || isDestroyed)) return "player is not on screen"
+        return when (action) {
+            "tracks" -> sessionTracksJson().toString(1)
+            "select" -> {
+                val type = when (args["type"] ?: "audio") {
+                    "audio" -> TvTrackInfo.TYPE_AUDIO
+                    "video" -> TvTrackInfo.TYPE_VIDEO
+                    "subtitle" -> TvTrackInfo.TYPE_SUBTITLE
+                    else -> return "type=audio|video|subtitle"
+                }
+                val id = args["id"]?.takeIf { it.isNotEmpty() }
+                tvView.selectTrack(type, id)
+                "selectTrack($type, $id) sent"
+            }
+            "volume" -> {
+                val volume = args["v"]?.toFloatOrNull()?.takeIf { !it.isNaN() }?.coerceIn(0f, 1f) ?: return "pass v=0..1"
+                tvView.setStreamVolume(volume)
+                "setStreamVolume($volume) sent"
+            }
+            "private" -> {
+                val command = args["command"] ?: return "pass command=<action string> and typed extras"
+                val data = typedBundle(args)
+                tvView.sendAppPrivateCommand(command, data)
+                "sendAppPrivateCommand($command, $data) sent"
+            }
+            "retune" -> {
+                val channel = channels.getOrNull(currentIndex) ?: return "no channel"
+                val inputId = channel.inputId ?: input?.id ?: return "no input"
+                val params = typedBundle(args)
+                DebugLog.log("Session", "tune ${channel.number} \"${channel.name}\" with params $params")
+                tvView.tune(inputId, channel.uri, params)
+                "tune(${channel.number}, $params) sent"
+            }
+            // A channel row for the tuner input with our own internal data, e.g. a Sagemcom URL channel
+            // ({"ver":1,"cls":3,"fkey":-1,"url":"http://…"}) that makes the input play a transport stream from the network.
+            "inject" -> {
+                val tuner = input ?: return "no tuner input"
+                val data = args["json"]
+                    ?: org.json.JSONObject().put("ver", 1).put("cls", 3).put("fkey", -1)
+                        .put("url", args["url"] ?: return "pass url=… or json=…").toString()
+                val values = android.content.ContentValues().apply {
+                    put(TvContract.Channels.COLUMN_INPUT_ID, args["input"] ?: tuner.id)
+                    put(TvContract.Channels.COLUMN_DISPLAY_NAME, args["name"] ?: "Test stream")
+                    put(TvContract.Channels.COLUMN_DISPLAY_NUMBER, args["number"] ?: "900")
+                    put(TvContract.Channels.COLUMN_TYPE, TvContract.Channels.TYPE_OTHER)
+                    put(TvContract.Channels.COLUMN_SERVICE_TYPE, TvContract.Channels.SERVICE_TYPE_AUDIO_VIDEO)
+                    put(TvContract.Channels.COLUMN_INTERNAL_PROVIDER_DATA, data.toByteArray())
+                }
+                val uri = runCatching { contentResolver.insert(TvContract.Channels.CONTENT_URI, values) }
+                    .getOrElse { return "insert failed: $it" } ?: return "insert returned null"
+                DebugLog.log("Session", "injected $uri: $data")
+                "inserted $uri"
+            }
+            "tuneid" -> {
+                val id = args["id"]?.toLongOrNull() ?: return "pass id=<channel row id>"
+                val inputId = args["input"] ?: input?.id ?: return "no input"
+                DebugLog.log("Session", "tune $inputId channel $id")
+                tvView.tune(inputId, TvContract.buildChannelUri(id), typedBundle(args))
+                "tune($inputId, $id) sent"
+            }
+            // Sagemcom: a passthrough URI with the VOD parameters starts the input's VOD session on any stream URL.
+            "vod" -> {
+                val inputId = args["input"] ?: input?.id ?: return "no input"
+                val params = typedBundle(args)
+                DebugLog.log("Session", "tune passthrough $inputId with $params")
+                tvView.tune(inputId, TvContract.buildChannelUriForPassthroughInput(inputId), params)
+                "passthrough tune($inputId, $params) sent"
+            }
+            else -> "actions: tracks, select&type=audio&id=…, volume&v=0..1, private&command=…, retune&<typed extras>, " +
+                "inject&url=…|json=…, tuneid&id=…, vod&s.<key>=…"
+        }
+    }
+
+    private fun typedBundle(args: Map<String, String>) = Bundle().apply {
+        args.forEach { (key, value) ->
+            when {
+                key.startsWith("s.") -> putString(key.substring(2), value)
+                key.startsWith("i.") -> value.toIntOrNull()?.let { putInt(key.substring(2), it) }
+                key.startsWith("l.") -> value.toLongOrNull()?.let { putLong(key.substring(2), it) }
+                key.startsWith("b.") -> putBoolean(key.substring(2), value == "true" || value == "1")
+            }
+        }
+    }
+
+    @Suppress("DEPRECATION") // Bundle.get: the extras' value types are not known in advance
+    private fun sessionTracksJson() = org.json.JSONObject().apply {
+        for ((name, type) in listOf("audio" to TvTrackInfo.TYPE_AUDIO, "video" to TvTrackInfo.TYPE_VIDEO, "subtitle" to TvTrackInfo.TYPE_SUBTITLE)) {
+            put("${name}Selected", tvView.getSelectedTrack(type) ?: org.json.JSONObject.NULL)
+            put(name, org.json.JSONArray().apply {
+                tvView.getTracks(type).orEmpty().forEach { track ->
+                    val extra = track.extra
+                    put(org.json.JSONObject()
+                        .put("id", track.id)
+                        .put("lang", track.language ?: org.json.JSONObject.NULL)
+                        .put("extra", extra?.keySet()?.joinToString { key -> "$key=${extra.get(key)}" }.orEmpty()))
+                }
+            })
+        }
     }
 
     // ---- HbbTV ----

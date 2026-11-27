@@ -921,6 +921,7 @@ Endpoints marked with 🔑 require the token.
 | `POST /restart` 🔑 | restart the app process |
 | `POST /install` | upload an APK (request body = file); returns the token on success |
 | `GET /timeshift`, `POST /timeshift?action=…&arg=…` 🔑 | live pause state (delay, buffer); actions `pause`, `resume`, `toggle`, `seek` (arg = ±ms), `panel`, `live` |
+| `POST /tvsession?action=…` 🔑 | direct control of the tuner session (debug builds): `tracks` (ids, languages, extras), `select&type=audio&id=…`, `volume&v=0..1`, `private&command=…` (app private command), `retune` (tune again with a params bundle), `inject&url=…` or `json=…` (a channel row for the tuner input with our own internal data, e.g. a Sagemcom URL or IP channel), `tuneid&id=…`, `vod`; bundle values as typed keys `s.`/`i.`/`l.`/`b.<key>=…`. Used to reproduce the Sagemcom audio behaviour with test streams |
 | `GET /recordings` 🔑 | recordings as JSON (`?format=html` – page with download links) |
 | `POST /recordings?action=start\|stop\|play\|live\|pause\|resume\|delete\|unschedule&id=…` 🔑 | control recordings |
 | `POST /recordings?action=schedule&channel=…&start=<ms>&end=<ms>&title=…` 🔑 | schedule a recording |

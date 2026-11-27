@@ -15,6 +15,11 @@ object PlayerRemote {
     @Volatile var timeshiftState: (() -> org.json.JSONObject)? = null
     /** Recordings (action: start|stop|play|live, arg: id of the recording to play). */
     @Volatile var recording: ((String, String?) -> String)? = null
+    /**
+     * Debug builds: drives the tuner session directly for experiments on a device (POST /tvsession): list and select
+     * tracks, set the session volume, send an app private command, tune again with a params bundle (main thread).
+     */
+    @Volatile var session: ((String, Map<String, String>) -> String)? = null
     /** Publishing identified channels to TvContract ([ChannelPublisher]); returns a status line. */
     @Volatile var publish: (() -> String)? = null
     /** Starts a system confirmation (e.g. MediaStore delete request) from the visible activity (main thread). */
