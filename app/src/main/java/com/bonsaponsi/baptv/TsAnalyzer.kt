@@ -16,6 +16,8 @@ class TsAnalyzer {
      * [language] and [audioType] come from the ISO 639 language descriptor (0x0A), when the PMT has one.
      * [extensionTags] are the descriptor_tag_extension values of the extension descriptors (0x7F).
      * [mpegAudioFlags] is the byte of the MPEG audio_stream_descriptor (0x03): free_format, ID, layer, variable rate.
+     * [componentType] is the component_type of the AC-3 (0x6A) or E-AC-3 (0x7A) descriptor, when its flag is set
+     * (EN 300 468 annex D: enhanced AC-3 flag, full service flag, service type, number of channels).
      */
     data class Stream(
         val pid: Int,
@@ -25,6 +27,7 @@ class TsAnalyzer {
         val audioType: Int? = null,
         val extensionTags: List<Int> = emptyList(),
         val mpegAudioFlags: Int? = null,
+        val componentType: Int? = null,
     ) {
         /** stream_type 0x05 with application_signalling_descriptor (0x6F) – AIT stream. */
         val isAit get() = type == 0x05
@@ -212,7 +215,8 @@ class TsAnalyzer {
             val esEnd = minOf(i + 5 + esLength, end)
             val tags = descriptorTags(s, i + 5, esEnd)
             val language = languageDescriptor(s, i + 5, esEnd)
-            val stream = Stream(pid, type, tags, language?.first, language?.second, extensionTags(s, i + 5, esEnd), mpegAudioFlags(s, i + 5, esEnd))
+            val stream = Stream(pid, type, tags, language?.first, language?.second, extensionTags(s, i + 5, esEnd), mpegAudioFlags(s, i + 5, esEnd),
+                dolbyComponentType(s, i + 5, esEnd))
             streams += stream
             if (stream.isAit) aitPids += pid
             // The PMT repeats; keep the counts of a track already seen.
@@ -374,6 +378,19 @@ class TsAnalyzer {
         return flags
     }
 
+    /**
+     * component_type of the AC-3 (0x6A) or E-AC-3 (0x7A) descriptor: its first byte holds the flags, and the top bit
+     * (component_type_flag) says whether the component_type byte follows. Sagemcom set-top boxes do not play a track
+     * whose full service flag (bit 6) is 0, even when the service has no other audio.
+     */
+    private fun dolbyComponentType(s: ByteArray, from: Int, to: Int): Int? {
+        var type: Int? = null
+        parseDescriptors(s, from, to) { tag, at, len ->
+            if ((tag == 0x6A || tag == 0x7A) && len >= 2 && type == null && (s[at].toInt() and 0x80) != 0) type = s[at + 1].toInt() and 0xFF
+        }
+        return type
+    }
+
     private inline fun parseDescriptors(s: ByteArray, from: Int, to: Int, block: (tag: Int, at: Int, len: Int) -> Unit) {
         var d = from
         while (d + 2 <= to) {
@@ -400,7 +417,13 @@ class TsAnalyzer {
                 val extensions = st.extensionTags.joinToString(prefix = " (extensions ", postfix = ")") { "0x%02X".format(it) }.takeIf { st.extensionTags.isNotEmpty() }.orEmpty()
                 // audio_stream_descriptor: ID 1 = MPEG-1, layer 3/2/1 = layer I/II/III.
                 val mpeg = st.mpegAudioFlags?.let { f -> " (0x03: ID %d, layer code %d, free format %d, variable rate %d)".format((f shr 6) and 1, (f shr 4) and 3, f shr 7, (f shr 3) and 1) }.orEmpty()
-                appendLine("    PID 0x%04X type 0x%02X descriptors %s%s%s%s".format(st.pid, st.type, st.descriptorTags.joinToString { "0x%02X".format(it) }, extensions, mpeg, if (st.isAit) "  <- AIT" else ""))
+                // component_type of 0x6A/0x7A: bit 7 enhanced AC-3, bit 6 full service, bits 5-3 service type, bits 2-0 channels.
+                val component = st.componentType?.let { c ->
+                    " (component_type 0x%02X: %s, %s, service type %d, channels code %d)".format(
+                        c, if (c and 0x80 != 0) "E-AC-3" else "AC-3", if (c and 0x40 != 0) "full service" else "NOT full service",
+                        (c shr 3) and 7, c and 7)
+                }.orEmpty()
+                appendLine("    PID 0x%04X type 0x%02X descriptors %s%s%s%s%s".format(st.pid, st.type, st.descriptorTags.joinToString { "0x%02X".format(it) }, extensions, mpeg, component, if (st.isAit) "  <- AIT" else ""))
                 audioTracks[st.pid]?.let { appendLine("      audio: ${it.summary()}") }
             }
         }

@@ -71,6 +71,29 @@ class TsAnalyzerTest {
     }
 
     @Test
+    fun eac3DescriptorComponentTypeIsDecoded() {
+        val pat = section(0x00, 1, u16(0) + u16(0xE010) + u16(101) + u16(0xE100))
+        val language = desc(0x0A, "pol".toByteArray() + byteArrayOf(0x00))
+        // TVP national layout: E-AC-3 descriptor with component_type 0x00 (not a full service), then the MPEG
+        // audio_stream_descriptor. The second track has an E-AC-3 descriptor without the component_type field.
+        val notFull = language + desc(0x7A, byteArrayOf(0x80.toByte(), 0x00)) + desc(0x03, byteArrayOf(0x67))
+        val plain = language + desc(0x7A, byteArrayOf(0x00))
+        val pmt = section(0x02, 101,
+            u16(0xE0CB) + u16(0xF000) +
+                byteArrayOf(0x06) + u16(0xE0CB) + u16(0xF000 or notFull.size) + notFull +
+                byteArrayOf(0x06) + u16(0xE0CC) + u16(0xF000 or plain.size) + plain,
+        )
+
+        val a = TsAnalyzer()
+        a.feed(ByteArrayInputStream(packetize(0, pat) + packetize(0x100, pmt)))
+
+        val streams = a.programs[101]!!.streams
+        assertEquals(0x00, streams[0].componentType)
+        assertEquals(null, streams[1].componentType)
+        assertTrue(a.report().contains("(component_type 0x00: AC-3, NOT full service, service type 0, channels code 0)"))
+    }
+
+    @Test
     fun privateStreamWithAc4ExtensionDescriptorIsAnAc4AudioTrack() {
         val pat = section(0x00, 1, u16(0) + u16(0xE010) + u16(101) + u16(0xE100))
         // Extension descriptors: AC-4 (0x15, ac4_config_flag 0) and audio preselection (0x19), then the language.

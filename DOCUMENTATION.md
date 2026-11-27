@@ -734,7 +734,7 @@ Debug builds additionally offer a local HTTP server; see
 | `ChannelPublisher` | Publishes identified channels to `TvContract` through the tuner input's JSON install mode |
 | `EpgStore` | Guide data from EIT, stored per multiplex and merged |
 | `TsProbe` | Short TIF recordings for stream analysis |
-| `TsAnalyzer` | MPEG-TS parser: PAT, PMT, AIT, EIT, DVB text decoding (including ISO 6937) |
+| `TsAnalyzer` | MPEG-TS parser: PAT, PMT (with the audio descriptors' MPEG flags and AC-3/E-AC-3 component_type), AIT, EIT, DVB text decoding (including ISO 6937) |
 | `GuideActivity` | TV guide screen |
 | `ChannelsActivity` | Channel management screen |
 | `ScanActivity` | Channel search screen and the system wizard |
@@ -926,7 +926,7 @@ Endpoints marked with 🔑 require the token.
 | `POST /recordings?action=start\|stop\|play\|live\|pause\|resume\|delete\|unschedule&id=…` 🔑 | control recordings |
 | `POST /recordings?action=schedule&channel=…&start=<ms>&end=<ms>&title=…` 🔑 | schedule a recording |
 | `GET /recordings/<id>.ts` 🔑 | download a recording (streamed) |
-| `POST /probe?channel=ID&secs=8` 🔑 | record a channel briefly and analyse the stream (PAT, PMT, AIT, EIT) |
+| `POST /probe?channel=ID&secs=8` 🔑 | record a channel briefly and analyse the stream (PAT, PMT, AIT, EIT); the PMT lines show the E-AC-3 component_type, e.g. "NOT full service" for the tracks a Sagemcom box will not play |
 | `GET /probe.ts` 🔑 | the last probe recording |
 | `GET /signal` | antenna alignment page (see below) |
 | `GET /signal.json` | current signal measurement and 2-minute history |
