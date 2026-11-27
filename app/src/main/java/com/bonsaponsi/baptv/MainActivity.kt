@@ -737,6 +737,10 @@ class MainActivity : Activity() {
         playingRecording = null
         videoSize = null
         videoState = "tune"
+        audioDefaultChecked = false
+        // A hint or its clear timer from the previous channel must not touch this one's status.
+        handler.removeCallbacks(playHints)
+        handler.removeCallbacks(clearBriefStatus)
         tunedAt = SystemClock.elapsedRealtime()
         prefs.edit().putLong(PREF_LAST_CHANNEL, channel.id).apply()
         DebugLog.log("Player", "tune ${channel.number} \"${channel.name}\" id=${channel.id} uri=${channel.uri}")
@@ -1891,12 +1895,17 @@ class MainActivity : Activity() {
     /** After a channel change, restores the user's preferred audio and subtitle languages. */
     private fun applyPreferredTracks() {
         val audioLang = prefs.getString(PREF_AUDIO_LANG, null)
+        var audioSwitched = false
         if (audioLang != null) {
             val selected = tvView.getSelectedTrack(TvTrackInfo.TYPE_AUDIO)
             val tracks = tvView.getTracks(TvTrackInfo.TYPE_AUDIO).orEmpty()
             val preferred = tracks.firstOrNull { it.language == audioLang }
-            if (preferred != null && preferred.id != selected) tvView.selectTrack(TvTrackInfo.TYPE_AUDIO, preferred.id)
+            if (preferred != null && preferred.id != selected) {
+                tvView.selectTrack(TvTrackInfo.TYPE_AUDIO, preferred.id)
+                audioSwitched = true
+            }
         }
+        if (audioSwitched) audioDefaultChecked = true else checkDefaultAudio(audioLang)
         when (val subtitleLang = prefs.getString(PREF_SUBTITLE_LANG, null)) {
             null, SUBTITLES_OFF -> Unit
             else -> {
@@ -1907,6 +1916,59 @@ class MainActivity : Activity() {
                 }
             }
         }
+    }
+
+    /** Set after the first check of the input's default audio track ([checkDefaultAudio]), cleared by the next tune. */
+    private var audioDefaultChecked = false
+
+    /**
+     * Replaces a default audio track the input cannot decode (Sagemcom: TVP1's AC-4 track) – once per tune, so a
+     * track the user picks later, even that one, stays selected. Called when the picture arrives and when the input
+     * reports its selection: the Sagemcom input selects its default track only after video available.
+     */
+    private fun checkDefaultAudio(preferredLanguage: String?) {
+        if (audioDefaultChecked) return
+        val selected = tvView.getSelectedTrack(TvTrackInfo.TYPE_AUDIO) ?: return
+        audioDefaultChecked = true
+        SagemcomAudio.betterDefault(sagemcomAudioTracks(), selected, preferredLanguage)?.let { id ->
+            DebugLog.log("Audio", "default track $selected has no codec the input can name (AC-4?) – selecting $id")
+            tvView.selectTrack(TvTrackInfo.TYPE_AUDIO, id)
+        }
+    }
+
+    /** The no-sound hint wins over the low-volume one, which then keeps its hourly allowance. */
+    private val playHints = Runnable {
+        if (!maybeHintSilentAudio()) maybeWarnLowVolume()
+    }
+
+    /** Channels that already showed the Sagemcom no-sound hint in this run of the player. */
+    private val silentHintShown = HashSet<Long>()
+
+    @Suppress("DEPRECATION") // Bundle.get: the extras' value types are the input's choice
+    private fun sagemcomAudioTracks(): List<SagemcomAudio.Track> = tvView.getTracks(TvTrackInfo.TYPE_AUDIO).orEmpty().map { track ->
+        val extra = track.extra
+        SagemcomAudio.Track(
+            id = track.id,
+            language = track.language,
+            encoding = (extra?.get(SagemcomAudio.ENCODING_EXTRA) as? Int),
+            description = extra?.get(SagemcomAudio.DESCRIPTION_EXTRA) == true,
+            sagemcom = extra?.containsKey(SagemcomAudio.PID_EXTRA) == true,
+        )
+    }
+
+    /**
+     * Sagemcom tuner input: when every audio track carries the trace of "not a full service" signalling, the
+     * middleware plays the picture without sound (see [SagemcomAudio]). One hint per channel and run of the player
+     * names the cause and the way around it, so it is not taken for a volume or bapTV problem.
+     */
+    private fun maybeHintSilentAudio(): Boolean {
+        val channel = channels.getOrNull(currentIndex)?.takeIf { !it.iptv } ?: return false
+        if (!SagemcomAudio.likelySilent(sagemcomAudioTracks())) return false
+        if (channel.id in silentHintShown) return true
+        silentHintShown += channel.id
+        DebugLog.log("Audio", "${channel.number} \"${channel.name}\": all audio tracks look like E-AC-3 'not a full service' – hint shown")
+        showStatusFor(getString(R.string.sagemcom_silent_hint), 10_000)
+        return true
     }
 
     /** Last time the low-volume hint was shown, 0 once the volume has been up in between. */
@@ -2596,6 +2658,8 @@ class MainActivity : Activity() {
             val channel = channels.getOrNull(currentIndex) ?: return
             val channelInput = channel.inputId ?: input?.id ?: return
             DebugLog.log("HbbTV", "app resumes the broadcast video")
+            // A new tune: the input picks its default audio track again.
+            audioDefaultChecked = false
             tvView.tune(channelInput, channel.uri)
             // The app's internet video took the audio focus – without asking again the TV stays silent.
             audio.apply("tune")
@@ -2739,7 +2803,10 @@ class MainActivity : Activity() {
                 if (!recordingPaused && !recordingClockRunning) scheduleRecordingEnd()
             }
             applyPreferredTracks()
-            if (playingRecording == null) maybeWarnLowVolume()
+            // The hints wait until the input's own events have settled: the Sagemcom input reports content allowed
+            // right after video available, and that clears the status line.
+            handler.removeCallbacks(playHints)
+            if (playingRecording == null) handler.postDelayed(playHints, PLAY_HINTS_DELAY_MS)
         }
 
         @android.annotation.SuppressLint("SwitchIntDef") // VIDEO_UNAVAILABLE_REASON_NOT_CONNECTED is a local copy (public since API 31)
@@ -2788,6 +2855,10 @@ class MainActivity : Activity() {
 
         override fun onTrackSelected(inputId: String, type: Int, trackId: String?) {
             onPlayerEvent("onTrackSelected ${trackType(type)} $trackId")
+            // Only after this tune's picture: a late selection from the previous channel must not use up the check.
+            if (type == TvTrackInfo.TYPE_AUDIO && trackId != null && playingRecording == null && videoState == "VIDEO_AVAILABLE") {
+                checkDefaultAudio(prefs.getString(PREF_AUDIO_LANG, null))
+            }
             if (infoLevel == 3) updateOptionButtons()
             if (menu.visible) menu.refresh()
         }
@@ -2824,6 +2895,8 @@ class MainActivity : Activity() {
                 // The live pause buffer went away with the session.
                 timeshift.reset()
                 showStatus(getString(R.string.status_tuning))
+                // A new tune: the input picks its default audio track again.
+                audioDefaultChecked = false
                 tvView.tune(channel.inputId ?: inputId, channel.uri)
                 return
             }
@@ -2869,6 +2942,7 @@ class MainActivity : Activity() {
         private const val REQUEST_PERMISSION = 1
         private const val PREF_LAST_CHANNEL = "last_channel_id"
         private const val PREF_AUDIO_LANG = "audio_lang"
+        private const val PLAY_HINTS_DELAY_MS = 2000L
         private const val PREF_SUBTITLE_LANG = "subtitle_lang"
         private const val PREF_DEBUG_OVERLAY = "debug_overlay"
         private const val SUBTITLES_OFF = "off"

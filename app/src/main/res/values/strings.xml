@@ -128,6 +128,7 @@
     <string name="analyse_done">Stream analysis saved. It is added to the next report.</string>
     <string name="analyse_failed">No stream could be read. The reason is in the next report.</string>
     <string name="low_volume_hint">System volume is low (%1$d/%2$d) – turn it up if the sound is too quiet</string>
+    <string name="sagemcom_silent_hint">No sound? The broadcaster marks this channel\'s audio as incomplete and this set-top box\'s tuner does not play it. Watch the channel over the internet (internet channels or the operator\'s app).</string>
     <string name="identify_done">Channels identified: %1$d/%2$d</string>
     <string name="identify_cancelled">Identification stopped</string>
     <string name="identify_no_permission">Identification needs permission to read storage – accept the request and try again</string>

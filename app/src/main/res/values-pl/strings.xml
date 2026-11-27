@@ -129,6 +129,7 @@
     <string name="analyse_done">Analiza strumienia zapisana. Trafi do następnego raportu.</string>
     <string name="analyse_failed">Nie udało się odczytać strumienia. Przyczyna trafi do następnego raportu.</string>
     <string name="low_volume_hint">Niska głośność systemu (%1$d/%2$d) – podgłośnij, jeśli dźwięk jest za cichy</string>
+    <string name="sagemcom_silent_hint">Brak dźwięku? Nadawca oznacza dźwięk tego kanału jako niepełny, a tuner tego dekodera go nie odtwarza. Oglądaj ten kanał przez internet (kanały internetowe lub aplikacja operatora).</string>
     <string name="identify_done">Rozpoznano kanały: %1$d/%2$d</string>
     <string name="identify_cancelled">Rozpoznawanie przerwane</string>
     <string name="identify_no_permission">Rozpoznawanie wymaga zgody na odczyt pamięci – zaakceptuj prośbę i spróbuj ponownie</string>

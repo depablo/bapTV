@@ -212,6 +212,21 @@ HbbTV application. These channels are marked "HbbTV" in the lists, and the info 
 the picture comes from the internet. A channel is treated as HbbTV-only if the built-in service
 catalogue says so, or if its PMT has video but no audio and its AIT has an AUTOSTART application.
 
+### Channels without sound on Sagemcom set-top boxes
+
+The tuner input of Sagemcom boxes (DCTIW362 PLAY, `com.sagemcom.stb.tvinput`) never starts the audio
+decoder for an E-AC-3 track whose PMT descriptor (`0x7A`, component_type) says "not a full service",
+even when the channel has no other audio. TVP's national channels (TVP1, TVP2, Info, Sport, Kultura…)
+and a few others are signalled that way, so they play without sound on these boxes; other receivers
+ignore the flag. bapTV cannot change this: track selection and the session volume reach the input, but
+its middleware keeps the decoder stopped. When every audio track of a channel looks like that (E-AC-3
+marked mono in the input's track ids), the player shows a hint once per channel: watch the channel over
+the internet (internet channels or the operator's app).
+
+On TVP1 the same input selects the AC-4 track ("mul", no codec it can name) by default. bapTV then
+selects a track with a known codec instead – the preferred language, otherwise the first one that is not
+audio description – once per tune, so a track picked by hand stays selected.
+
 ## 5. The menu
 
 The menu opens with MENU, SETTINGS or REC, and from the TV guide ("Menu" button). It is a
@@ -750,6 +765,7 @@ Debug builds additionally offer a local HTTP server; see
 | `TimeShiftController`, `TimeShiftModel` | Live pause: tuner control and UI; time and buffer model (unit tested) |
 | `HbbTvBrowser`, `HbbTvStore` | HbbTV WebView with the OIPF shim and key routing; stored AIT data per channel |
 | `PlayerAudio` | Audio focus and volume handling |
+| `SagemcomAudio` | Sagemcom tuner input audio rules: replacing an AC-4 default track, spotting channels whose tracks the box will not play |
 | `SignalReader`, `SignalMonitor`, `FrequencyProbe` | Signal statistics, multiplex cycling, single-frequency checks |
 | `AppLanguage` | In-app language selection (system / Polish / English) |
 | `Diagnostics`, `DiagnosticsActivity` | Diagnostics report and screen |
@@ -1083,6 +1099,7 @@ the same key.
 | `StringsTest` | English and Polish string resources have the same keys, placeholders and genre lists |
 | `TimeShiftModelTest` | live pause time and buffer model |
 | `TsAnalyzerTest` | transport stream parsing |
+| `SagemcomAudioTest` | Sagemcom default-track and no-sound rules |
 
 Unit tests run on the JVM with `unitTests.isReturnDefaultValues = true`, so calls to
 `android.util.Log` return default values.
