@@ -1,0 +1,1 @@
+Fixes for Sagemcom set-top boxes: the hardware tuner is preferred over system apps, and silent audio on some channels now comes with a hint on setting the box audio to Polish.

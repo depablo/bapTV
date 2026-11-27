@@ -1,0 +1,1 @@
+Poprawki dla dekoderów Sagemcom: sprzętowy tuner ma pierwszeństwo przed aplikacjami systemowymi, a cisza w dźwięku na niektórych kanałach ma podpowiedź, jak ustawić dźwięk boksa na polski.
