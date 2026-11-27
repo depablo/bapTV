@@ -115,14 +115,17 @@ object Dtv {
         val tuners = inputs.filter { it.type == TvInputInfo.TYPE_TUNER && !it.isPassthroughInput && it.serviceInfo.name != IptvInputService::class.java.name }
         val devices = tuners.filter { isDeviceInput(it) }
         // A device can have several of its own TUNER inputs, for example a CAM module's channel list next to the
-        // terrestrial tuner (Sony BRAVIA: the CAM list came first and had no channels). The one with channels wins,
+        // terrestrial tuner (Sony BRAVIA: the CAM list came first and had no channels). A hardware input (HW id)
+        // beats a system app's input (Google Play Movies on Sagemcom DCTIW362 also counts as a device input and
+        // has one channel, which tied with the real tuner and won by list order). Then the input with channels,
         // then a terrestrial one; on a tie the list order stays.
         if (devices.size > 1) devices.maxByOrNull { tunerScore(context, it) }?.let { return it }
         return devices.firstOrNull() ?: tuners.firstOrNull()
     }
 
     private fun tunerScore(context: Context, input: TvInputInfo): Int =
-        (if (DeviceCapabilities.countChannels(context, input.id) > 0) 2 else 0) +
+        (if (isHardwareInput(input)) 4 else 0) +
+            (if (DeviceCapabilities.countChannels(context, input.id) > 0) 2 else 0) +
             (if (input.serviceInfo.name.contains("Terr")) 1 else 0)
 
     /**
@@ -130,8 +133,11 @@ object Dtv {
      * the manufacturer's inputs come with the system image.
      */
     private fun isDeviceInput(input: TvInputInfo): Boolean =
-        input.id.substringAfterLast('/').startsWith("HW") ||
+        isHardwareInput(input) ||
             (input.serviceInfo.applicationInfo.flags and (ApplicationInfo.FLAG_SYSTEM or ApplicationInfo.FLAG_UPDATED_SYSTEM_APP)) != 0
+
+    /** Bound to tuner hardware: the system's id ends with "/HW<device id>". */
+    private fun isHardwareInput(input: TvInputInfo): Boolean = input.id.substringAfterLast('/').startsWith("HW")
 
     /** Debug builds only: pretend there is no tuner (POST /debug/no-tuner) to test the internet-only mode. */
     private fun simulateNoTuner(context: Context) =
